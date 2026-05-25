@@ -63,7 +63,20 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_store::Builder::default().build())
-        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin({
+            use tauri_plugin_global_shortcut::{Builder, ShortcutState};
+            Builder::new()
+                .with_handler(|app, _shortcut, event| {
+                    if event.state() == ShortcutState::Pressed {
+                        if let Some(win) = app.get_webview_window("main") {
+                            let _ = win.show();
+                            let _ = win.set_focus();
+                            let _ = win.eval("window.location.hash = '#/quick-search';");
+                        }
+                    }
+                })
+                .build()
+        })
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(AppState::new())
         .setup(|app| {
@@ -83,6 +96,7 @@ pub fn run() {
             }
 
             native::tray::install(app.handle())?;
+            native::hotkey::register_default(app.handle())?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
