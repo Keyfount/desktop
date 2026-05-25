@@ -147,13 +147,9 @@ pub fn run() {
             // sync
             commands::sync_status,
             commands::sync_test_connection,
-            commands::sync_connect,
-            commands::sync_poll_approval,
-            commands::sync_disconnect,
-            commands::sync_pull,
-            commands::sync_push_all,
-            commands::get_account_sync_info,
-            commands::get_sync_map,
+            commands::sync_session_save,
+            commands::sync_session_load,
+            commands::sync_session_clear,
             // native
             commands::show_quick_search,
             commands::open_preferences,

@@ -76,6 +76,9 @@ export const api = {
   syncStatus: () => call<SyncStatusResponse>("sync_status"),
   syncTestConnection: (baseUrl: string) =>
     call<SyncTestConnectionResponse>("sync_test_connection", { baseUrl }),
+  syncSessionSave: (session: unknown) => call<void>("sync_session_save", { session }),
+  syncSessionLoad: () => call<unknown | null>("sync_session_load"),
+  syncSessionClear: () => call<void>("sync_session_clear"),
 
   exportVault: (passphrase: string) => call<ExportResponse>("export_vault", { passphrase }),
   importVault: (envelopeJson: string, passphrase: string) =>

@@ -12,6 +12,7 @@ import { QuickSearchScreen } from "./components/QuickSearchScreen.js";
 import { SettingsScreen } from "./components/SettingsScreen.js";
 import { SetupScreen } from "./components/SetupScreen.js";
 import { SyncScreen } from "./components/SyncScreen.js";
+import { Titlebar } from "./components/Titlebar.js";
 import { UnlockScreen } from "./components/UnlockScreen.js";
 import { VaultsScreen } from "./components/VaultsScreen.js";
 import {
@@ -107,7 +108,12 @@ function renderShellView() {
 }
 
 function FullBleed({ children }: { children: ComponentChildren }) {
-  return <div class="relative z-10 h-full w-full">{children}</div>;
+  return (
+    <div class="relative z-10 h-full w-full">
+      <Titlebar />
+      {children}
+    </div>
+  );
 }
 
 async function bootstrap() {
