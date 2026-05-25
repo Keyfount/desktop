@@ -18,7 +18,6 @@ pub mod types;
 
 use std::sync::Arc;
 
-#[cfg(any(target_os = "macos", target_os = "windows"))]
 use tauri::Manager;
 use tokio::sync::Mutex;
 
