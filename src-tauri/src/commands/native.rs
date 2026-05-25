@@ -56,18 +56,35 @@ pub struct AutofillStatusResponse {
 
 #[tauri::command]
 pub async fn autofill_status() -> AppResult<AutofillStatusResponse> {
+    use crate::native::autofill::{Availability, availability, is_enabled};
+    let permission_granted = matches!(availability(), Availability::Available);
     Ok(AutofillStatusResponse {
-        enabled: false,
-        permission_granted: false,
+        enabled: is_enabled(),
+        permission_granted,
     })
 }
 
 #[tauri::command]
 pub async fn enable_autofill() -> AppResult<()> {
-    Err(crate::error::AppError::Unsupported)
+    use crate::native::autofill::{Availability, availability, set_enabled};
+    match availability() {
+        Availability::Available => {
+            set_enabled(true);
+            Ok(())
+        }
+        // PermissionDenied is the expected state until the user grants
+        // the OS-level accessibility / UI automation permission through
+        // System Settings. We report unsupported so the UI surfaces a
+        // clear "grant permission" affordance rather than silently
+        // toggling on.
+        Availability::PermissionDenied | Availability::Unsupported => {
+            Err(crate::error::AppError::Unsupported)
+        }
+    }
 }
 
 #[tauri::command]
 pub async fn disable_autofill() -> AppResult<()> {
+    crate::native::autofill::set_enabled(false);
     Ok(())
 }

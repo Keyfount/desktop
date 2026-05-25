@@ -5,6 +5,7 @@
 //! submodule exposes a small platform-agnostic facade and pushes the
 //! `#[cfg(target_os = …)]` gating below the API line.
 
+pub mod autofill;
 pub mod biometric;
 pub mod clipboard;
 pub mod hotkey;
