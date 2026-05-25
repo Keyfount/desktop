@@ -4,12 +4,12 @@ Keyfount Desktop ships signed installers on tag pushes. The pipeline lives in [`
 
 ## What gets built
 
-| Target | Artefact | Channel |
-|---|---|---|
-| macOS Apple Silicon | `Keyfount_<version>_aarch64.dmg`, notarised | GitHub Release |
-| macOS x86_64 | `Keyfount_<version>_x86_64.dmg`, notarised | GitHub Release |
-| Windows x86_64 | `Keyfount_<version>_x64-setup.exe` + `.msi`, signed | GitHub Release |
-| Auto-update | `latest.json` (signed by the Tauri updater key) | GitHub Release |
+| Target              | Artefact                                            | Channel        |
+| ------------------- | --------------------------------------------------- | -------------- |
+| macOS Apple Silicon | `Keyfount_<version>_aarch64.dmg`, notarised         | GitHub Release |
+| macOS x86_64        | `Keyfount_<version>_x86_64.dmg`, notarised          | GitHub Release |
+| Windows x86_64      | `Keyfount_<version>_x64-setup.exe` + `.msi`, signed | GitHub Release |
+| Auto-update         | `latest.json` (signed by the Tauri updater key)     | GitHub Release |
 
 Mobile builds (iOS `.ipa`, Android `.aab`) are produced by `npm run build:ios` and `npm run build:android` and submitted manually to the App Store and Play Store. Those flows are intentionally **not** automated because both stores require human review and credentials we keep off CI.
 
@@ -32,16 +32,16 @@ The release workflow builds, signs, and notarises every artefact in parallel on 
 
 ## Required GitHub secrets
 
-| Secret | Purpose |
-|---|---|
-| `TAURI_SIGNING_PRIVATE_KEY` | Signs the `latest.json` so the in-app updater can verify each download. |
-| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Passphrase for the signing key above. |
-| `APPLE_CERTIFICATE` | Base64-encoded `.p12` Developer ID Application certificate. |
-| `APPLE_CERTIFICATE_PASSWORD` | Passphrase for the certificate. |
-| `APPLE_SIGNING_IDENTITY` | Identity string (e.g. `Developer ID Application: Keyfount (TEAMID)`). |
-| `APPLE_ID` | Apple ID used for notarisation. |
-| `APPLE_PASSWORD` | App-specific password for notarisation. |
-| `APPLE_TEAM_ID` | Apple Developer Team ID. |
+| Secret                               | Purpose                                                                 |
+| ------------------------------------ | ----------------------------------------------------------------------- |
+| `TAURI_SIGNING_PRIVATE_KEY`          | Signs the `latest.json` so the in-app updater can verify each download. |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Passphrase for the signing key above.                                   |
+| `APPLE_CERTIFICATE`                  | Base64-encoded `.p12` Developer ID Application certificate.             |
+| `APPLE_CERTIFICATE_PASSWORD`         | Passphrase for the certificate.                                         |
+| `APPLE_SIGNING_IDENTITY`             | Identity string (e.g. `Developer ID Application: Keyfount (TEAMID)`).   |
+| `APPLE_ID`                           | Apple ID used for notarisation.                                         |
+| `APPLE_PASSWORD`                     | App-specific password for notarisation.                                 |
+| `APPLE_TEAM_ID`                      | Apple Developer Team ID.                                                |
 
 Generate the updater key with `npm run tauri signer generate` and store the public key in `src-tauri/tauri.conf.json` under `plugins.updater.pubkey`.
 
