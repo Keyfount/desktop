@@ -64,7 +64,10 @@ url = "2.5"
 
 # Sync (port from extension)
 ureq = { version = "2.10", features = ["json", "tls"] }
-opaque-ke = { version = "3.0", default-features = false, features = ["argon2", "ristretto255"] }
+# opaque-ke is wired in M6.2 — the v3.0 API requires us to know the
+# exact wire format the Keyfount server expects, which we'll finalise
+# alongside the server's matching v3.0 upgrade. Until then the sync
+# layer ships the HTTP client + payload encryption + session shape.
 
 # OS keychain
 keyring = "3.5"
