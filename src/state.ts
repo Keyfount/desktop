@@ -1,19 +1,20 @@
-import { signal, computed } from "@preact/signals";
+import { computed, signal } from "@preact/signals";
 
 import type { AccountEntry, Profile } from "./types.js";
 
-export type Screen =
-  | "loading"
-  | "setup"
-  | "unlock"
-  | "main"
-  | "account-detail"
-  | "settings"
-  | "sync"
-  | "vaults"
-  | "quick-search";
+/**
+ * High-level screen — the things rendered full-bleed without the app
+ * shell (setup wizard, locked screen, the Spotlight-style overlay).
+ * The unlocked surface is `"shell"`; the actual page inside the shell
+ * is driven by `view`.
+ */
+export type Screen = "loading" | "setup" | "unlock" | "shell" | "quick-search";
+
+/** Pages reachable from the sidebar inside the unlocked shell. */
+export type ShellView = "generator" | "accounts" | "settings" | "sync" | "vaults";
 
 export const screen = signal<Screen>("loading");
+export const view = signal<ShellView>("generator");
 export const fingerprint = signal<string | null>(null);
 export const hasPin = signal(false);
 export const errorMessage = signal<string | null>(null);

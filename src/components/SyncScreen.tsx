@@ -3,11 +3,10 @@ import { motion } from "framer-motion";
 
 import { api } from "../api.js";
 import { t } from "../i18n.js";
-import { IconChevronRight } from "../icons.js";
-import { SOFT_SPRING, TAP_SCALE } from "../motion.js";
-import { errorMessage, screen } from "../state.js";
+import { TAP_SCALE } from "../motion.js";
+import { errorMessage } from "../state.js";
 import type { SyncStatusResponse } from "../types.js";
-import { Header } from "./Header.js";
+import { PageHeader } from "./PageHeader.js";
 
 export function SyncScreen() {
   const [status, setStatus] = useState<SyncStatusResponse | null>(null);
@@ -32,73 +31,58 @@ export function SyncScreen() {
   }, [url]);
 
   return (
-    <motion.div
-      class="flex flex-col gap-5 p-6 max-w-md mx-auto pt-10"
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={SOFT_SPRING}
-    >
-      <Header
-        subtitle={t("sync_title")}
-        actions={
-          <motion.button
-            type="button"
-            class="btn btn-quiet btn-icon"
-            whileTap={TAP_SCALE}
-            onClick={() => {
-              screen.value = "settings";
-            }}
-            aria-label={t("common_back")}
-          >
-            <IconChevronRight size={14} style={{ transform: "rotate(180deg)" }} />
-          </motion.button>
-        }
-      />
+    <div class="flex flex-col h-full">
+      <PageHeader title={t("sync_title")} subtitle="Zero-knowledge sync" />
+      <div class="flex-1 overflow-y-auto px-8 py-8">
+        <div class="mx-auto w-full max-w-2xl flex flex-col gap-5">
+          <p class="text-(--color-ink-muted) text-sm leading-relaxed">{t("sync_intro")}</p>
 
-      <p class="text-(--color-ink-muted) text-sm leading-relaxed">{t("sync_intro")}</p>
+          <div class="card !p-5 flex flex-col gap-4">
+            <label class="flex flex-col gap-2">
+              <span class="field-label">{t("sync_server_url")}</span>
+              <input
+                class="input input-mono"
+                type="url"
+                placeholder="https://keyfount.example.com"
+                value={url}
+                onInput={(e) => setUrl((e.target as HTMLInputElement).value)}
+              />
+            </label>
 
-      <label class="flex flex-col gap-2">
-        <span class="field-label">{t("sync_server_url")}</span>
-        <input
-          class="input input-mono"
-          type="url"
-          placeholder="https://keyfount.example.com"
-          value={url}
-          onInput={(e) => setUrl((e.target as HTMLInputElement).value)}
-        />
-      </label>
+            <div class="flex gap-2">
+              <motion.button
+                type="button"
+                class="btn btn-ghost btn-sm"
+                whileTap={TAP_SCALE}
+                onClick={test}
+                disabled={url.trim().length === 0}
+              >
+                {t("sync_test")}
+              </motion.button>
+            </div>
 
-      <div class="flex gap-2">
-        <motion.button
-          type="button"
-          class="btn btn-ghost"
-          whileTap={TAP_SCALE}
-          onClick={test}
-          disabled={url.trim().length === 0}
-        >
-          {t("sync_test")}
-        </motion.button>
+            {reachable !== null ? (
+              <div
+                class={reachable.ok ? "callout callout-success" : "callout callout-danger"}
+                role="status"
+              >
+                {reachable.ok ? t("sync_reachable") : t("sync_unreachable")}
+                {reachable.reason ? <span class="block opacity-80">{reachable.reason}</span> : null}
+              </div>
+            ) : null}
+          </div>
+
+          {status?.connected ? (
+            <div class="callout callout-info">Connected to {status.session?.baseUrl}</div>
+          ) : null}
+
+          {errorMessage.value !== null ? (
+            <div class="field-error" role="alert">
+              {errorMessage.value}
+            </div>
+          ) : null}
+        </div>
       </div>
-
-      {reachable !== null ? (
-        <div
-          class={reachable.ok ? "callout callout-success" : "callout callout-danger"}
-          role="status"
-        >
-          {reachable.ok ? t("sync_reachable") : t("sync_unreachable")}
-          {reachable.reason ? <span class="block opacity-80">{reachable.reason}</span> : null}
-        </div>
-      ) : null}
-
-      {status?.connected ? (
-        <div class="callout callout-info">Connected to {status.session?.baseUrl}</div>
-      ) : null}
-
-      {errorMessage.value !== null ? (
-        <div class="field-error" role="alert">
-          {errorMessage.value}
-        </div>
-      ) : null}
-    </motion.div>
+    </div>
   );
 }
