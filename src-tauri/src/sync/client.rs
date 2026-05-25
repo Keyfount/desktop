@@ -49,6 +49,23 @@ impl SyncClient {
             Err(err) => Err(err.to_string()),
         }
     }
+
+    /// Fetch the latest opaque snapshot for the authenticated session.
+    /// Returns the raw JSON payload exactly as the server emitted it, so
+    /// the caller can apply incremental decoding (`apply_pull` lives in
+    /// the engine module, M6.2).
+    pub fn fetch_snapshot(&self, token: &str) -> Result<String, String> {
+        match self
+            .agent
+            .get(&self.url("/snapshots/latest"))
+            .set("Authorization", &format!("Bearer {token}"))
+            .call()
+        {
+            Ok(resp) => resp.into_string().map_err(|e| e.to_string()),
+            Err(ureq::Error::Status(code, _)) => Err(format!("server returned {code}")),
+            Err(err) => Err(err.to_string()),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -70,5 +87,14 @@ mod tests {
     fn url_concatenates_path() {
         let c = SyncClient::new("https://sync.example.com").unwrap();
         assert_eq!(c.url("/health"), "https://sync.example.com/health");
+    }
+
+    #[test]
+    fn url_for_snapshot_endpoint() {
+        let c = SyncClient::new("https://sync.example.com").unwrap();
+        assert_eq!(
+            c.url("/snapshots/latest"),
+            "https://sync.example.com/snapshots/latest"
+        );
     }
 }
