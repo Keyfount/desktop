@@ -36,14 +36,14 @@ This generates `src-tauri/gen/android/` with a Kotlin shell + Gradle project. Sa
 
 ## Mobile-specific deviations
 
-| Surface | Desktop | Mobile |
-|---|---|---|
-| Window chrome | Resizable popover + tray | Full-screen activity / view controller |
-| Global hotkey | `⌘⇧K` / `Ctrl+Shift+K` | Replaced by a home-screen Quick Action / 3D Touch shortcut |
-| Biometric | Touch ID / Windows Hello via `LocalAuthentication` / `UserConsentVerifier` | Face ID / Touch ID via `LAPolicy.deviceOwnerAuthenticationWithBiometrics`; Android `BiometricPrompt` |
-| Autofill | macOS Accessibility / Windows UI Automation | iOS AutoFill Credential Provider Extension; Android `AutofillService` |
-| Sync | OPAQUE over HTTPS | Same |
-| Storage | SQLite under `Application Support` / `%APPDATA%` | App-container `Documents/` (iOS) / app-private `files/` (Android) |
+| Surface       | Desktop                                                                    | Mobile                                                                                               |
+| ------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Window chrome | Resizable popover + tray                                                   | Full-screen activity / view controller                                                               |
+| Global hotkey | `⌘⇧K` / `Ctrl+Shift+K`                                                     | Replaced by a home-screen Quick Action / 3D Touch shortcut                                           |
+| Biometric     | Touch ID / Windows Hello via `LocalAuthentication` / `UserConsentVerifier` | Face ID / Touch ID via `LAPolicy.deviceOwnerAuthenticationWithBiometrics`; Android `BiometricPrompt` |
+| Autofill      | macOS Accessibility / Windows UI Automation                                | iOS AutoFill Credential Provider Extension; Android `AutofillService`                                |
+| Sync          | OPAQUE over HTTPS                                                          | Same                                                                                                 |
+| Storage       | SQLite under `Application Support` / `%APPDATA%`                           | App-container `Documents/` (iOS) / app-private `files/` (Android)                                    |
 
 ## Credential providers
 
@@ -56,10 +56,10 @@ Both extensions only need the user's master + currently active vault id; they ne
 
 ## Store submission
 
-| Store | Format | Notes |
-|---|---|---|
-| App Store | `.ipa` (App Store Connect) | Apple Review 4.2: ship a meaningful native surface (the credential provider) on top of the WebView so the app is not classified as a "browser wrapper". |
-| Play Store | `.aab` (Play Console) | Target API ≥ 34; opt out of advertising id (we don't use one). |
+| Store      | Format                     | Notes                                                                                                                                                   |
+| ---------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| App Store  | `.ipa` (App Store Connect) | Apple Review 4.2: ship a meaningful native surface (the credential provider) on top of the WebView so the app is not classified as a "browser wrapper". |
+| Play Store | `.aab` (Play Console)      | Target API ≥ 34; opt out of advertising id (we don't use one).                                                                                          |
 
 The store-listing copy lives in `docs/STORE_LISTING.md` (M10.2).
 
@@ -67,5 +67,5 @@ The store-listing copy lives in `docs/STORE_LISTING.md` (M10.2).
 
 M10 lands in two phases:
 
-1. **M10.1 — Init** *(this PR)*: documentation + scripts (`npm run dev:ios`, `npm run dev:android`, `npm run build:ios`, `npm run build:android`) wired up; mobile init left to a contributor with the Xcode + Android SDK install on their machine.
+1. **M10.1 — Init** _(this PR)_: documentation + scripts (`npm run dev:ios`, `npm run dev:android`, `npm run build:ios`, `npm run build:android`) wired up; mobile init left to a contributor with the Xcode + Android SDK install on their machine.
 2. **M10.2 — Credential providers + store submission**: the iOS extension target, the Android `AutofillService`, and the first store builds.
