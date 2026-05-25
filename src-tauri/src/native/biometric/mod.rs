@@ -4,6 +4,13 @@
 //! prompt the user, and seal/unseal a small blob in the Secure Enclave or
 //! TPM. The frontend never sees the blob — it only knows whether
 //! biometric is available, enrolled, and whether a prompt was approved.
+//!
+//! The blob protected by biometric is the same `PinBlob` produced by
+//! `crypto::encrypt_master`; we layer the OS keychain on top so the AES
+//! key is gated behind Touch ID / Hello rather than a numeric PIN.
+//! The current `Backend` implementations return `Unsupported` everywhere
+//! — the platform bridges are implemented in M7.2 alongside an end-to-end
+//! integration test on real hardware.
 
 #[cfg(target_os = "macos")]
 mod macos;
@@ -28,4 +35,22 @@ pub enum Availability {
     NotEnrolled,
     /// Hardware not present on this device.
     Unsupported,
+}
+
+/// Stable keychain entry name for a vault's biometric-protected blob.
+pub fn keychain_entry(vault_id: &str) -> String {
+    format!("keyfount.vault.{vault_id}.biometric")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn keychain_entry_namespaces_by_vault() {
+        let a = keychain_entry("vault-a");
+        let b = keychain_entry("vault-b");
+        assert_ne!(a, b);
+        assert!(a.starts_with("keyfount.vault."));
+    }
 }
