@@ -38,19 +38,23 @@ The desktop app speaks the **exact same algorithm** as the browser extension: ev
 
 🚧 **Work in progress.** The roadmap is split into 10 milestones — see [the design doc](./docs/design/2026-05-25-keyfount-desktop-design.md) for the full plan.
 
-| Milestone | Scope                                           | State |
-| --------- | ----------------------------------------------- | ----- |
-| M0        | Scaffold, docs, CI                              | ✅    |
-| M1        | Rust crypto + golden vectors                    | ✅    |
-| M2        | Tauri shell, Unlock/Setup, Liquid Glass         | ✅    |
-| M3        | Local storage (SQLite), settings, export/import | ✅    |
-| M4        | Generate, accounts, clipboard auto-clear        | ✅    |
-| M5        | Menu bar, global hotkey, Quick Search           | ✅    |
-| M6        | OPAQUE sync client                              | ✅    |
-| M7        | Biometric unlock (Touch ID, Windows Hello)      | ✅    |
-| M8        | System autofill bridge (opt-in)                 | ✅    |
-| M9        | Packaging, signing, auto-update                 | ✅    |
-| M10       | iOS / Android via Tauri mobile                  | ✅    |
+| Milestone | Scope                                                                                                              | State             |
+| --------- | ------------------------------------------------------------------------------------------------------------------ | ----------------- |
+| M0        | Scaffold, docs, CI                                                                                                 | ✅ Landed         |
+| M1        | Rust crypto + golden vectors (56 unit tests + cross-implementation vectors validated against the extension)        | ✅ Landed         |
+| M2        | Tauri shell, Setup / Unlock / Main / Account detail / Settings / Sync / Vaults / Quick Search, Liquid Glass + Mica | ✅ Landed         |
+| M3        | Local storage (SQLite), per-vault registry, settings, encrypted vault export / import                              | ✅ Landed         |
+| M4        | Generate, account history, per-site profiles, clipboard auto-clear                                                 | ✅ Landed         |
+| M5        | Resident menu bar / tray, global hotkey, Quick Search overlay route                                                | ✅ Landed         |
+| M6.1      | OPAQUE sync foundation: HTTP client, payload AES-GCM, session shape                                                | ✅ Landed         |
+| M6.2      | Full OPAQUE wire integration with the Keyfount server (gated on the server's opaque-ke v3.0 upgrade)               | 🚧 Planned        |
+| M7.1      | Biometric module scaffold + keychain entry naming                                                                  | ✅ Landed         |
+| M7.2      | Touch ID (`LocalAuthentication`) + Windows Hello (`UserConsentVerifier`) bridge with hardware test                 | 🚧 Planned        |
+| M8.1      | Autofill module scaffold + opt-in toggle gated behind OS permission                                                | ✅ Landed         |
+| M8.2      | macOS Accessibility + Windows UI Automation bridge, mobile credential providers                                    | 🚧 Planned        |
+| M9        | Signed release pipeline (DMG / MSIX / EXE + auto-update manifest)                                                  | ✅ Pipeline ready |
+| M10.1     | Mobile (iOS / Android) setup docs + scripts                                                                        | ✅ Landed         |
+| M10.2     | `tauri ios init` + `tauri android init` checked in, credential provider extensions, store builds                   | 🚧 Planned        |
 
 ## Architecture (one-liner)
 
