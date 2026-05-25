@@ -81,18 +81,26 @@ pub fn run() {
         .setup(|app| {
             #[cfg(target_os = "macos")]
             {
-                use tauri::{ActivationPolicy, RunEvent};
+                use tauri::ActivationPolicy;
+                // In dev we want a Dock icon and a window in the app
+                // switcher so iterating on the UI is straightforward.
+                // The release build defaults to `Accessory` (menu-bar
+                // only) — see the `not(debug_assertions)` branch.
+                #[cfg(debug_assertions)]
+                app.set_activation_policy(ActivationPolicy::Regular);
+                #[cfg(not(debug_assertions))]
                 app.set_activation_policy(ActivationPolicy::Accessory);
-                let _ = RunEvent::Ready; // touch the import in default builds
             }
 
-            #[cfg(any(target_os = "macos", target_os = "windows"))]
-            {
-                let window = app.get_webview_window("main");
-                if let Some(window) = window {
-                    let _ = native::vibrancy::apply(&window);
-                }
-            }
+            // On macOS the visual effect is configured by
+            // tauri.conf.json's `windowEffects` (HUD material), and on
+            // Windows 11 Mica is wired the same way. The Rust-side
+            // `native::vibrancy::apply` was a belt-and-braces call that
+            // ended up registering the NSVisualEffectViewTagged ObjC
+            // class a second time and aborted the process at startup —
+            // window-vibrancy already registers it when Tauri applies
+            // the configured `windowEffects`. We keep the module around
+            // for future runtime-driven material changes.
 
             native::tray::install(app.handle())?;
             native::hotkey::register_default(app.handle())?;
