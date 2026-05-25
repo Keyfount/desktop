@@ -11,6 +11,7 @@ import {
   historyEnabled,
   livePreview,
   screen,
+  view,
 } from "../state.js";
 import { Header } from "./Header.js";
 
@@ -87,7 +88,8 @@ export function SetupScreen() {
             onClick={async () => {
               await api.setHistoryEnabled(true);
               historyEnabled.value = true;
-              screen.value = "main";
+              view.value = "generator";
+              screen.value = "shell";
             }}
           >
             {t("history_setup_enable")}
@@ -97,7 +99,8 @@ export function SetupScreen() {
             class="btn btn-ghost flex-1"
             whileTap={TAP_SCALE}
             onClick={() => {
-              screen.value = "main";
+              view.value = "generator";
+              screen.value = "shell";
             }}
           >
             {t("history_setup_skip")}

@@ -11,6 +11,7 @@ import {
   fingerprint,
   historyEnabled,
   screen,
+  view,
 } from "../state.js";
 import { Header } from "./Header.js";
 
@@ -46,7 +47,8 @@ export function UnlockScreen({ hasPin }: Props) {
         const state = await api.getState();
         historyEnabled.value = state.historyEnabled;
         defaultProfile.value = state.defaultProfile;
-        screen.value = "main";
+        view.value = "generator";
+        screen.value = "shell";
       } catch (err) {
         errorMessage.value = err instanceof Error ? err.message : "unlock failed";
       } finally {
@@ -66,7 +68,8 @@ export function UnlockScreen({ hasPin }: Props) {
       const state = await api.getState();
       historyEnabled.value = state.historyEnabled;
       defaultProfile.value = state.defaultProfile;
-      screen.value = "main";
+      view.value = "generator";
+      screen.value = "shell";
     } catch (err) {
       errorMessage.value = err instanceof Error ? err.message : "biometric unlock failed";
     } finally {

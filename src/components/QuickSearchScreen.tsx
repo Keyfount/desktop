@@ -18,7 +18,7 @@ export function QuickSearchScreen() {
     void api.listAccounts().then((r) => (allAccounts.value = r.entries));
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        screen.value = "main";
+        screen.value = "shell";
       }
     };
     window.addEventListener("keydown", onKey);

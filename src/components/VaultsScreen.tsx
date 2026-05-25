@@ -3,11 +3,11 @@ import { motion } from "framer-motion";
 
 import { api } from "../api.js";
 import { t } from "../i18n.js";
-import { IconChevronRight } from "../icons.js";
-import { SOFT_SPRING, TAP_SCALE } from "../motion.js";
+import { IconPlus } from "../icons.js";
+import { TAP_SCALE } from "../motion.js";
 import { errorMessage, fingerprint, screen } from "../state.js";
 import type { ListVaultsResponse } from "../types.js";
-import { Header } from "./Header.js";
+import { PageHeader } from "./PageHeader.js";
 
 export function VaultsScreen() {
   const [data, setData] = useState<ListVaultsResponse | null>(null);
@@ -42,83 +42,81 @@ export function VaultsScreen() {
   }, []);
 
   return (
-    <motion.div
-      class="flex flex-col gap-4 p-6 max-w-md mx-auto pt-10"
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={SOFT_SPRING}
-    >
-      <Header
-        subtitle={t("vaults_title")}
+    <div class="flex flex-col h-full">
+      <PageHeader
+        title={t("vaults_title")}
+        subtitle={data ? `${data.vaults.length} configured` : ""}
         actions={
-          <motion.button
-            type="button"
-            class="btn btn-quiet btn-icon"
-            whileTap={TAP_SCALE}
-            onClick={() => {
-              screen.value = "settings";
-            }}
-            aria-label={t("common_back")}
-          >
-            <IconChevronRight size={14} style={{ transform: "rotate(180deg)" }} />
+          <motion.button type="button" class="btn btn-sm" whileTap={TAP_SCALE} onClick={onNew}>
+            <IconPlus size={14} />
+            {t("vaults_new")}
           </motion.button>
         }
       />
 
-      {data === null ? null : data.vaults.length === 0 ? (
-        <p class="text-(--color-ink-muted) text-sm">No vault yet.</p>
-      ) : (
-        <ul class="flex flex-col gap-2">
-          {data.vaults.map((v) => {
-            const active = data.activeId === v.id;
-            return (
-              <li key={v.id}>
-                <div class={`account-row ${active ? "account-row--active" : ""}`}>
-                  <span class="account-row__favicon font-mono text-xs">
-                    {v.fingerprint.slice(0, 2)}
-                  </span>
-                  <div class="flex flex-col min-w-0 flex-1">
-                    <span class="text-sm text-(--color-ink) truncate">{v.id.slice(0, 8)}</span>
-                    <span class="field-hint">
-                      Created {new Date(v.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                  {active ? (
-                    <span class="chip-success status-pill">Active</span>
-                  ) : (
-                    <motion.button
-                      type="button"
-                      class="btn btn-ghost btn-sm"
-                      whileTap={TAP_SCALE}
-                      onClick={() => onSwitch(v.id)}
+      <div class="flex-1 overflow-y-auto px-8 py-8">
+        <div class="mx-auto w-full max-w-3xl flex flex-col gap-3">
+          {data === null ? (
+            [0, 1].map((i) => <div key={i} class="skeleton h-16 rounded-2xl" />)
+          ) : data.vaults.length === 0 ? (
+            <p class="text-(--color-ink-muted) text-sm">No vault yet.</p>
+          ) : (
+            <ul class="flex flex-col gap-2">
+              {data.vaults.map((v) => {
+                const active = data.activeId === v.id;
+                return (
+                  <li key={v.id}>
+                    <div
+                      class={
+                        "card !p-4 flex items-center gap-3 " +
+                        (active ? "ring-1 ring-(--color-accent-500)/40" : "")
+                      }
                     >
-                      {t("vaults_switch")}
-                    </motion.button>
-                  )}
-                  <motion.button
-                    type="button"
-                    class="btn btn-danger btn-sm"
-                    whileTap={TAP_SCALE}
-                    onClick={() => onDelete(v.id)}
-                  >
-                    {t("vaults_delete")}
-                  </motion.button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+                      <span class="grid place-items-center w-10 h-10 rounded-2xl bg-(--color-surface-sunken) border border-(--color-line) font-mono text-xs text-(--color-ink-muted)">
+                        {v.fingerprint.slice(0, 2)}
+                      </span>
+                      <div class="flex flex-col min-w-0 flex-1">
+                        <span class="text-sm text-(--color-ink) truncate font-medium">
+                          Vault {v.id.slice(0, 8)}
+                        </span>
+                        <span class="field-hint">
+                          Created {new Date(v.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      {active ? (
+                        <span class="chip-success status-pill">Active</span>
+                      ) : (
+                        <motion.button
+                          type="button"
+                          class="btn btn-ghost btn-sm"
+                          whileTap={TAP_SCALE}
+                          onClick={() => onSwitch(v.id)}
+                        >
+                          {t("vaults_switch")}
+                        </motion.button>
+                      )}
+                      <motion.button
+                        type="button"
+                        class="btn btn-danger btn-sm"
+                        whileTap={TAP_SCALE}
+                        onClick={() => onDelete(v.id)}
+                      >
+                        {t("vaults_delete")}
+                      </motion.button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
 
-      <motion.button type="button" class="btn" whileTap={TAP_SCALE} onClick={onNew}>
-        {t("vaults_new")}
-      </motion.button>
-
-      {errorMessage.value !== null ? (
-        <div class="field-error" role="alert">
-          {errorMessage.value}
+          {errorMessage.value !== null ? (
+            <div class="field-error" role="alert">
+              {errorMessage.value}
+            </div>
+          ) : null}
         </div>
-      ) : null}
-    </motion.div>
+      </div>
+    </div>
   );
 }
