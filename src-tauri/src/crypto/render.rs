@@ -163,8 +163,10 @@ mod tests {
     #[test]
     fn render_random_rejects_too_short() {
         let entropy = entropy_from_hex(&"ff".repeat(32));
-        let mut profile = RandomProfile::default();
-        profile.length = 3;
+        let profile = RandomProfile {
+            length: 3,
+            ..RandomProfile::default()
+        };
         assert!(render_random(&entropy, &profile).is_err());
     }
 

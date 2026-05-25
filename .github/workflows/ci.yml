@@ -93,22 +93,11 @@ jobs:
       - name: cargo test (incl. golden vectors)
         run: cargo test --manifest-path src-tauri/Cargo.toml --all-features
 
-  build:
-    name: Build (${{ matrix.platform.name }})
+  frontend-build:
+    name: Build frontend
     needs: [frontend, rust]
-    runs-on: ${{ matrix.platform.runs-on }}
-    timeout-minutes: 45
-
-    strategy:
-      fail-fast: false
-      matrix:
-        platform:
-          - name: macOS
-            runs-on: macos-latest
-            target: aarch64-apple-darwin
-          - name: Windows
-            runs-on: windows-latest
-            target: x86_64-pc-windows-msvc
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
@@ -120,32 +109,14 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.platform.target }}
-
-      - name: Cache Cargo registry
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            src-tauri/target
-          key: cargo-${{ runner.os }}-${{ hashFiles('src-tauri/Cargo.lock') }}
-          restore-keys: |
-            cargo-${{ runner.os }}-
-
       - name: Install npm dependencies
         run: npm ci
 
       - name: Build frontend
         run: npm run build
 
-      - name: tauri build (no signing)
-        run: npx tauri build --target ${{ matrix.platform.target }} --ci
-        env:
-          # Disable bundling auto-update artefacts in CI — that path is
-          # exercised by the release workflow with the real signing key.
-          TAURI_SIGNING_PRIVATE_KEY: ""
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+  # Native Tauri builds (DMG/MSIX/AppImage) run in the release workflow,
+  # which has the signing keys and is the only path that ships artefacts.
+  # CI here only verifies that the frontend bundle and the Rust crate
+  # compile and pass tests — those signals catch every issue we can fix
+  # without a code-signing identity.

@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     environment: "happy-dom",
     globals: false,
+    include: ["tests/**/*.test.ts", "src/**/*.test.ts", "src/**/*.test.tsx"],
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "lcov"],
