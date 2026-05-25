@@ -1,0 +1,182 @@
+import { useCallback, useEffect, useRef, useState } from "preact/hooks";
+import { AnimatePresence, motion } from "framer-motion";
+
+import { api } from "../api.js";
+import { t } from "../i18n.js";
+import { POP_IN, SOFT_SPRING, TAP_SCALE } from "../motion.js";
+import {
+  busy,
+  errorMessage,
+  fingerprint as fingerprintSignal,
+  historyEnabled,
+  livePreview,
+  screen,
+} from "../state.js";
+import { Header } from "./Header.js";
+
+const MIN_LENGTH = 12;
+
+export function SetupScreen() {
+  const [master, setMaster] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [step, setStep] = useState<"master" | "history">("master");
+  const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (previewTimer.current !== null) clearTimeout(previewTimer.current);
+    if (master.length < MIN_LENGTH) {
+      livePreview.value = null;
+      return;
+    }
+    previewTimer.current = setTimeout(() => {
+      void api
+        .fingerprint(master)
+        .then((r) => {
+          livePreview.value = r.fingerprint;
+        })
+        .catch(() => {
+          livePreview.value = null;
+        });
+    }, 500);
+    return () => {
+      if (previewTimer.current !== null) clearTimeout(previewTimer.current);
+    };
+  }, [master]);
+
+  const submit = useCallback(
+    async (event: Event) => {
+      event.preventDefault();
+      errorMessage.value = null;
+      if (master.length < MIN_LENGTH) {
+        errorMessage.value = t("setup_min_length_error", String(MIN_LENGTH));
+        return;
+      }
+      if (master !== confirm) {
+        errorMessage.value = t("setup_mismatch_error");
+        return;
+      }
+      busy.value = true;
+      try {
+        const r = await api.setup(master);
+        fingerprintSignal.value = r.fingerprint;
+        setStep("history");
+      } catch (err) {
+        errorMessage.value = err instanceof Error ? err.message : "setup failed";
+      } finally {
+        busy.value = false;
+      }
+    },
+    [master, confirm],
+  );
+
+  if (step === "history") {
+    return (
+      <motion.div
+        class="flex flex-col gap-4 p-6 max-w-md mx-auto pt-12"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={SOFT_SPRING}
+      >
+        <Header subtitle={t("history_setup_title")} />
+        <p class="text-(--color-ink-muted) text-sm leading-relaxed">{t("history_setup_body")}</p>
+        <div class="flex gap-2">
+          <motion.button
+            type="button"
+            class="btn flex-1"
+            whileTap={TAP_SCALE}
+            onClick={async () => {
+              await api.setHistoryEnabled(true);
+              historyEnabled.value = true;
+              screen.value = "main";
+            }}
+          >
+            {t("history_setup_enable")}
+          </motion.button>
+          <motion.button
+            type="button"
+            class="btn btn-ghost flex-1"
+            whileTap={TAP_SCALE}
+            onClick={() => {
+              screen.value = "main";
+            }}
+          >
+            {t("history_setup_skip")}
+          </motion.button>
+        </div>
+      </motion.div>
+    );
+  }
+
+  return (
+    <motion.form
+      class="flex flex-col gap-4 p-6 max-w-md mx-auto pt-12"
+      onSubmit={submit}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={SOFT_SPRING}
+    >
+      <Header subtitle={t("setup_welcome")} />
+      <p class="text-(--color-ink-muted) text-sm leading-relaxed">{t("setup_intro")}</p>
+
+      <label class="flex flex-col gap-2">
+        <span class="field-label">{t("setup_master_label")}</span>
+        <input
+          class="input"
+          type="password"
+          value={master}
+          minLength={MIN_LENGTH}
+          required
+          autocomplete="new-password"
+          onInput={(e) => setMaster((e.target as HTMLInputElement).value)}
+        />
+      </label>
+
+      <label class="flex flex-col gap-2">
+        <span class="field-label">{t("setup_confirm_label")}</span>
+        <input
+          class="input"
+          type="password"
+          value={confirm}
+          autocomplete="new-password"
+          onInput={(e) => setConfirm((e.target as HTMLInputElement).value)}
+        />
+      </label>
+
+      <AnimatePresence>
+        {livePreview.value !== null ? (
+          <motion.div
+            key="preview"
+            class="flex flex-col gap-2 items-start p-4 rounded-2xl bg-(--color-surface-sunken) border border-(--color-line)"
+            variants={POP_IN}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            aria-live="polite"
+          >
+            <span class="fingerprint">{livePreview.value}</span>
+            <span class="field-hint">{t("setup_fingerprint_hint")}</span>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {errorMessage.value !== null ? (
+          <motion.div
+            key="error"
+            class="field-error"
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            role="alert"
+          >
+            {errorMessage.value}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      <motion.button type="submit" class="btn" whileTap={TAP_SCALE} disabled={busy.value}>
+        {busy.value ? t("setup_creating") : t("setup_create_button")}
+      </motion.button>
+    </motion.form>
+  );
+}

@@ -1,0 +1,198 @@
+{
+  "cases": [
+    {
+      "label": "random-default-c1",
+      "inputs": {
+        "master": "hunter2hunter2",
+        "domain": "example.com",
+        "email": "alice@example.com"
+      },
+      "profile": {
+        "mode": "random",
+        "length": 16,
+        "lower": true,
+        "upper": true,
+        "digits": true,
+        "symbols": true,
+        "counter": 1
+      },
+      "expected_password": "\"sc+mWGn4.W2iK['"
+    },
+    {
+      "label": "random-default-c2",
+      "inputs": {
+        "master": "hunter2hunter2",
+        "domain": "example.com",
+        "email": "alice@example.com"
+      },
+      "profile": {
+        "mode": "random",
+        "length": 16,
+        "lower": true,
+        "upper": true,
+        "digits": true,
+        "symbols": true,
+        "counter": 2
+      },
+      "expected_password": "\".'gyV<y'Dd4oQFq"
+    },
+    {
+      "label": "random-no-symbols",
+      "inputs": {
+        "master": "correct horse battery staple",
+        "domain": "github.com",
+        "email": "alice@example.com"
+      },
+      "profile": {
+        "mode": "random",
+        "length": 20,
+        "lower": true,
+        "upper": true,
+        "digits": true,
+        "symbols": false,
+        "counter": 1
+      },
+      "expected_password": "3xW894pW9gC7k3156ZRh"
+    },
+    {
+      "label": "random-lowercase-only-min",
+      "inputs": {
+        "master": "tr0ub4dor",
+        "domain": "example.org",
+        "email": "bob@example.org"
+      },
+      "profile": {
+        "mode": "random",
+        "length": 5,
+        "lower": true,
+        "upper": false,
+        "digits": false,
+        "symbols": false,
+        "counter": 1
+      },
+      "expected_password": "qmmzk"
+    },
+    {
+      "label": "random-all-classes-max",
+      "inputs": {
+        "master": "Zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+        "domain": "long-domain-name.example",
+        "email": "user@example.com"
+      },
+      "profile": {
+        "mode": "random",
+        "length": 35,
+        "lower": true,
+        "upper": true,
+        "digits": true,
+        "symbols": true,
+        "counter": 1
+      },
+      "expected_password": "xM<9`dIWSAlZrRr%,>L2W_j6w_m5eKPAsA8"
+    },
+    {
+      "label": "random-mixed-case",
+      "inputs": {
+        "master": "MyMaster",
+        "domain": "Example.COM",
+        "email": "Alice@Example.com"
+      },
+      "profile": {
+        "mode": "random",
+        "length": 16,
+        "lower": true,
+        "upper": true,
+        "digits": true,
+        "symbols": true,
+        "counter": 1
+      },
+      "expected_password": "L?'bfwCj{C5\\F5g?"
+    },
+    {
+      "label": "memorable-default",
+      "inputs": {
+        "master": "hunter2hunter2",
+        "domain": "example.com",
+        "email": "alice@example.com"
+      },
+      "profile": {
+        "mode": "memorable",
+        "wordCount": 6,
+        "separator": ".",
+        "capitalise": true,
+        "suffix": true,
+        "counter": 1
+      },
+      "expected_password": "shorthand.june.thud.cupbearer.frosty.Undated7^"
+    },
+    {
+      "label": "memorable-no-suffix-no-cap",
+      "inputs": {
+        "master": "hunter2hunter2",
+        "domain": "example.com",
+        "email": "alice@example.com"
+      },
+      "profile": {
+        "mode": "memorable",
+        "wordCount": 6,
+        "separator": ".",
+        "capitalise": false,
+        "suffix": false,
+        "counter": 1
+      },
+      "expected_password": "shorthand.june.thud.cupbearer.frosty.undated"
+    },
+    {
+      "label": "memorable-5-words-dash",
+      "inputs": {
+        "master": "correct horse battery staple",
+        "domain": "github.com",
+        "email": "alice@example.com"
+      },
+      "profile": {
+        "mode": "memorable",
+        "wordCount": 5,
+        "separator": "-",
+        "capitalise": true,
+        "suffix": true,
+        "counter": 1
+      },
+      "expected_password": "Shortness-dingo-overcoat-boring-backpack7@"
+    },
+    {
+      "label": "memorable-8-words-underscore",
+      "inputs": {
+        "master": "correct horse battery staple",
+        "domain": "github.com",
+        "email": "alice@example.com"
+      },
+      "profile": {
+        "mode": "memorable",
+        "wordCount": 8,
+        "separator": "_",
+        "capitalise": true,
+        "suffix": true,
+        "counter": 1
+      },
+      "expected_password": "shortness_dingo_overcoat_boring_backpack_Mannish_splatter_koala6%"
+    }
+  ],
+  "fingerprints": [
+    {
+      "master": "hunter2hunter2",
+      "expected_bytes": [207, 233, 10]
+    },
+    {
+      "master": "correct horse battery staple",
+      "expected_bytes": [30, 153, 191]
+    },
+    {
+      "master": "MyMaster",
+      "expected_bytes": [243, 67, 53]
+    },
+    {
+      "master": "ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ",
+      "expected_bytes": [85, 86, 35]
+    }
+  ]
+}
