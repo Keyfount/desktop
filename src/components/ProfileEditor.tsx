@@ -3,6 +3,7 @@
  * counter. Same shape as the extension's `ProfileEditor` so the UX is
  * familiar; adapted for the wider desktop layout.
  */
+import { t } from "../i18n.js";
 import type { MemorableProfile, Profile, RandomProfile } from "../types.js";
 import { DEFAULT_MEMORABLE_PROFILE, DEFAULT_RANDOM_PROFILE } from "../types.js";
 
@@ -27,7 +28,7 @@ export function ProfileEditor({ profile, onChange, compact }: Props) {
             )
           }
         >
-          Random
+          {t("profile_random")}
         </button>
         <button
           type="button"
@@ -40,7 +41,7 @@ export function ProfileEditor({ profile, onChange, compact }: Props) {
             )
           }
         >
-          Memorable
+          {t("profile_memorable")}
         </button>
       </div>
 
@@ -51,7 +52,7 @@ export function ProfileEditor({ profile, onChange, compact }: Props) {
       )}
 
       <label class={`flex items-center gap-3 ${compact ? "text-xs" : "text-sm"}`}>
-        <span class="field-label">Counter</span>
+        <span class="field-label">{t("profile_counter")}</span>
         <input
           type="number"
           min={1}
@@ -79,7 +80,7 @@ function RandomEditor({
   return (
     <div class="flex flex-col gap-3">
       <label class="flex items-center gap-3 text-sm">
-        <span class="field-label">Length</span>
+        <span class="field-label">{t("profile_length")}</span>
         <input
           type="range"
           min={5}
@@ -128,7 +129,7 @@ function MemorableEditor({
   return (
     <div class="flex flex-col gap-3">
       <label class="flex items-center gap-3 text-sm">
-        <span class="field-label">Words</span>
+        <span class="field-label">{t("profile_words")}</span>
         <input
           type="range"
           min={5}

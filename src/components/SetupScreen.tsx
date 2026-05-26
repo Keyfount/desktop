@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { AnimatePresence, motion } from "framer-motion";
 
-import { api } from "../api.js";
+import { api, describeError } from "../api.js";
 import { t } from "../i18n.js";
 import { POP_IN, SOFT_SPRING, TAP_SCALE } from "../motion.js";
 import {
@@ -62,7 +62,7 @@ export function SetupScreen() {
         fingerprintSignal.value = r.fingerprint;
         setStep("history");
       } catch (err) {
-        errorMessage.value = err instanceof Error ? err.message : "setup failed";
+        errorMessage.value = describeError(err) || "setup failed";
       } finally {
         busy.value = false;
       }

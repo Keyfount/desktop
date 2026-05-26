@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "preact/hooks";
 import { AnimatePresence, motion } from "framer-motion";
 
-import { api } from "../api.js";
+import { api, describeError } from "../api.js";
 import { t } from "../i18n.js";
 import { SOFT_SPRING, TAP_SCALE } from "../motion.js";
 import {
@@ -31,7 +31,7 @@ export function UnlockScreen({ hasPin }: Props) {
   useEffect(() => {
     void api
       .biometricAvailable()
-      .then((r) => setBioAvailable(r.supported && r.enrolled))
+      .then((r) => setBioAvailable(r.supported && r.enrolled && r.vaultEnrolled))
       .catch(() => setBioAvailable(false));
   }, []);
 
@@ -50,7 +50,7 @@ export function UnlockScreen({ hasPin }: Props) {
         view.value = "generator";
         screen.value = "shell";
       } catch (err) {
-        errorMessage.value = err instanceof Error ? err.message : "unlock failed";
+        errorMessage.value = describeError(err) || "unlock failed";
       } finally {
         busy.value = false;
       }
@@ -71,7 +71,7 @@ export function UnlockScreen({ hasPin }: Props) {
       view.value = "generator";
       screen.value = "shell";
     } catch (err) {
-      errorMessage.value = err instanceof Error ? err.message : "biometric unlock failed";
+      errorMessage.value = describeError(err) || "biometric unlock failed";
     } finally {
       busy.value = false;
     }

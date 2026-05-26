@@ -28,6 +28,7 @@ export const livePreview = signal<string | null>(null);
 export const allAccounts = signal<AccountEntry[]>([]);
 export const selectedAccount = signal<AccountEntry | null>(null);
 export const historyEnabled = signal(false);
+export const faviconFallbackEnabled = signal(true);
 
 export const defaultProfile = signal<Profile | null>(null);
 

@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
 import { AnimatePresence, motion } from "framer-motion";
 
-import { api } from "../api.js";
+import { api, describeError } from "../api.js";
 import { t } from "../i18n.js";
-import { IconCheck, IconCopy, IconKey, IconSearch } from "../icons.js";
+import { IconCheck, IconCopy, IconSearch } from "../icons.js";
 import { POP_IN, SOFT_SPRING, TAP_SCALE } from "../motion.js";
 import { allAccounts, errorMessage, screen } from "../state.js";
 import type { AccountEntry } from "../types.js";
+import { AccountAvatar } from "./AccountAvatar.js";
 
 export function QuickSearchScreen() {
   const [query, setQuery] = useState("");
@@ -42,7 +43,7 @@ export function QuickSearchScreen() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch (err) {
-      errorMessage.value = err instanceof Error ? err.message : "generation failed";
+      errorMessage.value = describeError(err) || "generation failed";
     } finally {
       setBusy(false);
     }
@@ -69,7 +70,7 @@ export function QuickSearchScreen() {
         </div>
 
         {matches.length === 0 ? (
-          <p class="text-(--color-ink-muted) text-sm text-center mt-4">No matches.</p>
+          <p class="text-(--color-ink-muted) text-sm text-center mt-4">{t("common_no_matches")}</p>
         ) : (
           <ul class="flex flex-col gap-1">
             {matches.map((entry) => (
@@ -81,9 +82,7 @@ export function QuickSearchScreen() {
                   onClick={() => generate(entry)}
                   disabled={busy}
                 >
-                  <span class="account-row__favicon">
-                    <IconKey size={14} />
-                  </span>
+                  <AccountAvatar domain={entry.domain} size={28} />
                   <div class="flex flex-col text-left min-w-0 flex-1">
                     <span class="text-sm text-(--color-ink) truncate">{entry.domain}</span>
                     <span class="field-hint truncate">{entry.username}</span>

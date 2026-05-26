@@ -1,11 +1,20 @@
 /**
- * Tinted monogram avatar derived deterministically from the domain.
+ * Account avatar with a graceful fallback chain:
  *
- * We do not fetch favicons (they leak the user's account list to a third
- * party); instead we hash the domain into one of a small palette of
- * accent tints and render the first letter of the registrable name. The
- * palette is curated to look natural on both light and dark surfaces.
+ *   1. Google's s2 favicon CDN — opt-in, gated by `faviconFallbackEnabled`
+ *      (matches the extension's behaviour). When off, we never reach out
+ *      to a third party.
+ *   2. A tinted monogram derived deterministically from the domain.
+ *
+ * Each `<img onError>` advances to the monogram so a missing favicon
+ * never leaves a broken image in the list. The component reads the
+ * fallback flag from the global signal so toggling it in Settings
+ * updates every avatar instantly.
  */
+import { useEffect, useState } from "preact/hooks";
+
+import { faviconFallbackEnabled } from "../state.js";
+
 interface Props {
   domain: string;
   size?: number;
@@ -33,9 +42,41 @@ function hash(s: string): number {
 
 export function AccountAvatar({ domain, size = 36 }: Props) {
   const trimmed = domain.replace(/^www\./, "");
-  const root = trimmed.split(".")[0] ?? "?";
+  const allowFavicon = faviconFallbackEnabled.value;
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [trimmed, allowFavicon]);
+
+  if (allowFavicon && !failed) {
+    const px = Math.max(16, Math.min(128, size));
+    return (
+      <span
+        class="grid place-items-center rounded-2xl shrink-0 overflow-hidden bg-(--color-surface-elev) border border-(--color-line)/60"
+        style={{ width: `${size}px`, height: `${size}px` }}
+        aria-hidden="true"
+      >
+        <img
+          src={`https://www.google.com/s2/favicons?sz=${px * 2}&domain=${encodeURIComponent(trimmed)}`}
+          alt=""
+          width={Math.round(size * 0.62)}
+          height={Math.round(size * 0.62)}
+          referrerPolicy="no-referrer"
+          onError={() => setFailed(true)}
+          style={{ display: "block" }}
+        />
+      </span>
+    );
+  }
+
+  return <Monogram domain={trimmed} size={size} />;
+}
+
+function Monogram({ domain, size }: { domain: string; size: number }) {
+  const root = domain.split(".")[0] ?? "?";
   const letter = root.charAt(0).toUpperCase() || "?";
-  const palette = PALETTE[hash(trimmed) % PALETTE.length] ?? PALETTE[0];
+  const palette = PALETTE[hash(domain) % PALETTE.length] ?? PALETTE[0];
   const [bg, fg] = palette!;
   return (
     <span

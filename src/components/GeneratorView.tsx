@@ -2,7 +2,7 @@ import type { ComponentChildren } from "preact";
 import { useCallback, useEffect, useState } from "preact/hooks";
 import { AnimatePresence, motion } from "framer-motion";
 
-import { api } from "../api.js";
+import { api, describeError } from "../api.js";
 import { t } from "../i18n.js";
 import {
   IconCheck,
@@ -62,7 +62,7 @@ export function GeneratorView() {
       );
       generated.value = r.password;
     } catch (err) {
-      errorMessage.value = err instanceof Error ? err.message : "generation failed";
+      errorMessage.value = describeError(err) || "generation failed";
     } finally {
       busy.value = false;
     }
@@ -120,7 +120,7 @@ export function GeneratorView() {
 
   return (
     <div class="flex flex-col h-full">
-      <PageHeader title={t("common_generate")} subtitle="Derive a site password" />
+      <PageHeader title={t("common_generate")} subtitle={t("main_subtitle_derive")} />
 
       <div class="flex-1 overflow-y-auto px-8 py-8">
         <div class="mx-auto w-full max-w-3xl flex flex-col gap-6">
@@ -241,9 +241,9 @@ export function GeneratorView() {
                   layout
                 >
                   <div class="flex items-center justify-between gap-3">
-                    <span class="mono-tag">Password</span>
+                    <span class="mono-tag">{t("generator_password_label")}</span>
                     <span class="mono-tag !text-[9px] text-(--color-ink-subtle)">
-                      {generated.value.length} chars
+                      {t("generator_chars", String(generated.value.length))}
                     </span>
                   </div>
                   <code

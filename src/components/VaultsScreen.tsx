@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "preact/hooks";
 import { motion } from "framer-motion";
 
-import { api } from "../api.js";
+import { api, describeError } from "../api.js";
 import { t } from "../i18n.js";
 import { IconPlus } from "../icons.js";
 import { TAP_SCALE } from "../motion.js";
@@ -21,7 +21,7 @@ export function VaultsScreen() {
       await api.switchVault(id);
       screen.value = "unlock";
     } catch (err) {
-      errorMessage.value = err instanceof Error ? err.message : "switch failed";
+      errorMessage.value = describeError(err) || "switch failed";
     }
   }, []);
 
@@ -31,7 +31,7 @@ export function VaultsScreen() {
       const refreshed = await api.listVaults();
       setData(refreshed);
     } catch (err) {
-      errorMessage.value = err instanceof Error ? err.message : "delete failed";
+      errorMessage.value = describeError(err) || "delete failed";
     }
   }, []);
 
@@ -45,7 +45,7 @@ export function VaultsScreen() {
     <div class="flex flex-col h-full">
       <PageHeader
         title={t("vaults_title")}
-        subtitle={data ? `${data.vaults.length} configured` : ""}
+        subtitle={data ? t("vaults_subtitle", String(data.vaults.length)) : ""}
         actions={
           <motion.button type="button" class="btn btn-sm" whileTap={TAP_SCALE} onClick={onNew}>
             <IconPlus size={14} />
@@ -59,7 +59,7 @@ export function VaultsScreen() {
           {data === null ? (
             [0, 1].map((i) => <div key={i} class="skeleton h-16 rounded-2xl" />)
           ) : data.vaults.length === 0 ? (
-            <p class="text-(--color-ink-muted) text-sm">No vault yet.</p>
+            <p class="text-(--color-ink-muted) text-sm">{t("vaults_empty")}</p>
           ) : (
             <ul class="flex flex-col gap-2">
               {data.vaults.map((v) => {
@@ -77,14 +77,14 @@ export function VaultsScreen() {
                       </span>
                       <div class="flex flex-col min-w-0 flex-1">
                         <span class="text-sm text-(--color-ink) truncate font-medium">
-                          Vault {v.id.slice(0, 8)}
+                          {t("vaults_label", v.id.slice(0, 8))}
                         </span>
                         <span class="field-hint">
-                          Created {new Date(v.createdAt).toLocaleDateString()}
+                          {t("vaults_created", new Date(v.createdAt).toLocaleDateString())}
                         </span>
                       </div>
                       {active ? (
-                        <span class="chip-success status-pill">Active</span>
+                        <span class="chip-success status-pill">{t("common_active")}</span>
                       ) : (
                         <motion.button
                           type="button"

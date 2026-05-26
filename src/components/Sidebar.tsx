@@ -4,22 +4,28 @@ import { motion } from "framer-motion";
 
 import { api } from "../api.js";
 import { Logo } from "../Logo.js";
+import { t } from "../i18n.js";
 import { IconKey, IconLock, IconRefresh, IconSettings, IconShield, IconUnlock } from "../icons.js";
 import { SOFT_SPRING, TAP_SCALE } from "../motion.js";
 import { fingerprint, generated, screen, view as currentView, type ShellView } from "../state.js";
 
 interface NavItem {
   id: ShellView;
-  label: string;
+  labelKey:
+    | "sidebar_generator"
+    | "sidebar_accounts"
+    | "sidebar_sync"
+    | "sidebar_vaults"
+    | "sidebar_settings";
   icon: ComponentChildren;
 }
 
 const NAV: NavItem[] = [
-  { id: "generator", label: "Generator", icon: <IconKey size={16} /> },
-  { id: "accounts", label: "Accounts", icon: <IconUnlock size={16} /> },
-  { id: "sync", label: "Sync", icon: <IconRefresh size={16} /> },
-  { id: "vaults", label: "Vaults", icon: <IconShield size={16} /> },
-  { id: "settings", label: "Settings", icon: <IconSettings size={16} /> },
+  { id: "generator", labelKey: "sidebar_generator", icon: <IconKey size={16} /> },
+  { id: "accounts", labelKey: "sidebar_accounts", icon: <IconUnlock size={16} /> },
+  { id: "sync", labelKey: "sidebar_sync", icon: <IconRefresh size={16} /> },
+  { id: "vaults", labelKey: "sidebar_vaults", icon: <IconShield size={16} /> },
+  { id: "settings", labelKey: "sidebar_settings", icon: <IconSettings size={16} /> },
 ];
 
 export function Sidebar() {
@@ -40,7 +46,7 @@ export function Sidebar() {
           <span class="text-(--color-ink) font-medium tracking-[-0.01em] text-[15px]">
             Keyfount
           </span>
-          <span class="mono-tag !text-[9px]">Deterministic vault</span>
+          <span class="mono-tag !text-[9px]">{t("sidebar_tagline")}</span>
         </div>
       </div>
 
@@ -62,17 +68,17 @@ export function Sidebar() {
           class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-(--color-ink-muted) hover:text-(--color-ink) hover:bg-(--color-surface-elev) transition-colors duration-150 cursor-pointer bg-transparent border-0"
           whileTap={TAP_SCALE}
           onClick={onLock}
-          aria-label="Lock vault"
+          aria-label={t("sidebar_lock")}
         >
           <IconLock size={16} />
-          <span>Lock vault</span>
+          <span>{t("sidebar_lock")}</span>
         </motion.button>
       </div>
     </aside>
   );
 }
 
-function NavLink({ id, label, icon, active }: NavItem & { active: boolean }) {
+function NavLink({ id, labelKey, icon, active }: NavItem & { active: boolean }) {
   return (
     <motion.button
       type="button"
@@ -96,7 +102,7 @@ function NavLink({ id, label, icon, active }: NavItem & { active: boolean }) {
         />
       ) : null}
       <span class="grid place-items-center shrink-0">{icon}</span>
-      <span>{label}</span>
+      <span>{t(labelKey)}</span>
     </motion.button>
   );
 }
