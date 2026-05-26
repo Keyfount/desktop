@@ -22,6 +22,8 @@ import {
   selectedAccount,
   view,
 } from "../state.js";
+import { pullInBackground } from "../sync/auto.js";
+import { syncServerStatus } from "../sync/status.js";
 import type { AccountEntry, Profile } from "../types.js";
 import { AccountAvatar } from "./AccountAvatar.js";
 import { PageHeader } from "./PageHeader.js";
@@ -59,16 +61,58 @@ export function AccountsView() {
     view.value = "generator";
   }, []);
 
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      await pullInBackground();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshing]);
+
+  // The refresh button only makes sense when a sync session is
+  // configured. `syncServerStatus === "disconnected"` means no
+  // approved session — hide the button instead of failing silently.
+  const syncReady = syncServerStatus.value !== "disconnected";
+
   return (
     <div class="flex flex-col h-full">
       <PageHeader
         title={t("accounts_title")}
         subtitle={t("accounts_count", String(allAccounts.value.length))}
         actions={
-          <motion.button type="button" class="btn btn-sm" whileTap={TAP_SCALE} onClick={onCreate}>
-            <IconPlus size={14} />
-            {t("common_new")}
-          </motion.button>
+          <>
+            {syncReady ? (
+              <motion.button
+                type="button"
+                class="btn btn-ghost btn-sm"
+                whileTap={TAP_SCALE}
+                onClick={onRefresh}
+                disabled={refreshing}
+                aria-label={t("accounts_refresh")}
+                title={t("accounts_refresh")}
+              >
+                <motion.span
+                  animate={refreshing ? { rotate: 360 } : { rotate: 0 }}
+                  transition={
+                    refreshing
+                      ? { repeat: Infinity, duration: 0.8, ease: "linear" }
+                      : { duration: 0.15 }
+                  }
+                  class="grid place-items-center"
+                >
+                  <IconRefresh size={14} />
+                </motion.span>
+                {refreshing ? t("accounts_refreshing") : t("accounts_refresh")}
+              </motion.button>
+            ) : null}
+            <motion.button type="button" class="btn btn-sm" whileTap={TAP_SCALE} onClick={onCreate}>
+              <IconPlus size={14} />
+              {t("common_new")}
+            </motion.button>
+          </>
         }
       />
 
@@ -181,6 +225,20 @@ function AccountDetail({ entry }: { entry: AccountEntry }) {
   const [password, setPassword] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile>(entry.profile);
   const [busy, setBusy] = useState(false);
+  // Username editing mirrors the extension's AccountDetailScreen: a
+  // simple inline form that calls renameAccount on submit, then
+  // recomputes the password (since the derivation uses the
+  // username) and warns the user via a banner so they remember to
+  // update it on the actual site.
+  const [usernameDraft, setUsernameDraft] = useState(entry.username);
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const [renameToast, setRenameToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    setUsernameDraft(entry.username);
+    setRenameError(null);
+    setRenameToast(null);
+  }, [entry.domain, entry.username]);
 
   const regenerate = useCallback(
     async (withProfile: Profile) => {
@@ -240,6 +298,42 @@ function AccountDetail({ entry }: { entry: AccountEntry }) {
     selectedAccount.value = allAccounts.value[0] ?? null;
   }, [entry.domain, entry.username]);
 
+  const renameSubmit = useCallback(
+    async (event: Event) => {
+      event.preventDefault();
+      setRenameError(null);
+      const next = usernameDraft.trim();
+      if (next.length === 0 || next === entry.username) return;
+      setBusy(true);
+      try {
+        const r = await api.renameAccount(entry.domain, entry.username, next);
+        const updated = r.entry;
+        allAccounts.value = allAccounts.value.map((e) =>
+          e.domain === entry.domain && e.username === entry.username ? updated : e,
+        );
+        selectedAccount.value = updated;
+        // The derivation uses the username, so the derived password
+        // just changed. Recompute right away and let the user copy
+        // the freshly-derived value so they can update it on the
+        // actual site.
+        try {
+          const r2 = await api.generate(updated.domain, updated.username, updated.profile);
+          setPassword(r2.password);
+          setRenameToast(r2.password);
+          setRevealed(false);
+          setTimeout(() => setRenameToast(null), 12_000);
+        } catch {
+          /* swallow — useEffect on entry will re-regenerate */
+        }
+      } catch (err) {
+        setRenameError(describeError(err) || t("detail_rename_failed"));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [entry.domain, entry.username, usernameDraft],
+  );
+
   return (
     <motion.div
       class="flex flex-col gap-6 p-8 min-h-full"
@@ -250,13 +344,52 @@ function AccountDetail({ entry }: { entry: AccountEntry }) {
     >
       <header class="flex items-center gap-4">
         <AccountAvatar domain={entry.domain} size={52} />
-        <div class="flex flex-col min-w-0">
+        <div class="flex flex-col min-w-0 flex-1 gap-1">
           <h2 class="text-xl font-medium tracking-[-0.02em] text-(--color-ink) truncate">
             {entry.domain.replace(/^www\./, "")}
           </h2>
-          <span class="text-sm text-(--color-ink-muted) truncate">{entry.username}</span>
+          <form class="flex items-center gap-2 min-w-0" onSubmit={renameSubmit}>
+            <input
+              type="text"
+              class="input flex-1 min-w-0 !py-1 !text-sm"
+              value={usernameDraft}
+              autocomplete="off"
+              onInput={(e) => setUsernameDraft((e.target as HTMLInputElement).value)}
+              disabled={busy}
+              aria-label={t("main_username_label")}
+            />
+            {usernameDraft.trim() !== entry.username && usernameDraft.trim().length > 0 ? (
+              <motion.button type="submit" class="btn btn-sm" whileTap={TAP_SCALE} disabled={busy}>
+                <IconCheck size={14} />
+                {t("common_save")}
+              </motion.button>
+            ) : null}
+          </form>
+          {renameError !== null ? (
+            <span class="field-error" role="alert">
+              {renameError}
+            </span>
+          ) : null}
         </div>
       </header>
+
+      <AnimatePresence>
+        {renameToast !== null ? (
+          <motion.div
+            key="rename-toast"
+            class="callout callout-info flex flex-col gap-2"
+            variants={POP_IN}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+          >
+            <span class="text-sm">{t("detail_rename_password_changed")}</span>
+            <code class="font-mono text-xs break-all select-all text-(--color-ink)">
+              {renameToast}
+            </code>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       <motion.div
         class="flex flex-col gap-3 p-5 rounded-3xl bg-(--color-surface-elev) border border-(--color-line) shadow-[0_24px_48px_-24px_oklch(0_0_0/0.18)]"

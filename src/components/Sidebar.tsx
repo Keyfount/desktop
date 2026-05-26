@@ -8,6 +8,7 @@ import { t } from "../i18n.js";
 import { IconKey, IconLock, IconRefresh, IconSettings, IconShield, IconUnlock } from "../icons.js";
 import { SOFT_SPRING, TAP_SCALE } from "../motion.js";
 import { fingerprint, generated, screen, view as currentView, type ShellView } from "../state.js";
+import { syncServerStatus } from "../sync/status.js";
 
 interface NavItem {
   id: ShellView;
@@ -102,7 +103,39 @@ function NavLink({ id, labelKey, icon, active }: NavItem & { active: boolean }) 
         />
       ) : null}
       <span class="grid place-items-center shrink-0">{icon}</span>
-      <span>{t(labelKey)}</span>
+      <span class="flex-1 text-left">{t(labelKey)}</span>
+      {id === "sync" ? <SyncStatusDot /> : null}
     </motion.button>
+  );
+}
+
+/**
+ * Tiny coloured dot that reflects the live `/health` status of the
+ * configured sync server. Painted next to the "Sync" nav row so the
+ * user always sees whether their server is reachable, without
+ * having to open the screen.
+ */
+function SyncStatusDot() {
+  const status = syncServerStatus.value;
+  if (status === "disconnected") return null;
+  const colour =
+    status === "online"
+      ? "bg-emerald-500"
+      : status === "offline"
+        ? "bg-red-500"
+        : "bg-amber-400 animate-pulse";
+  const label =
+    status === "online"
+      ? t("sync_status_dot_online")
+      : status === "offline"
+        ? t("sync_status_dot_offline")
+        : t("sync_status_dot_checking");
+  return (
+    <span
+      class={`inline-block h-2 w-2 rounded-full shrink-0 ${colour}`}
+      role="status"
+      aria-label={label}
+      title={label}
+    />
   );
 }

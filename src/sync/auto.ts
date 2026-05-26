@@ -250,48 +250,27 @@ export async function pullInBackground(): Promise<void> {
 }
 
 /**
- * Push every local account through the same event pipe. Idempotent
- * on the receiving side because `applyOp` checks `(domain, username)`
- * presence — duplicates land as no-op updates. Called once per
- * unlock so accounts that were created before auto-sync existed
- * (or while the network was down) finally make it to the server.
- */
-async function bootstrapPushAll(): Promise<void> {
-  try {
-    const session = await approvedSession();
-    if (session === null) return;
-    const { entries } = await api.listAccounts();
-    for (const entry of entries) {
-      await pushOpInBackground({ t: "upsert_account", entry });
-    }
-  } catch (err) {
-    console.warn("[keyfount-sync] bootstrap push failed:", err);
-  }
-}
-
-/**
  * Subscribe to the mutation bus and start the polling timer. Idempotent —
  * calling twice in a row replaces the previous subscription / timer so the
  * App `useEffect` can call it on every shell mount without leaking.
+ *
+ * Pushes go through the bus listener: only events emitted by an
+ * actual local mutation (`syncBus.notify`) reach the server. The
+ * older "bootstrap push every local account on each unlock" was
+ * removed because it silently undid deletes from other devices —
+ * a stale local copy would race the inbound `delete_account` and
+ * the entry would reappear everywhere. The trade-off: accounts
+ * created before auto-sync existed need a manual "Récupérer/Force
+ * send" click to land on the server.
  */
 export function startAutoSync(): void {
   stopAutoSync();
   unsubscribe = syncBus.subscribe((op) => {
     void pushOpInBackground(op);
   });
-  // Bootstrap order MATTERS: pull first, push second.
-  //
-  // If we pushed our local accounts before pulling, every account
-  // that another device just deleted would come right back as a
-  // stale upsert (we have no tombstone for it locally) and the
-  // delete would silently undo. Pulling first means we apply any
-  // pending `delete_account` events to our local store before
-  // emitting upserts, so we only push what's *currently* still
-  // local.
-  void (async () => {
-    await pullInBackground();
-    await bootstrapPushAll();
-  })();
+  // Initial pull so the user sees fresh data immediately on entry
+  // to the shell.
+  void pullInBackground();
   pollTimer = setInterval(() => {
     void pullInBackground();
   }, POLL_INTERVAL_MS);

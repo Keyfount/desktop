@@ -16,6 +16,7 @@ import { Titlebar } from "./components/Titlebar.js";
 import { UnlockScreen } from "./components/UnlockScreen.js";
 import { VaultsScreen } from "./components/VaultsScreen.js";
 import { startAutoSync, stopAutoSync } from "./sync/auto.js";
+import { startSyncStatusMonitor, stopSyncStatusMonitor } from "./sync/status.js";
 import {
   defaultProfile,
   errorMessage,
@@ -60,8 +61,10 @@ export function App() {
   useEffect(() => {
     if (screen.value === "shell") {
       startAutoSync();
+      startSyncStatusMonitor();
       return () => {
         stopAutoSync();
+        stopSyncStatusMonitor();
       };
     }
     return undefined;
