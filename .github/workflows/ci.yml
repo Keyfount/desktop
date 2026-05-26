@@ -115,8 +115,121 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-  # Native Tauri builds (DMG/MSIX/AppImage) run in the release workflow,
-  # which has the signing keys and is the only path that ships artefacts.
-  # CI here only verifies that the frontend bundle and the Rust crate
-  # compile and pass tests — those signals catch every issue we can fix
-  # without a code-signing identity.
+  # Native Tauri builds (DMG/MSIX/AppImage) run in the release workflow
+  # for signed/notarised artefacts. The job below ships an UNSIGNED DMG
+  # for every CI run so a contributor can `Download artefact` from the
+  # PR and try the build immediately — no waiting for a tagged release.
+  bundle-macos:
+    name: Bundle macOS DMG (unsigned)
+    needs: [frontend, rust]
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install Rust (aarch64 + x86_64 targets)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - name: Cache Cargo registry + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: cargo-macos-bundle-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: |
+            cargo-macos-bundle-
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build Tauri bundle
+        # No signing env vars on purpose — the artefact is "unsigned, for
+        # testing only". macOS Gatekeeper will warn the user; that's
+        # expected for a CI-built dev preview. The release workflow is
+        # the one that produces signed + notarised .dmg files.
+        run: npm run build:tauri -- --target aarch64-apple-darwin
+
+      - name: Upload .dmg
+        uses: actions/upload-artifact@v4
+        with:
+          name: keyfount-macos-aarch64-${{ github.sha }}
+          path: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Upload .app (raw bundle)
+        uses: actions/upload-artifact@v4
+        with:
+          name: keyfount-macos-app-${{ github.sha }}
+          path: src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app
+          retention-days: 14
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------
+  # Windows bundle (.msi / .exe) — commented out for now.
+  #
+  # The Touch ID / Windows Hello backend has only ever been wired up
+  # for macOS so far (the `windows.rs` biometric module is a stub),
+  # and the maintainer has no Windows machine to test the artefact on.
+  # Uncomment when the Windows Hello path is implemented and we can
+  # actually verify the produced installer boots a vault.
+  #
+  # bundle-windows:
+  #   name: Bundle Windows installer (unsigned)
+  #   needs: [frontend, rust]
+  #   runs-on: windows-latest
+  #   timeout-minutes: 30
+  #
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Set up Node
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version-file: .nvmrc
+  #         cache: npm
+  #
+  #     - name: Install Rust
+  #       uses: dtolnay/rust-toolchain@stable
+  #       with:
+  #         targets: x86_64-pc-windows-msvc
+  #
+  #     - name: Cache Cargo registry + target
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: |
+  #           ~/.cargo/registry
+  #           ~/.cargo/git
+  #           src-tauri/target
+  #         key: cargo-windows-bundle-${{ hashFiles('src-tauri/Cargo.lock') }}
+  #         restore-keys: |
+  #           cargo-windows-bundle-
+  #
+  #     - name: Install npm dependencies
+  #       run: npm ci
+  #
+  #     - name: Build Tauri bundle
+  #       run: npm run build:tauri -- --target x86_64-pc-windows-msvc
+  #
+  #     - name: Upload installer
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: keyfount-windows-x86_64-${{ github.sha }}
+  #         path: |
+  #           src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
+  #           src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+  #         retention-days: 14
+  #         if-no-files-found: error
