@@ -1,0 +1,62 @@
+/**
+ * Mobile-only utilities. Imported only by src/mobile/MobileApp.tsx so
+ * the desktop bundle never pulls them in. Tailwind utilities stay the
+ * source of truth for layout; this file only provides the
+ * platform-conditional surfaces and safe-area helpers Tailwind doesn't
+ * cover idiomatically.
+ */
+
+.safe-top { padding-top: max(env(safe-area-inset-top), 12px); }
+.safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 12px); }
+
+/* iOS Liquid Glass surface — backdrop blur over scrolling content. */
+.glass-ios {
+  background: rgba(255, 255, 255, 0.62);
+  backdrop-filter: blur(28px) saturate(1.8);
+  -webkit-backdrop-filter: blur(28px) saturate(1.8);
+  border-top: 0.5px solid rgba(255, 255, 255, 0.5);
+}
+
+@media (prefers-color-scheme: dark) {
+  .glass-ios {
+    background: rgba(20, 20, 24, 0.62);
+    border-top-color: rgba(255, 255, 255, 0.08);
+  }
+}
+
+/* Android Material 3 — opaque surface. */
+.surface-android {
+  background: var(--color-surface-elev);
+  border-top: 1px solid var(--color-line);
+}
+
+/* Bottom-sheet snap container. */
+.mobile-sheet {
+  position: fixed;
+  inset: auto 0 0 0;
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+  z-index: 60;
+}
+
+.mobile-sheet__handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-line-strong);
+  margin: 8px auto 4px;
+}
+
+/* Pull-to-search affordance on the accounts list. */
+.pull-search-track {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 200ms var(--ease-out-quint, ease);
+  overflow: hidden;
+}
+
+.pull-search-track[data-open="true"] {
+  grid-template-rows: 1fr;
+}
+
+.pull-search-track > * { min-height: 0; }
