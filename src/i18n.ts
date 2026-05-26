@@ -156,8 +156,7 @@ const EN = {
   profile_words: "Words",
 
   sync_title: "Sync",
-  sync_intro:
-    "Connect a self-hosted Keyfount server to sync your account index across devices. Your master and your passwords never leave this device.",
+  sync_intro: "Connect a self-hosted Keyfount server.",
   sync_server_url: "Server URL",
   sync_test: "Test connection",
   sync_connect: "Connect",
@@ -171,11 +170,7 @@ const EN = {
   sync_status_connecting: "Connecting…",
   sync_status_pending: "Waiting for admin approval",
   sync_status_approved: "Connected",
-  sync_master_reused_title: "Your master password is not asked again",
-  sync_master_reused_body:
-    "The current unlocked session is used to derive your sync key. If it isn't the right one, the server will reject the connection and you can try again.",
   sync_email_label: "Email",
-  sync_email_hint: "Only an HMAC of this email leaves the device; the server never sees plaintext.",
   sync_pending_title: "Waiting for admin approval",
   sync_pending_body:
     "Ask the server administrator to approve this device. The status will refresh automatically every few seconds.",
@@ -184,9 +179,6 @@ const EN = {
   sync_pulling: "Pulling…",
   sync_push: "Push",
   sync_pushing: "Pushing…",
-  sync_auto_active:
-    "Automatic sync is active. Your accounts update across devices without you doing anything.",
-  sync_force_label: "Force a manual sync (rarely needed)",
   sync_status_dot_online: "Server reachable",
   sync_status_dot_offline: "Server unreachable",
   sync_status_dot_checking: "Checking server…",
@@ -378,8 +370,7 @@ const FR: Record<keyof typeof EN, Entry> = {
   profile_words: "Mots",
 
   sync_title: "Synchronisation",
-  sync_intro:
-    "Connectez un serveur Keyfount auto-hébergé pour synchroniser votre index de comptes entre appareils. Votre mot de passe maître et vos mots de passe ne quittent jamais cet appareil.",
+  sync_intro: "Connectez un serveur Keyfount auto-hébergé.",
   sync_server_url: "URL du serveur",
   sync_test: "Tester la connexion",
   sync_connect: "Se connecter",
@@ -393,12 +384,7 @@ const FR: Record<keyof typeof EN, Entry> = {
   sync_status_connecting: "Connexion…",
   sync_status_pending: "En attente d'approbation",
   sync_status_approved: "Connecté",
-  sync_master_reused_title: "Votre mot de passe maître n'est pas redemandé",
-  sync_master_reused_body:
-    "La session déverrouillée actuelle est utilisée pour dériver votre clé de synchronisation. Si ce n'est pas le bon, le serveur refusera la connexion et vous pourrez réessayer.",
   sync_email_label: "Email",
-  sync_email_hint:
-    "Seul un HMAC de cet email quitte l'appareil ; le serveur ne voit jamais le texte clair.",
   sync_pending_title: "En attente d'approbation",
   sync_pending_body:
     "Demandez à l'administrateur du serveur d'approuver cet appareil. Le statut se rafraîchit automatiquement.",
@@ -407,9 +393,6 @@ const FR: Record<keyof typeof EN, Entry> = {
   sync_pulling: "Récupération…",
   sync_push: "Envoyer",
   sync_pushing: "Envoi…",
-  sync_auto_active:
-    "Synchronisation automatique activée. Vos comptes se mettent à jour entre vos appareils sans intervention.",
-  sync_force_label: "Forcer une synchronisation manuelle (rarement nécessaire)",
   sync_status_dot_online: "Serveur accessible",
   sync_status_dot_offline: "Serveur injoignable",
   sync_status_dot_checking: "Vérification du serveur…",
