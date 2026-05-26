@@ -76,31 +76,50 @@ pub fn run() {
         )
         .try_init();
 
-    tauri::Builder::default()
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    {
+        let _ = rustls::crypto::ring::default_provider().install_default();
+    }
+
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
-        .plugin(tauri_plugin_store::Builder::default().build())
-        .plugin({
-            use tauri_plugin_global_shortcut::{Builder, ShortcutState};
-            Builder::new()
-                .with_handler(|app, _shortcut, event| {
-                    if event.state() == ShortcutState::Pressed {
-                        if let Some(win) = app.get_webview_window("main") {
-                            let _ = win.show();
-                            let _ = win.set_focus();
-                            let _ = win.eval("window.location.hash = '#/quick-search';");
-                        }
+        .plugin(tauri_plugin_store::Builder::default().build());
+
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+
+    #[cfg(desktop)]
+    let builder = builder.plugin({
+        use tauri_plugin_global_shortcut::{Builder, ShortcutState};
+        Builder::new()
+            .with_handler(|app, _shortcut, event| {
+                if event.state() == ShortcutState::Pressed {
+                    if let Some(win) = app.get_webview_window("main") {
+                        let _ = win.show();
+                        let _ = win.set_focus();
+                        let _ = win.eval("window.location.hash = '#/quick-search';");
                     }
-                })
-                .build()
-        })
-        .plugin(tauri_plugin_updater::Builder::new().build())
+                }
+            })
+            .build()
+    });
+
+    builder
         .manage(AppState::new())
         .setup(|app| {
+            #[cfg(any(target_os = "android", target_os = "ios"))]
+            {
+                if let Ok(data_dir) = app.path().app_data_dir() {
+                    std::fs::create_dir_all(&data_dir).ok();
+                    unsafe { std::env::set_var("HOME", &data_dir); }
+                }
+            }
+
             #[cfg(target_os = "macos")]
             {
                 use tauri::ActivationPolicy;
@@ -129,8 +148,11 @@ pub fn run() {
             // the configured `windowEffects`. We keep the module around
             // for future runtime-driven material changes.
 
-            native::tray::install(app.handle())?;
-            native::hotkey::register_default(app.handle())?;
+            #[cfg(desktop)]
+            {
+                native::tray::install(app.handle())?;
+                native::hotkey::register_default(app.handle())?;
+            }
 
             // Reopen the active vault from the registry. Without this we
             // start with an empty `StoreHandle` every run, the UI sees

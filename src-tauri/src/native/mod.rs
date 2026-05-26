@@ -9,5 +9,6 @@ pub mod autofill;
 pub mod biometric;
 pub mod clipboard;
 pub mod hotkey;
+#[cfg(desktop)]
 pub mod tray;
 pub mod vibrancy;

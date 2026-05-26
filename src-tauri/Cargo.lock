@@ -2130,6 +2130,7 @@ dependencies = [
  "rand",
  "rand_chacha",
  "rusqlite",
+ "rustls",
  "security-framework",
  "security-framework-sys",
  "serde",
