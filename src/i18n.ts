@@ -49,7 +49,9 @@ const EN = {
   unlock_button: "Unlock",
   unlock_use_master: "Use master password",
   unlock_use_pin: "Use PIN",
-  unlock_use_biometric: "Use Touch ID / Windows Hello",
+  unlock_use_biometric: "Use biometric unlock",
+  unlock_use_touchid: "Use Touch ID",
+  unlock_use_windowshello: "Use Windows Hello",
   unlock_biometric_unavailable: "Biometric unlock is not configured for this vault.",
 
   main_no_site: "Pick a site to derive a password for.",
@@ -74,11 +76,21 @@ const EN = {
   settings_history: "Account history",
   settings_history_label: "Remember accounts I generate passwords for",
   settings_history_hint: "Only the (domain, username) pair is saved — never the derived password.",
+  settings_history_disable_title: "Disable account history?",
+  settings_history_disable_body_accounts: (n: string) =>
+    `Turning history off will delete the ${n} saved account(s) on this device. The Accounts tab will disappear. This can't be undone.`,
+  settings_history_disable_body_sync:
+    "Turning history off will disconnect from the sync server. The Sync tab will disappear. You can reconnect later.",
+  settings_history_disable_body_both: (n: string) =>
+    `Turning history off will disconnect from the sync server and delete the ${n} saved account(s) on this device. Both the Accounts and Sync tabs will disappear. This can't be undone.`,
+  settings_history_disable_confirm: "Disable",
   settings_favicon_fallback: "Favicons",
   settings_favicon_label: "Show site favicons via a remote service",
   settings_favicon_hint:
     "Off keeps your account list off any third party. On uses Google's public favicon service.",
-  settings_biometric: "Touch ID / Windows Hello",
+  settings_biometric: "Biometric unlock",
+  settings_biometric_macos: "Touch ID",
+  settings_biometric_windows: "Windows Hello",
   settings_autofill: "System autofill",
   settings_autofill_label: "Watch focused password fields and offer to fill them",
   settings_autofill_hint:
@@ -94,7 +106,9 @@ const EN = {
   settings_danger: "Danger zone",
   settings_wipe: "Forget this vault",
 
-  biometric_toggle_label: "Unlock with Touch ID / Windows Hello",
+  biometric_toggle_label: "Unlock with biometrics",
+  biometric_toggle_label_touchid: "Unlock with Touch ID",
+  biometric_toggle_label_windowshello: "Unlock with Windows Hello",
   biometric_toggle_hint: "Requires biometrics to be enrolled at the OS level.",
   biometric_toggle_not_enrolled_hint:
     "Enrol a fingerprint or face at the OS level to enable this option.",
@@ -127,6 +141,10 @@ const EN = {
   detail_rename_failed: "Rename failed",
   detail_rename_password_changed:
     "The username changed, so the derived password did too. Update it on the actual site:",
+  detail_rename_warning_title: "Renaming also changes the password",
+  detail_rename_warning_body:
+    "Keyfount derives the password from the username. Confirming gives you a brand-new password — remember to update it on the website too.",
+  detail_rename_preview_label: "Future password",
 
   generator_password_label: "Password",
   generator_chars: (n: string) => `${n} chars`,
@@ -250,7 +268,9 @@ const FR: Record<keyof typeof EN, Entry> = {
   unlock_button: "Déverrouiller",
   unlock_use_master: "Utiliser le mot de passe",
   unlock_use_pin: "Utiliser le PIN",
-  unlock_use_biometric: "Utiliser Touch ID / Windows Hello",
+  unlock_use_biometric: "Utiliser le déverrouillage biométrique",
+  unlock_use_touchid: "Utiliser Touch ID",
+  unlock_use_windowshello: "Utiliser Windows Hello",
   unlock_biometric_unavailable: "Le déverrouillage biométrique n'est pas configuré.",
 
   main_no_site: "Choisissez un site pour dériver un mot de passe.",
@@ -276,11 +296,21 @@ const FR: Record<keyof typeof EN, Entry> = {
   settings_history_label: "Mémoriser les comptes pour lesquels je génère un mot de passe",
   settings_history_hint:
     "Seul le couple (domaine, identifiant) est enregistré — jamais le mot de passe dérivé.",
+  settings_history_disable_title: "Désactiver l'historique des comptes ?",
+  settings_history_disable_body_accounts: (n: string) =>
+    `Désactiver l'historique supprimera les ${n} compte(s) enregistré(s) sur cet appareil. L'onglet Comptes disparaîtra. Cette action est irréversible.`,
+  settings_history_disable_body_sync:
+    "Désactiver l'historique vous déconnectera du serveur de synchronisation. L'onglet Synchronisation disparaîtra. Vous pourrez vous reconnecter plus tard.",
+  settings_history_disable_body_both: (n: string) =>
+    `Désactiver l'historique vous déconnectera du serveur de synchronisation et supprimera les ${n} compte(s) enregistré(s) sur cet appareil. Les onglets Comptes et Synchronisation disparaîtront. Cette action est irréversible.`,
+  settings_history_disable_confirm: "Désactiver",
   settings_favicon_fallback: "Favicons",
   settings_favicon_label: "Afficher les favicons via un service distant",
   settings_favicon_hint:
     "Désactivé, votre liste de comptes reste à l'abri des tiers. Activé, utilise le service public de Google.",
-  settings_biometric: "Touch ID / Windows Hello",
+  settings_biometric: "Déverrouillage biométrique",
+  settings_biometric_macos: "Touch ID",
+  settings_biometric_windows: "Windows Hello",
   settings_autofill: "Remplissage système",
   settings_autofill_label: "Surveiller les champs de mot de passe et proposer le remplissage",
   settings_autofill_hint:
@@ -296,7 +326,9 @@ const FR: Record<keyof typeof EN, Entry> = {
   settings_danger: "Zone dangereuse",
   settings_wipe: "Oublier ce coffre",
 
-  biometric_toggle_label: "Déverrouiller avec Touch ID / Windows Hello",
+  biometric_toggle_label: "Déverrouiller avec la biométrie",
+  biometric_toggle_label_touchid: "Déverrouiller avec Touch ID",
+  biometric_toggle_label_windowshello: "Déverrouiller avec Windows Hello",
   biometric_toggle_hint: "Une empreinte doit être enregistrée au niveau du système.",
   biometric_toggle_not_enrolled_hint:
     "Enregistrez une empreinte ou un visage dans les réglages système pour activer cette option.",
@@ -331,6 +363,10 @@ const FR: Record<keyof typeof EN, Entry> = {
   detail_rename_failed: "Renommage échoué",
   detail_rename_password_changed:
     "L'identifiant a changé, donc le mot de passe dérivé aussi. Mettez-le à jour sur le site :",
+  detail_rename_warning_title: "Renommer change aussi le mot de passe",
+  detail_rename_warning_body:
+    "Keyfount dérive le mot de passe à partir de l'identifiant. Valider te donnera un tout nouveau mot de passe — pense à le mettre à jour sur le site aussi.",
+  detail_rename_preview_label: "Futur mot de passe",
 
   generator_password_label: "Mot de passe",
   generator_chars: (n: string) => `${n} caractères`,

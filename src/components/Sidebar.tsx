@@ -7,7 +7,14 @@ import { Logo } from "../Logo.js";
 import { t } from "../i18n.js";
 import { IconKey, IconLock, IconRefresh, IconSettings, IconShield, IconUnlock } from "../icons.js";
 import { SOFT_SPRING, TAP_SCALE } from "../motion.js";
-import { fingerprint, generated, screen, view as currentView, type ShellView } from "../state.js";
+import {
+  fingerprint,
+  generated,
+  historyEnabled,
+  screen,
+  view as currentView,
+  type ShellView,
+} from "../state.js";
 import { syncServerStatus } from "../sync/status.js";
 
 interface NavItem {
@@ -58,7 +65,16 @@ export function Sidebar() {
       ) : null}
 
       <nav class="flex-1 px-2 flex flex-col gap-0.5">
-        {NAV.map((item) => (
+        {NAV.filter((item) => {
+          // Accounts + Sync are the two surfaces that only matter when
+          // the user opted in to "remember the accounts I generate
+          // passwords for". With history off we have nothing to list
+          // and nothing to keep in sync, so we hide the entries to
+          // keep the sidebar honest. The setting toggle (in
+          // SettingsScreen) is the single source of truth.
+          if (historyEnabled.value) return true;
+          return item.id !== "accounts" && item.id !== "sync";
+        }).map((item) => (
           <NavLink key={item.id} {...item} active={currentView.value === item.id} />
         ))}
       </nav>
