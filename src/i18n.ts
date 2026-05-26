@@ -215,6 +215,25 @@ const EN = {
     "Optionally save the (site, username) pairs you generate passwords for, so you can pick them again later. Only domain + username are stored — never the password.",
   history_setup_enable: "Enable",
   history_setup_skip: "Skip",
+
+  mobile_vault_sheet_title: "Vaults",
+  mobile_vault_sheet_new: "New vault",
+  mobile_vault_sheet_lock: "Lock now",
+  mobile_vault_sheet_active: "Active",
+  mobile_accounts_search_placeholder: "Search accounts",
+  mobile_accounts_search_hint: "Pull down to search",
+  mobile_accounts_empty_title: "No accounts yet",
+  mobile_accounts_empty_cta: "New account",
+  mobile_accounts_row_actions_rename: "Rename",
+  mobile_accounts_row_actions_edit_profile: "Edit profile",
+  mobile_accounts_row_actions_delete: "Delete",
+  mobile_settings_section_lock: "Security",
+  mobile_settings_section_account: "Account",
+  mobile_settings_section_sync: "Sync",
+  mobile_settings_section_data: "Data",
+  mobile_settings_section_about: "About",
+  mobile_setup_additional_vault_title: "New vault",
+  mobile_setup_additional_vault_cancel: "Cancel",
 } satisfies Record<string, Entry>;
 
 const FR: Record<keyof typeof EN, Entry> = {
@@ -431,6 +450,25 @@ const FR: Record<keyof typeof EN, Entry> = {
     "Enregistrez optionnellement les couples (site, identifiant) pour les retrouver plus tard. Seuls le domaine et l'identifiant sont stockés — jamais le mot de passe.",
   history_setup_enable: "Activer",
   history_setup_skip: "Plus tard",
+
+  mobile_vault_sheet_title: "Coffres",
+  mobile_vault_sheet_new: "Nouveau coffre",
+  mobile_vault_sheet_lock: "Verrouiller maintenant",
+  mobile_vault_sheet_active: "Actif",
+  mobile_accounts_search_placeholder: "Rechercher un compte",
+  mobile_accounts_search_hint: "Tire vers le bas pour rechercher",
+  mobile_accounts_empty_title: "Aucun compte encore",
+  mobile_accounts_empty_cta: "Nouveau compte",
+  mobile_accounts_row_actions_rename: "Renommer",
+  mobile_accounts_row_actions_edit_profile: "Modifier le profil",
+  mobile_accounts_row_actions_delete: "Supprimer",
+  mobile_settings_section_lock: "Sécurité",
+  mobile_settings_section_account: "Compte",
+  mobile_settings_section_sync: "Synchronisation",
+  mobile_settings_section_data: "Données",
+  mobile_settings_section_about: "À propos",
+  mobile_setup_additional_vault_title: "Nouveau coffre",
+  mobile_setup_additional_vault_cancel: "Annuler",
 };
 
 const STRINGS: Record<Locale, Record<keyof typeof EN, Entry>> = { en: EN, fr: FR };
