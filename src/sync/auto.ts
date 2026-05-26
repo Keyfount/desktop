@@ -64,11 +64,7 @@ async function encryptOp(
   return { ciphertext: new Uint8Array(ct), nonce };
 }
 
-async function decryptOp(
-  key: CryptoKey,
-  ciphertext: number[],
-  nonce: number[],
-): Promise<SyncOp> {
+async function decryptOp(key: CryptoKey, ciphertext: number[], nonce: number[]): Promise<SyncOp> {
   const plain = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv: new Uint8Array(nonce) as BufferSource },
     key,

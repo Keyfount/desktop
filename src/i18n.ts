@@ -73,8 +73,7 @@ const EN = {
   settings_pin: "PIN",
   settings_history: "Account history",
   settings_history_label: "Remember accounts I generate passwords for",
-  settings_history_hint:
-    "Only the (domain, username) pair is saved — never the derived password.",
+  settings_history_hint: "Only the (domain, username) pair is saved — never the derived password.",
   settings_favicon_fallback: "Favicons",
   settings_favicon_label: "Show site favicons via a remote service",
   settings_favicon_hint:
@@ -175,12 +174,10 @@ const EN = {
   sync_kv_fingerprint: "Key fingerprint",
   sync_reach_invalid_url: "Invalid URL. Use http:// or https://.",
   sync_reach_timeout: "Server did not answer within 5 seconds.",
-  sync_reach_network:
-    "Could not reach the URL. Check it is accessible and CORS is configured.",
+  sync_reach_network: "Could not reach the URL. Check it is accessible and CORS is configured.",
   sync_reach_unexpected: "URL replied but does not look like a Keyfount server.",
   sync_reach_http: (code: string) => `Server replied ${code}.`,
-  sync_err_locked:
-    "The vault is locked. Unlock it from the home screen and retry.",
+  sync_err_locked: "The vault is locked. Unlock it from the home screen and retry.",
   sync_err_master_mismatch:
     "The master used to register this server does not match the current session.",
   sync_err_too_many: "Too many failed attempts recently. Retry in a few minutes.",
@@ -313,7 +310,7 @@ const FR: Record<keyof typeof EN, Entry> = {
   accounts_search_placeholder: "Rechercher un compte…",
   accounts_empty_title: "Aucun compte pour l'instant",
   accounts_empty_hint:
-    "Générez un mot de passe depuis l'onglet \"Générateur\", puis enregistrez le couple (site, identifiant) pour le retrouver ici.",
+    'Générez un mot de passe depuis l\'onglet "Générateur", puis enregistrez le couple (site, identifiant) pour le retrouver ici.',
   accounts_no_matches_hint: "Essayez un autre terme de recherche.",
   accounts_pick_title: "Choisissez un compte",
   accounts_pick_hint: "Sélectionnez une entrée à gauche pour voir son mot de passe dérivé.",

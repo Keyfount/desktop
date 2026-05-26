@@ -137,9 +137,7 @@ pub async fn sync_session_save(
 /// Load the sync session for the active vault. Returns `null` when no
 /// session has been saved yet.
 #[tauri::command]
-pub async fn sync_session_load(
-    state: State<'_, AppState>,
-) -> AppResult<Option<serde_json::Value>> {
+pub async fn sync_session_load(state: State<'_, AppState>) -> AppResult<Option<serde_json::Value>> {
     let vault_id = active_vault_id(&state).await?;
     load_session_from_disk(&vault_id)
 }

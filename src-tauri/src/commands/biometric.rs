@@ -27,7 +27,9 @@ pub struct BiometricAvailableResponse {
 }
 
 #[tauri::command]
-pub async fn biometric_available(state: State<'_, AppState>) -> AppResult<BiometricAvailableResponse> {
+pub async fn biometric_available(
+    state: State<'_, AppState>,
+) -> AppResult<BiometricAvailableResponse> {
     let backend = Backend;
     let avail = backend.availability();
     let vault_enrolled = match active_vault_id(&state).await {
@@ -42,7 +44,9 @@ pub async fn biometric_available(state: State<'_, AppState>) -> AppResult<Biomet
 }
 
 #[tauri::command]
-pub async fn unlock_biometric(state: State<'_, AppState>) -> AppResult<crate::commands::session::UnlockResponse> {
+pub async fn unlock_biometric(
+    state: State<'_, AppState>,
+) -> AppResult<crate::commands::session::UnlockResponse> {
     let backend = Backend;
     let vault_id = active_vault_id(&state).await?;
     let entry = keychain_entry(&vault_id);

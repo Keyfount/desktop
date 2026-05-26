@@ -86,12 +86,14 @@ impl Backend {
         let mut query = CFMutableDictionary::<CFString, CFType>::with_capacity(4);
         let class_value = wrap_cfstr(unsafe { kSecClassGenericPassword });
         query.add(&wrap_cfstr(unsafe { kSecClass }), &class_value.as_CFType());
-        query.add(&wrap_cfstr(unsafe { kSecAttrService }), &service.as_CFType());
+        query.add(
+            &wrap_cfstr(unsafe { kSecAttrService }),
+            &service.as_CFType(),
+        );
         query.add(&wrap_cfstr(unsafe { kSecAttrAccount }), &acct.as_CFType());
         query.add(&wrap_cfstr(unsafe { kSecValueData }), &data.as_CFType());
 
-        let status =
-            unsafe { SecItemAdd(query.as_concrete_TypeRef() as _, std::ptr::null_mut()) };
+        let status = unsafe { SecItemAdd(query.as_concrete_TypeRef() as _, std::ptr::null_mut()) };
         if status != errSecSuccess {
             return Err(format!("SecItemAdd failed with OSStatus {status}"));
         }
@@ -110,7 +112,10 @@ impl Backend {
         let mut query = CFMutableDictionary::<CFString, CFType>::with_capacity(5);
         let class_value = wrap_cfstr(unsafe { kSecClassGenericPassword });
         query.add(&wrap_cfstr(unsafe { kSecClass }), &class_value.as_CFType());
-        query.add(&wrap_cfstr(unsafe { kSecAttrService }), &service.as_CFType());
+        query.add(
+            &wrap_cfstr(unsafe { kSecAttrService }),
+            &service.as_CFType(),
+        );
         query.add(&wrap_cfstr(unsafe { kSecAttrAccount }), &acct.as_CFType());
         let one = CFNumber::from(1i32);
         query.add(&wrap_cfstr(unsafe { kSecMatchLimit }), &one.as_CFType());
@@ -120,8 +125,7 @@ impl Backend {
         );
 
         let mut result: CFTypeRef = std::ptr::null();
-        let status =
-            unsafe { SecItemCopyMatching(query.as_concrete_TypeRef() as _, &mut result) };
+        let status = unsafe { SecItemCopyMatching(query.as_concrete_TypeRef() as _, &mut result) };
         if status == errSecItemNotFound {
             return Err("not enrolled".into());
         }
@@ -147,7 +151,10 @@ impl Backend {
         let mut query = CFMutableDictionary::<CFString, CFType>::with_capacity(4);
         let class_value = wrap_cfstr(unsafe { kSecClassGenericPassword });
         query.add(&wrap_cfstr(unsafe { kSecClass }), &class_value.as_CFType());
-        query.add(&wrap_cfstr(unsafe { kSecAttrService }), &service.as_CFType());
+        query.add(
+            &wrap_cfstr(unsafe { kSecAttrService }),
+            &service.as_CFType(),
+        );
         query.add(&wrap_cfstr(unsafe { kSecAttrAccount }), &acct.as_CFType());
         let one = CFNumber::from(1i32);
         query.add(&wrap_cfstr(unsafe { kSecMatchLimit }), &one.as_CFType());
@@ -220,8 +227,14 @@ fn delete_existing(service: &CFString, account: &CFString) -> Result<(), String>
     let mut query = CFMutableDictionary::<CFString, CFType>::with_capacity(3);
     let class_value = wrap_cfstr(unsafe { kSecClassGenericPassword });
     query.add(&wrap_cfstr(unsafe { kSecClass }), &class_value.as_CFType());
-    query.add(&wrap_cfstr(unsafe { kSecAttrService }), &service.as_CFType());
-    query.add(&wrap_cfstr(unsafe { kSecAttrAccount }), &account.as_CFType());
+    query.add(
+        &wrap_cfstr(unsafe { kSecAttrService }),
+        &service.as_CFType(),
+    );
+    query.add(
+        &wrap_cfstr(unsafe { kSecAttrAccount }),
+        &account.as_CFType(),
+    );
     let status = unsafe { SecItemDelete(query.as_concrete_TypeRef() as _) };
     if status == errSecSuccess || status == errSecItemNotFound {
         Ok(())
@@ -229,4 +242,3 @@ fn delete_existing(service: &CFString, account: &CFString) -> Result<(), String>
         Err(format!("SecItemDelete failed with OSStatus {status}"))
     }
 }
-

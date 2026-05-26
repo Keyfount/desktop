@@ -229,8 +229,7 @@ function Toggle({
   return (
     <div
       class={
-        "card !p-4 flex items-start gap-3 " +
-        (disabled ? "opacity-60 cursor-not-allowed" : "")
+        "card !p-4 flex items-start gap-3 " + (disabled ? "opacity-60 cursor-not-allowed" : "")
       }
     >
       <label class="switch shrink-0 mt-0.5">

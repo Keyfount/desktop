@@ -4,7 +4,14 @@ import { AnimatePresence, motion } from "framer-motion";
 
 import { api, describeError } from "../api.js";
 import { t } from "../i18n.js";
-import { IconCheck, IconDownload, IconRefresh, IconShield, IconUnlock, IconUpload } from "../icons.js";
+import {
+  IconCheck,
+  IconDownload,
+  IconRefresh,
+  IconShield,
+  IconUnlock,
+  IconUpload,
+} from "../icons.js";
 import { POP_IN, SOFT_SPRING, TAP_SCALE } from "../motion.js";
 import { errorMessage } from "../state.js";
 import type { SyncSession } from "../sync/auth.js";
