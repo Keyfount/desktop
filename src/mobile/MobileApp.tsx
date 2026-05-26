@@ -3,6 +3,10 @@ import { AnimatePresence, motion } from "framer-motion";
 import { api, describeError } from "../api.js";
 import { t } from "../i18n.js";
 import { detectPlatform } from "../platform.js";
+import { DotGrid } from "../DotGrid.js";
+import { SyncScreen } from "../components/SyncScreen.js";
+import { VaultsScreen } from "../components/VaultsScreen.js";
+import { MobileAccountDetailSheet } from "./MobileAccountDetailSheet.js";
 import {
   errorMessage,
   faviconFallbackEnabled,
@@ -12,6 +16,7 @@ import {
   defaultProfile,
   screen,
   view,
+  allAccounts,
 } from "../state.js";
 import { startAutoSync, stopAutoSync } from "../sync/auto.js";
 import { startSyncStatusMonitor, stopSyncStatusMonitor } from "../sync/status.js";
@@ -19,7 +24,7 @@ import { MobileShell } from "./MobileShell.js";
 import { VaultSheet } from "./VaultSheet.js";
 import { vaultSheetOpen, additionalVaultMode } from "./state.js";
 import { MobileGeneratorScreen } from "./screens/MobileGeneratorScreen.js";
-import { MobileAccountsScreen, type MobileAccountRow } from "./screens/MobileAccountsScreen.js";
+import { MobileAccountsScreen } from "./screens/MobileAccountsScreen.js";
 import { MobileSettingsScreen } from "./screens/MobileSettingsScreen.js";
 import { MobileSetupScreen } from "./screens/MobileSetupScreen.js";
 import { MobileUnlockScreen } from "./screens/MobileUnlockScreen.js";
@@ -28,7 +33,6 @@ import "./style.css";
 
 export function MobileApp() {
   const platform = detectPlatform() === "android" ? "android" : "ios";
-  const [accounts, setAccounts] = useState<MobileAccountRow[]>([]);
   const [vaults, setVaults] = useState<VaultRow[]>([]);
 
   useEffect(() => {
@@ -45,13 +49,7 @@ export function MobileApp() {
             api.listAccounts(),
             api.listVaults(),
           ]);
-          setAccounts(
-            acctResp.entries.map((e) => ({
-              domain: e.domain,
-              username: e.username,
-              lastUsedAt: e.lastUsedAt,
-            })),
-          );
+          allAccounts.value = acctResp.entries;
           setVaults(transformVaults(vaultResp.vaults, vaultResp.activeId ?? undefined));
         } catch (err) {
           errorMessage.value = describeError(err);
@@ -81,63 +79,76 @@ export function MobileApp() {
       : "generator";
 
   return (
-    <AnimatePresence mode="wait" initial={false}>
-      {screen.value === "setup" ? (
-        <motion.div key="setup" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          <MobileSetupScreen
-            mode={additionalVaultMode.value ? "additional" : "first-run"}
-            onCancel={() => {
-              additionalVaultMode.value = false;
-              screen.value = "shell";
-            }}
-          />
-        </motion.div>
-      ) : screen.value === "unlock" ? (
-        <motion.div key="unlock" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          <MobileUnlockScreen hasPin={hasPin.value} />
-        </motion.div>
-      ) : screen.value === "shell" ? (
-        <motion.div key="shell" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          <MobileShell
-            active={activeTab}
-            platform={platform}
-            fingerprint={fingerprint.value}
-            onChange={onTabChange}
-          >
-            {activeTab === "generator" ? <MobileGeneratorScreen /> : null}
-            {activeTab === "accounts" ? <MobileAccountsScreen accounts={accounts} /> : null}
-            {activeTab === "settings" ? <MobileSettingsScreen onLock={onLock} /> : null}
-          </MobileShell>
-          <VaultSheet
-            platform={platform}
-            vaults={vaults}
-            onSwitch={(id) => {
-              void api.switchVault(id)
-                .then(() => {
-                  screen.value = "unlock";
-                  // refreshVaults will be called when the user gets back to shell after unlock
-                })
-                .catch((err) => { errorMessage.value = describeError(err); });
-              vaultSheetOpen.value = false;
-            }}
-            onLock={onLock}
-            onNew={() => {
-              void api.startNewVault()
-                .then(() => {
-                  additionalVaultMode.value = true;
-                  fingerprint.value = null;
-                  screen.value = "setup";
-                })
-                .catch((err) => { errorMessage.value = describeError(err); });
-            }}
-          />
-        </motion.div>
-      ) : (
-        <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          <p class="p-6 text-(--color-ink-muted)">…</p>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <div class="relative h-full w-full overflow-hidden">
+      <DotGrid />
+      <AnimatePresence mode="wait" initial={false}>
+        {screen.value === "setup" ? (
+          <motion.div key="setup" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} class="relative z-10">
+            <MobileSetupScreen
+              mode={additionalVaultMode.value ? "additional" : "first-run"}
+              onCancel={() => {
+                additionalVaultMode.value = false;
+                screen.value = "shell";
+              }}
+            />
+          </motion.div>
+        ) : screen.value === "unlock" ? (
+          <motion.div key="unlock" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} class="relative z-10">
+            <MobileUnlockScreen hasPin={hasPin.value} />
+          </motion.div>
+        ) : screen.value === "shell" ? (
+          <motion.div key="shell" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} class="relative z-10 h-full w-full">
+            {view.value === "sync" ? (
+              <div class="h-full w-full overflow-hidden flex flex-col pt-[calc(env(safe-area-inset-top,0px))]">
+                <SyncScreen onBack={() => { view.value = "settings"; }} />
+              </div>
+            ) : view.value === "vaults" ? (
+              <div class="h-full w-full overflow-hidden flex flex-col pt-[calc(env(safe-area-inset-top,0px))]">
+                <VaultsScreen onBack={() => { view.value = "settings"; }} />
+              </div>
+            ) : (
+              <MobileShell
+                active={activeTab}
+                platform={platform}
+                fingerprint={fingerprint.value}
+                onChange={onTabChange}
+              >
+                {activeTab === "generator" ? <MobileGeneratorScreen /> : null}
+                {activeTab === "accounts" ? <MobileAccountsScreen /> : null}
+                {activeTab === "settings" ? <MobileSettingsScreen onLock={onLock} /> : null}
+              </MobileShell>
+            )}
+            <VaultSheet
+              platform={platform}
+              vaults={vaults}
+              onSwitch={(id) => {
+                void api.switchVault(id)
+                  .then(() => {
+                    screen.value = "unlock";
+                  })
+                  .catch((err) => { errorMessage.value = describeError(err); });
+                vaultSheetOpen.value = false;
+              }}
+              onLock={onLock}
+              onNew={() => {
+                void api.startNewVault()
+                  .then(() => {
+                    additionalVaultMode.value = true;
+                    fingerprint.value = null;
+                    screen.value = "setup";
+                  })
+                  .catch((err) => { errorMessage.value = describeError(err); });
+              }}
+            />
+            <MobileAccountDetailSheet platform={platform} />
+          </motion.div>
+        ) : (
+          <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} class="relative z-10">
+            <p class="p-6 text-(--color-ink-muted)">…</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
 
