@@ -239,11 +239,7 @@ function ConnectForm({
       </div>
 
       <div class="card !p-5 flex flex-col gap-4">
-        <div class="callout text-xs leading-relaxed">
-          <strong>{t("sync_master_reused_title")}</strong>
-          <p class="m-0 mt-1 text-(--color-ink-muted)">{t("sync_master_reused_body")}</p>
-        </div>
-        <Field label={t("sync_email_label")} hint={t("sync_email_hint")}>
+        <Field label={t("sync_email_label")}>
           <input
             class="input"
             type="email"
@@ -393,13 +389,7 @@ function ApprovedPanel({
         </div>
       </div>
 
-      <div class="callout callout-success flex items-center gap-2">
-        <IconCheck size={14} />
-        <span class="text-xs leading-relaxed">{t("sync_auto_active")}</span>
-      </div>
-
       <div class="card !p-5 flex flex-col gap-3">
-        <span class="field-label">{t("sync_force_label")}</span>
         <div class="flex gap-2">
           <motion.button
             type="button"
