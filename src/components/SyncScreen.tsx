@@ -46,7 +46,11 @@ function onSessionApproved(): void {
   })();
 }
 
-export function SyncScreen() {
+interface Props {
+  onBack?: () => void;
+}
+
+export function SyncScreen({ onBack }: Props) {
   const [status, setStatus] = useState<Status>("loading");
   const [session, setSession] = useState<SyncSession | null>(null);
   const [reachable, setReachable] = useState<null | { ok: boolean; reason?: string }>(null);
@@ -68,12 +72,13 @@ export function SyncScreen() {
       <PageHeader
         title={t("sync_title")}
         subtitle={subtitleFor(status)}
+        onBack={onBack}
         actions={
           status === "approved" || status === "pending" ? <StatusPill status={status} /> : null
         }
       />
 
-      <div class="flex-1 overflow-y-auto px-8 py-8">
+      <div class="flex-1 overflow-y-auto px-4 py-6 md:px-8 md:py-8">
         <div class="mx-auto w-full max-w-2xl flex flex-col gap-6">
           {status === "loading" ? (
             <div class="skeleton h-16 rounded-2xl" />

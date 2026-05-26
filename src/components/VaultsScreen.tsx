@@ -9,7 +9,11 @@ import { errorMessage, fingerprint, screen } from "../state.js";
 import type { ListVaultsResponse } from "../types.js";
 import { PageHeader } from "./PageHeader.js";
 
-export function VaultsScreen() {
+interface Props {
+  onBack?: () => void;
+}
+
+export function VaultsScreen({ onBack }: Props) {
   const [data, setData] = useState<ListVaultsResponse | null>(null);
 
   useEffect(() => {
@@ -46,6 +50,7 @@ export function VaultsScreen() {
       <PageHeader
         title={t("vaults_title")}
         subtitle={data ? t("vaults_subtitle", String(data.vaults.length)) : ""}
+        onBack={onBack}
         actions={
           <motion.button type="button" class="btn btn-sm" whileTap={TAP_SCALE} onClick={onNew}>
             <IconPlus size={14} />
@@ -54,7 +59,7 @@ export function VaultsScreen() {
         }
       />
 
-      <div class="flex-1 overflow-y-auto px-8 py-8">
+      <div class="flex-1 overflow-y-auto px-4 py-6 md:px-8 md:py-8">
         <div class="mx-auto w-full max-w-3xl flex flex-col gap-3">
           {data === null ? (
             [0, 1].map((i) => <div key={i} class="skeleton h-16 rounded-2xl" />)
