@@ -250,6 +250,36 @@ export async function pullInBackground(): Promise<void> {
 }
 
 /**
+ * One-shot "I just connected to a server, get me in sync" routine.
+ *
+ * Distinct from the per-unlock bootstrap we deliberately dropped
+ * earlier: this runs only when the SyncScreen sees the session
+ * flip to `approved`. At that exact moment we know two things must
+ * happen for the user to feel the connection was instant:
+ *   1. The accounts they have locally need to land on the server,
+ *      otherwise the other device won't see them.
+ *   2. Whatever the server already had needs to land here.
+ *
+ * Order is pull-then-push for the same reason as elsewhere — we
+ * don't want to silently resurrect another device's
+ * `delete_account`. Errors are swallowed because a freshly
+ * connected user does not need to see a stack trace.
+ */
+export async function pushAllLocalAccountsAndPull(): Promise<void> {
+  try {
+    await pullInBackground();
+    const session = await approvedSession();
+    if (session === null) return;
+    const { entries } = await api.listAccounts();
+    for (const entry of entries) {
+      await pushOpInBackground({ t: "upsert_account", entry });
+    }
+  } catch (err) {
+    console.warn("[keyfount-sync] post-connect bootstrap failed:", err);
+  }
+}
+
+/**
  * Subscribe to the mutation bus and start the polling timer. Idempotent —
  * calling twice in a row replaces the previous subscription / timer so the
  * App `useEffect` can call it on every shell mount without leaking.
@@ -261,7 +291,8 @@ export async function pullInBackground(): Promise<void> {
  * a stale local copy would race the inbound `delete_account` and
  * the entry would reappear everywhere. The trade-off: accounts
  * created before auto-sync existed need a manual "Récupérer/Force
- * send" click to land on the server.
+ * send" click — OR a fresh server connect, which calls
+ * `pushAllLocalAccountsAndPull` once on transition to `approved`.
  */
 export function startAutoSync(): void {
   stopAutoSync();
