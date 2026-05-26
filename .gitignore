@@ -57,3 +57,4 @@ keyfount.entitlements.signed
 # Misc
 .cache/
 *.tsbuildinfo
+.superpowers/
