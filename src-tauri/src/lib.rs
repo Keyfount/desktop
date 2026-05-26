@@ -252,3 +252,55 @@ pub fn run() {
             let _ = app_handle;
         });
 }
+
+use std::os::raw::c_char;
+use std::ffi::{CStr, CString};
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn derive_password_ffi(
+    master: *const c_char,
+    domain: *const c_char,
+    email: *const c_char,
+    profile_json: *const c_char,
+) -> *mut c_char {
+    if master.is_null() || domain.is_null() || email.is_null() || profile_json.is_null() {
+        return std::ptr::null_mut();
+    }
+    let master = unsafe { CStr::from_ptr(master) }.to_string_lossy().into_owned();
+    let domain = unsafe { CStr::from_ptr(domain) }.to_string_lossy().into_owned();
+    let email = unsafe { CStr::from_ptr(email) }.to_string_lossy().into_owned();
+    let profile_json = unsafe { CStr::from_ptr(profile_json) }.to_string_lossy().into_owned();
+
+    let resolved_profile: types::Profile = match serde_json::from_str(&profile_json) {
+        Ok(p) => p,
+        Err(_) => return std::ptr::null_mut(),
+    };
+
+    let inputs = types::DerivationInputs {
+        master,
+        domain,
+        email,
+    };
+
+    let password_fut = crypto::derive_password(&inputs, &resolved_profile);
+    let password = match tauri::async_runtime::block_on(password_fut) {
+        Ok(p) => p,
+        Err(_) => return std::ptr::null_mut(),
+    };
+
+    let c_str = match CString::new(password) {
+        Ok(s) => s,
+        Err(_) => return std::ptr::null_mut(),
+    };
+    c_str.into_raw()
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn free_password_ffi(s: *mut c_char) {
+    if !s.is_null() {
+        unsafe {
+            let _ = CString::from_raw(s);
+        }
+    }
+}
+
