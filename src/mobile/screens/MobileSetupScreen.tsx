@@ -3,7 +3,8 @@ import { motion } from "framer-motion";
 import { api, describeError } from "../../api.js";
 import { t } from "../../i18n.js";
 import { SOFT_SPRING, TAP_SCALE } from "../../motion.js";
-import { errorMessage, fingerprint } from "../../state.js";
+import { errorMessage, fingerprint, screen, view } from "../../state.js";
+import { additionalVaultMode } from "../state.js";
 
 const MIN_LENGTH = 12;
 
@@ -32,6 +33,9 @@ export function MobileSetupScreen({ mode, onCancel }: Props) {
     try {
       const res = await api.setup(master);
       fingerprint.value = res.fingerprint;
+      additionalVaultMode.value = false;
+      screen.value = "shell";
+      view.value = "generator";
     } catch (err) {
       errorMessage.value = describeError(err);
     } finally {

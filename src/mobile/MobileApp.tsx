@@ -80,14 +80,6 @@ export function MobileApp() {
       ? view.value
       : "generator";
 
-  const refreshVaults = useCallback(() => {
-    void api.listVaults()
-      .then((resp) => {
-        setVaults(transformVaults(resp.vaults, resp.activeId ?? undefined));
-      })
-      .catch((err) => { errorMessage.value = describeError(err); });
-  }, []);
-
   return (
     <AnimatePresence mode="wait" initial={false}>
       {screen.value === "setup" ? (
@@ -121,7 +113,10 @@ export function MobileApp() {
             vaults={vaults}
             onSwitch={(id) => {
               void api.switchVault(id)
-                .then(refreshVaults)
+                .then(() => {
+                  screen.value = "unlock";
+                  // refreshVaults will be called when the user gets back to shell after unlock
+                })
                 .catch((err) => { errorMessage.value = describeError(err); });
               vaultSheetOpen.value = false;
             }}

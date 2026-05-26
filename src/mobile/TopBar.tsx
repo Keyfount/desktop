@@ -1,3 +1,4 @@
+import { t } from "../i18n.js";
 import { Logo } from "../Logo.js";
 import { VaultAvatar } from "./VaultAvatar.js";
 
@@ -13,7 +14,7 @@ export function TopBar({ fingerprint }: Props) {
         Keyfount
       </span>
       {fingerprint ? (
-        <span class="fingerprint-sm shrink-0" title="Fingerprint">
+        <span class="fingerprint-sm shrink-0" title={t("setup_fingerprint_hint")}>
           {fingerprint.split(/\s+/u)[0] ?? ""}
         </span>
       ) : null}

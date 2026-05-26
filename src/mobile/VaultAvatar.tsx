@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { t } from "../i18n.js";
 import { SOFT_SPRING, TAP_SCALE } from "../motion.js";
 import { vaultSheetOpen } from "./state.js";
 
@@ -23,7 +24,7 @@ export function VaultAvatar({ fingerprint }: Props) {
       onClick={() => {
         vaultSheetOpen.value = true;
       }}
-      aria-label="Vaults"
+      aria-label={t("mobile_vault_sheet_title")}
     >
       <span class="vault-avatar__emoji" aria-hidden="true">{firstEmoji(fingerprint)}</span>
     </motion.button>

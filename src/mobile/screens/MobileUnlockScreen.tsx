@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { api, describeError } from "../../api.js";
 import { t } from "../../i18n.js";
 import { SOFT_SPRING, TAP_SCALE } from "../../motion.js";
-import { errorMessage } from "../../state.js";
+import { errorMessage, screen, view } from "../../state.js";
 
 interface Props {
   hasPin: boolean;
@@ -15,10 +15,13 @@ export function MobileUnlockScreen({ hasPin }: Props) {
 
   const onSubmit = async (e: Event) => {
     e.preventDefault();
-    errorMessage.value = null;
     setBusy(true);
+    errorMessage.value = null;
     try {
       await api.unlock(master);
+      setMaster("");
+      screen.value = "shell";
+      view.value = "generator";
     } catch (err) {
       errorMessage.value = describeError(err);
     } finally {

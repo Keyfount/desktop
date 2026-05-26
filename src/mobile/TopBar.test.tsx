@@ -13,6 +13,6 @@ describe("<TopBar />", () => {
   it("hides the avatar when fingerprint is null", () => {
     const root = document.createElement("div");
     render(<TopBar fingerprint={null} />, root);
-    expect(root.querySelector("[aria-label='Vaults']")).toBeNull();
+    expect(root.querySelector("button[aria-label]")).toBeNull();
   });
 });

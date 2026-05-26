@@ -59,7 +59,12 @@ export function MobileSettingsScreen({ onLock }: Props) {
                   : "bg-amber-400")
             }
           />
-          <span class="text-(--color-ink-muted)">{syncServerStatus.value}</span>
+          <span class="text-(--color-ink-muted)">
+            {syncServerStatus.value === "online" ? t("sync_status_dot_online")
+              : syncServerStatus.value === "offline" ? t("sync_status_dot_offline")
+              : syncServerStatus.value === "checking" ? t("sync_status_dot_checking")
+              : ""}
+          </span>
         </div>
       </div>
 
