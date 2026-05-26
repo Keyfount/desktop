@@ -203,3 +203,38 @@ export function IconSearch({ size = 18, ...props }: IconProps) {
     </svg>
   );
 }
+
+/**
+ * Stylised fingerprint glyph, inspired by Apple's Touch ID badge.
+ * We're not redrawing Apple's exact artwork (that would be a
+ * trademark headache); this is a neutral fingerprint motif that
+ * reads instantly as biometric-on-Mac.
+ */
+export function IconTouchId({ size = 18, ...props }: IconProps) {
+  return (
+    <svg {...base(size)} {...props}>
+      <path d="M4.5 11a7.5 7.5 0 0 1 15 0v1" />
+      <path d="M8 11a4 4 0 0 1 8 0v3.5a2.5 2.5 0 0 0 5 0V11" />
+      <path d="M12 11v6" />
+      <path d="M9.5 14a2.5 2.5 0 0 0 5 0v-3a2.5 2.5 0 0 0-2.5-2.5" />
+      <path d="M6.5 16c-.5-1.6-.5-3.2 0-5" />
+    </svg>
+  );
+}
+
+/**
+ * Stylised face / silhouette inside a rounded camera frame. Reads
+ * as "look at the camera to sign in", matching the Windows Hello
+ * face-recognition flow. Again deliberately not a 1:1 copy of
+ * Microsoft's Hello mark.
+ */
+export function IconWindowsHello({ size = 18, ...props }: IconProps) {
+  return (
+    <svg {...base(size)} {...props}>
+      <rect x="3" y="4" width="18" height="16" rx="3" />
+      <circle cx="12" cy="11" r="3" />
+      <path d="M7.5 17a5 5 0 0 1 9 0" />
+      <path d="M9.5 10.5h.01M14.5 10.5h.01" />
+    </svg>
+  );
+}

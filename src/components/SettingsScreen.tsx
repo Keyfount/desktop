@@ -4,14 +4,18 @@ import { motion } from "framer-motion";
 
 import { api, describeError } from "../api.js";
 import { t } from "../i18n.js";
-import { TAP_SCALE } from "../motion.js";
+import { IconTouchId, IconWindowsHello } from "../icons.js";
+import { POP_IN, TAP_SCALE } from "../motion.js";
+import { detectPlatform } from "../platform.js";
 import {
+  allAccounts,
   defaultProfile,
   errorMessage,
   faviconFallbackEnabled,
   historyEnabled,
   view,
 } from "../state.js";
+import { clearSession, disconnect, loadStoredSession } from "../sync/manager.js";
 import type { GetStateResponse, Profile } from "../types.js";
 import { PageHeader } from "./PageHeader.js";
 import { ProfileEditor } from "./ProfileEditor.js";
@@ -45,6 +49,83 @@ export function SettingsScreen() {
     defaultProfile.value = next;
     setState((s) => (s ? { ...s, defaultProfile: next } : s));
   }, []);
+
+  // Disabling "remember accounts" wipes everything that only made
+  // sense with history on — the saved (domain, username) pairs and
+  // the sync session that propagates them. Surface a modal first so
+  // the user sees exactly what's about to disappear; the body text
+  // adapts to whichever combination of [accounts, sync] is non-empty.
+  const [historyConfirm, setHistoryConfirm] = useState<{
+    accountCount: number;
+    syncConnected: boolean;
+  } | null>(null);
+
+  const toggleHistory = useCallback(async (next: boolean) => {
+    if (next) {
+      await api.setHistoryEnabled(true);
+      historyEnabled.value = true;
+      setState((s) => (s ? { ...s, historyEnabled: true } : s));
+      return;
+    }
+    // Disabling: probe what's at stake first.
+    let accountCount = 0;
+    try {
+      const r = await api.listAccounts();
+      accountCount = r.entries.length;
+    } catch {
+      /* swallow */
+    }
+    let syncConnected = false;
+    try {
+      const s = await loadStoredSession();
+      syncConnected = s !== null && s.status === "approved";
+    } catch {
+      /* swallow */
+    }
+    if (accountCount === 0 && !syncConnected) {
+      // Nothing to lose — just flip the toggle.
+      await api.setHistoryEnabled(false);
+      historyEnabled.value = false;
+      setState((s) => (s ? { ...s, historyEnabled: false } : s));
+      if (view.value === "accounts" || view.value === "sync") {
+        view.value = "generator";
+      }
+      return;
+    }
+    setHistoryConfirm({ accountCount, syncConnected });
+  }, []);
+
+  const confirmDisableHistory = useCallback(async () => {
+    if (historyConfirm === null) return;
+    try {
+      // Sync goes first so the local deletes don't immediately
+      // re-push as `delete_account` events on a session we're about
+      // to drop anyway.
+      if (historyConfirm.syncConnected) {
+        await disconnect();
+      } else {
+        // Be defensive even if we thought there was no session.
+        await clearSession().catch(() => {});
+      }
+      // Wipe accounts. We re-fetch the list to guard against races
+      // (the user could have created accounts since we probed).
+      const fresh = await api.listAccounts();
+      for (const e of fresh.entries) {
+        await api.deleteAccount(e.domain, e.username, { skipBus: true });
+      }
+      allAccounts.value = [];
+      await api.setHistoryEnabled(false);
+      historyEnabled.value = false;
+      setState((s) => (s ? { ...s, historyEnabled: false } : s));
+      if (view.value === "accounts" || view.value === "sync") {
+        view.value = "generator";
+      }
+    } catch (err) {
+      errorMessage.value = describeError(err) || "history toggle failed";
+    } finally {
+      setHistoryConfirm(null);
+    }
+  }, [historyConfirm]);
 
   if (state === null) {
     return (
@@ -102,11 +183,7 @@ export function SettingsScreen() {
           <Section title={t("settings_history")}>
             <Toggle
               checked={state.historyEnabled}
-              onChange={async (v) => {
-                await api.setHistoryEnabled(v);
-                historyEnabled.value = v;
-                setState({ ...state, historyEnabled: v });
-              }}
+              onChange={(v) => void toggleHistory(v)}
               label={t("settings_history_label")}
               hint={t("settings_history_hint")}
             />
@@ -126,7 +203,7 @@ export function SettingsScreen() {
           </Section>
 
           {biometricSupported ? (
-            <Section title={t("settings_biometric")}>
+            <Section title={biometricSectionTitle()}>
               <Toggle
                 checked={biometricEnabled}
                 onChange={async (v) => {
@@ -145,13 +222,14 @@ export function SettingsScreen() {
                       : t("biometric_toggle_failed", raw);
                   }
                 }}
-                label={t("biometric_toggle_label")}
+                label={biometricToggleLabel()}
                 hint={
                   biometricEnrolled
                     ? t("biometric_toggle_hint")
                     : t("biometric_toggle_not_enrolled_hint")
                 }
                 disabled={!biometricEnrolled}
+                icon={biometricIcon()}
               />
             </Section>
           ) : null}
@@ -200,6 +278,72 @@ export function SettingsScreen() {
           ) : null}
         </div>
       </div>
+
+      {historyConfirm !== null ? (
+        <HistoryDisableModal
+          accountCount={historyConfirm.accountCount}
+          syncConnected={historyConfirm.syncConnected}
+          onCancel={() => setHistoryConfirm(null)}
+          onConfirm={() => void confirmDisableHistory()}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function HistoryDisableModal({
+  accountCount,
+  syncConnected,
+  onCancel,
+  onConfirm,
+}: {
+  accountCount: number;
+  syncConnected: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const body =
+    accountCount > 0 && syncConnected
+      ? t("settings_history_disable_body_both", String(accountCount))
+      : accountCount > 0
+        ? t("settings_history_disable_body_accounts", String(accountCount))
+        : t("settings_history_disable_body_sync");
+
+  return (
+    <div
+      class="fixed inset-0 z-[200] grid place-items-center bg-(--color-surface)/70 backdrop-blur-sm p-6"
+      role="dialog"
+      aria-modal="true"
+    >
+      <motion.div
+        class="card !p-6 w-full max-w-md flex flex-col gap-4"
+        variants={POP_IN}
+        initial="initial"
+        animate="animate"
+      >
+        <h2 class="text-lg font-medium text-(--color-ink)">
+          {t("settings_history_disable_title")}
+        </h2>
+        <p class="text-sm text-(--color-ink-muted) leading-relaxed">{body}</p>
+        <div class="flex justify-end gap-2 pt-2">
+          <motion.button
+            type="button"
+            class="btn btn-ghost btn-sm"
+            whileTap={TAP_SCALE}
+            onClick={onCancel}
+          >
+            {t("common_cancel")}
+          </motion.button>
+          <motion.button
+            type="button"
+            class="btn btn-danger btn-sm"
+            whileTap={TAP_SCALE}
+            onClick={onConfirm}
+          >
+            {t("settings_history_disable_confirm")}
+          </motion.button>
+        </div>
+      </motion.div>
     </div>
   );
 }
@@ -219,12 +363,14 @@ function Toggle({
   label,
   hint,
   disabled,
+  icon,
 }: {
   checked: boolean;
   onChange: (next: boolean) => void;
   label: string;
   hint?: string;
   disabled?: boolean;
+  icon?: ComponentChildren;
 }) {
   return (
     <div
@@ -242,12 +388,40 @@ function Toggle({
         <span class="switch-track" />
         <span class="switch-thumb" />
       </label>
-      <div class="flex flex-col gap-0.5 min-w-0">
-        <span class="text-sm text-(--color-ink)">{label}</span>
+      <div class="flex flex-col gap-0.5 min-w-0 flex-1">
+        <span class="text-sm text-(--color-ink) flex items-center gap-2">
+          {icon}
+          {label}
+        </span>
         {hint ? <span class="field-hint">{hint}</span> : null}
       </div>
     </div>
   );
+}
+
+// Biometric section labels follow the host OS — Touch ID on macOS,
+// Windows Hello on Windows. Falls back to the generic "biometric"
+// string on platforms where we don't have an established product
+// name (Linux, mobile).
+function biometricSectionTitle(): string {
+  const p = detectPlatform();
+  if (p === "macos") return t("settings_biometric_macos");
+  if (p === "windows") return t("settings_biometric_windows");
+  return t("settings_biometric");
+}
+
+function biometricToggleLabel(): string {
+  const p = detectPlatform();
+  if (p === "macos") return t("biometric_toggle_label_touchid");
+  if (p === "windows") return t("biometric_toggle_label_windowshello");
+  return t("biometric_toggle_label");
+}
+
+function biometricIcon(): ComponentChildren {
+  const p = detectPlatform();
+  if (p === "macos") return <IconTouchId size={16} />;
+  if (p === "windows") return <IconWindowsHello size={16} />;
+  return null;
 }
 
 function NumberRow({

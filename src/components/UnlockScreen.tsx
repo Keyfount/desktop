@@ -3,7 +3,9 @@ import { AnimatePresence, motion } from "framer-motion";
 
 import { api, describeError } from "../api.js";
 import { t } from "../i18n.js";
+import { IconTouchId, IconWindowsHello } from "../icons.js";
 import { SOFT_SPRING, TAP_SCALE } from "../motion.js";
+import { detectPlatform } from "../platform.js";
 import {
   busy,
   defaultProfile,
@@ -139,16 +141,40 @@ export function UnlockScreen({ hasPin }: Props) {
         </motion.button>
       ) : null}
 
-      {bioAvailable ? (
-        <motion.button
-          type="button"
-          class="btn btn-ghost"
-          whileTap={TAP_SCALE}
-          onClick={onBiometric}
-        >
-          {t("unlock_use_biometric")}
-        </motion.button>
-      ) : null}
+      {bioAvailable ? <BiometricButton onClick={onBiometric} /> : null}
     </motion.form>
+  );
+}
+
+/**
+ * Biometric-unlock CTA whose label + glyph match the host OS:
+ * Touch ID on macOS, Windows Hello on Windows, generic otherwise.
+ * Lets the user recognise the system prompt they're about to see
+ * instead of staring at an ambiguous "biometric" label.
+ */
+function BiometricButton({ onClick }: { onClick: () => void | Promise<void> }) {
+  const platform = detectPlatform();
+  const icon =
+    platform === "macos" ? (
+      <IconTouchId size={16} />
+    ) : platform === "windows" ? (
+      <IconWindowsHello size={16} />
+    ) : null;
+  const label =
+    platform === "macos"
+      ? t("unlock_use_touchid")
+      : platform === "windows"
+        ? t("unlock_use_windowshello")
+        : t("unlock_use_biometric");
+  return (
+    <motion.button
+      type="button"
+      class="btn btn-ghost flex items-center justify-center gap-2"
+      whileTap={TAP_SCALE}
+      onClick={onClick}
+    >
+      {icon}
+      {label}
+    </motion.button>
   );
 }

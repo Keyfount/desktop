@@ -226,19 +226,55 @@ function AccountDetail({ entry }: { entry: AccountEntry }) {
   const [profile, setProfile] = useState<Profile>(entry.profile);
   const [busy, setBusy] = useState(false);
   // Username editing mirrors the extension's AccountDetailScreen: a
-  // simple inline form that calls renameAccount on submit, then
-  // recomputes the password (since the derivation uses the
-  // username) and warns the user via a banner so they remember to
-  // update it on the actual site.
+  // pre-submit callout previews the about-to-change derived password
+  // so the user understands renaming is a destructive op (the
+  // derivation eats the username, so a new username == new
+  // password). They get a Show/Hide/Copy on the preview before
+  // committing.
   const [usernameDraft, setUsernameDraft] = useState(entry.username);
   const [renameError, setRenameError] = useState<string | null>(null);
   const [renameToast, setRenameToast] = useState<string | null>(null);
+  const [previewPassword, setPreviewPassword] = useState<string | null>(null);
+  const [previewRevealed, setPreviewRevealed] = useState(false);
+  const [previewCopied, setPreviewCopied] = useState(false);
 
   useEffect(() => {
     setUsernameDraft(entry.username);
     setRenameError(null);
     setRenameToast(null);
+    setPreviewPassword(null);
+    setPreviewRevealed(false);
+    setPreviewCopied(false);
   }, [entry.domain, entry.username]);
+
+  const usernameDirty = usernameDraft.trim() !== entry.username && usernameDraft.trim().length > 0;
+
+  // Recompute the future password whenever the draft changes, with
+  // a short debounce so we don't run Argon2 on every keystroke.
+  useEffect(() => {
+    if (!usernameDirty) {
+      setPreviewPassword(null);
+      return;
+    }
+    const handle = setTimeout(() => {
+      void api
+        .generate(entry.domain, usernameDraft.trim(), profile)
+        .then((r) => setPreviewPassword(r.password))
+        .catch(() => setPreviewPassword(null));
+    }, 250);
+    return () => clearTimeout(handle);
+  }, [usernameDraft, usernameDirty, entry.domain, profile]);
+
+  const copyPreview = useCallback(async () => {
+    if (previewPassword === null) return;
+    try {
+      await api.copyWithAutoClear(previewPassword);
+      setPreviewCopied(true);
+      setTimeout(() => setPreviewCopied(false), 1500);
+    } catch {
+      /* swallow */
+    }
+  }, [previewPassword]);
 
   const regenerate = useCallback(
     async (withProfile: Profile) => {
@@ -358,12 +394,23 @@ function AccountDetail({ entry }: { entry: AccountEntry }) {
               disabled={busy}
               aria-label={t("main_username_label")}
             />
-            {usernameDraft.trim() !== entry.username && usernameDraft.trim().length > 0 ? (
-              <motion.button type="submit" class="btn btn-sm" whileTap={TAP_SCALE} disabled={busy}>
-                <IconCheck size={14} />
-                {t("common_save")}
-              </motion.button>
-            ) : null}
+            <AnimatePresence>
+              {usernameDirty ? (
+                <motion.button
+                  key="save-username"
+                  type="submit"
+                  class="btn btn-sm"
+                  whileTap={TAP_SCALE}
+                  disabled={busy}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                >
+                  <IconCheck size={14} />
+                  {t("common_save")}
+                </motion.button>
+              ) : null}
+            </AnimatePresence>
           </form>
           {renameError !== null ? (
             <span class="field-error" role="alert">
@@ -372,6 +419,61 @@ function AccountDetail({ entry }: { entry: AccountEntry }) {
           ) : null}
         </div>
       </header>
+
+      <AnimatePresence>
+        {usernameDirty ? (
+          <motion.div
+            key="rename-warn"
+            class="callout flex flex-col gap-2"
+            role="status"
+            variants={POP_IN}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+          >
+            <strong class="text-sm text-(--color-ink)">{t("detail_rename_warning_title")}</strong>
+            <span class="text-xs text-(--color-ink-muted) leading-relaxed">
+              {t("detail_rename_warning_body")}
+            </span>
+            {previewPassword !== null ? (
+              <div class="flex flex-col gap-2 pt-2">
+                <span class="field-label">{t("detail_rename_preview_label")}</span>
+                <code
+                  class={
+                    previewRevealed
+                      ? "font-mono text-sm break-all select-all text-(--color-ink)"
+                      : "font-mono text-sm break-all select-all text-(--color-ink-muted) tracking-[0.15em]"
+                  }
+                >
+                  {previewRevealed
+                    ? previewPassword
+                    : "•".repeat(Math.min(previewPassword.length, 24))}
+                </code>
+                <div class="flex gap-2 flex-wrap">
+                  <motion.button
+                    type="button"
+                    class="btn btn-ghost btn-sm flex-1"
+                    whileTap={TAP_SCALE}
+                    onClick={() => setPreviewRevealed((v) => !v)}
+                  >
+                    {previewRevealed ? <IconEyeOff size={14} /> : <IconEye size={14} />}
+                    {previewRevealed ? t("common_hide") : t("common_reveal")}
+                  </motion.button>
+                  <motion.button
+                    type="button"
+                    class="btn btn-ghost btn-sm flex-1"
+                    whileTap={TAP_SCALE}
+                    onClick={copyPreview}
+                  >
+                    {previewCopied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                    {previewCopied ? t("common_copied") : t("common_copy")}
+                  </motion.button>
+                </div>
+              </div>
+            ) : null}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       <AnimatePresence>
         {renameToast !== null ? (
