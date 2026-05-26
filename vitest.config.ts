@@ -2,6 +2,8 @@ import { defineConfig } from "vitest/config";
 import { resolve } from "path";
 
 export default defineConfig({
+  // framer-motion's ESM bundle imports 'react' internally; alias it to
+  // preact/compat so vitest can resolve it under the Preact runtime.
   resolve: {
     alias: {
       react: resolve("node_modules/preact/compat"),

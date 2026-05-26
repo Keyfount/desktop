@@ -15,7 +15,7 @@ export function VaultAvatar({ fingerprint }: Props) {
   return (
     <motion.button
       type="button"
-      class="grid place-items-center w-9 h-9 rounded-full bg-(--color-surface-elev) border border-(--color-line) text-base"
+      class="vault-avatar"
       whileTap={TAP_SCALE}
       initial={{ scale: 0.6, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
@@ -25,7 +25,7 @@ export function VaultAvatar({ fingerprint }: Props) {
       }}
       aria-label="Vaults"
     >
-      <span aria-hidden="true">{firstEmoji(fingerprint)}</span>
+      <span class="vault-avatar__emoji" aria-hidden="true">{firstEmoji(fingerprint)}</span>
     </motion.button>
   );
 }
