@@ -6,7 +6,17 @@
  * The client knows nothing about OPAQUE or AES — it just shuttles
  * already-serialized bytes (encoded as `number[]`) on behalf of higher
  * layers.
+ *
+ * All requests go through `api.syncHttp` (Tauri IPC → Rust `ureq`)
+ * rather than the WebKit `fetch`. The webview's origin is
+ * `tauri://localhost`, which is cross-origin to any sync server URL,
+ * so `fetch` triggers a CORS preflight. Self-hosted Keyfount servers
+ * don't enable CORS unless `CORS_ORIGINS` is set, and the OPTIONS
+ * response 404s, blocking the real request with "Load failed". Going
+ * through Rust skips the preflight contract entirely.
  */
+
+import { api } from "../api.js";
 
 export class SyncApiError extends Error {
   constructor(
@@ -85,23 +95,62 @@ export interface DevicesResponse {
   }[];
 }
 
+/**
+ * Low-level transport used by `SyncClient`. The default routes through
+ * the Tauri Rust backend; tests can inject a `fetch`-compatible stub by
+ * wrapping it with the helper at the bottom of this file.
+ */
+export interface SyncTransport {
+  request(input: {
+    method: string;
+    url: string;
+    headers: Record<string, string>;
+    body?: string;
+  }): Promise<{ status: number; body: string }>;
+}
+
+const tauriTransport: SyncTransport = {
+  async request({ method, url, headers, body }) {
+    const args: { method: string; url: string; headers?: Record<string, string>; body?: string } = {
+      method,
+      url,
+      headers,
+    };
+    if (body !== undefined) args.body = body;
+    return api.syncHttp(args);
+  },
+};
+
+/** Adapter so the existing `fetch`-based test stubs still plug in. */
+export function fetchTransport(fetchImpl: typeof fetch): SyncTransport {
+  return {
+    async request({ method, url, headers, body }) {
+      const init: RequestInit = { method, headers };
+      if (body !== undefined) init.body = body;
+      const res = await fetchImpl(url, init);
+      const text = await res.text();
+      return { status: res.status, body: text };
+    },
+  };
+}
+
 export interface SyncClientOpts {
   /** Server base URL, no trailing slash. */
   baseUrl: string;
   /** Optional bearer token for authenticated calls. */
   sessionToken?: string;
-  /** Override fetch (tests). */
-  fetchImpl?: typeof fetch;
+  /** Override the transport (tests). */
+  transport?: SyncTransport;
 }
 
 export class SyncClient {
   private readonly baseUrl: string;
-  private readonly fetchImpl: typeof fetch;
+  private readonly transport: SyncTransport;
   private sessionToken: string | undefined;
 
   constructor(opts: SyncClientOpts) {
     this.baseUrl = opts.baseUrl.replace(/\/+$/, "");
-    this.fetchImpl = opts.fetchImpl ?? fetch.bind(globalThis);
+    this.transport = opts.transport ?? tauriTransport;
     this.sessionToken = opts.sessionToken;
   }
 
@@ -194,22 +243,26 @@ export class SyncClient {
       }
       headers["Authorization"] = `Bearer ${this.sessionToken}`;
     }
-    const init: RequestInit = { method, headers };
-    if (body !== undefined) init.body = JSON.stringify(body);
+    const input: {
+      method: string;
+      url: string;
+      headers: Record<string, string>;
+      body?: string;
+    } = { method, url: `${this.baseUrl}${path}`, headers };
+    if (body !== undefined) input.body = JSON.stringify(body);
 
-    const res = await this.fetchImpl(`${this.baseUrl}${path}`, init);
+    const res = await this.transport.request(input);
     if (res.status === 204) return null as T;
 
-    const text = await res.text();
-    let parsed: unknown = text;
-    if (text.length > 0) {
+    let parsed: unknown = res.body;
+    if (res.body.length > 0) {
       try {
-        parsed = JSON.parse(text);
+        parsed = JSON.parse(res.body);
       } catch {
         // keep as text
       }
     }
-    if (!res.ok) {
+    if (res.status < 200 || res.status >= 300) {
       throw new SyncApiError(res.status, parsed);
     }
     return parsed as T;

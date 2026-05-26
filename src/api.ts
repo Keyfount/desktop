@@ -182,6 +182,12 @@ export const api = {
   syncSessionSave: (session: unknown) => call<void>("sync_session_save", { session }),
   syncSessionLoad: () => call<unknown | null>("sync_session_load"),
   syncSessionClear: () => call<void>("sync_session_clear"),
+  syncHttp: (req: {
+    method: string;
+    url: string;
+    headers?: Record<string, string>;
+    body?: string;
+  }) => call<{ status: number; body: string }>("sync_http", { req }),
 
   exportVault: (passphrase: string) => call<ExportResponse>("export_vault", { passphrase }),
   importVault: (envelopeJson: string, passphrase: string) =>

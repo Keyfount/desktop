@@ -2,7 +2,7 @@ import type { ComponentChildren } from "preact";
 import { useEffect } from "preact/hooks";
 import { AnimatePresence, motion } from "framer-motion";
 
-import { api } from "./api.js";
+import { api, describeError } from "./api.js";
 import { DotGrid } from "./DotGrid.js";
 import { AccountsView } from "./components/AccountsView.js";
 import { AppShell } from "./components/AppShell.js";
@@ -15,9 +15,11 @@ import { SyncScreen } from "./components/SyncScreen.js";
 import { Titlebar } from "./components/Titlebar.js";
 import { UnlockScreen } from "./components/UnlockScreen.js";
 import { VaultsScreen } from "./components/VaultsScreen.js";
+import { startAutoSync, stopAutoSync } from "./sync/auto.js";
 import {
   defaultProfile,
   errorMessage,
+  faviconFallbackEnabled,
   fingerprint,
   hasPin,
   historyEnabled,
@@ -49,9 +51,26 @@ export function App() {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
+  // Auto-sync lifecycle. The engine pulls once on entry to the shell
+  // (so other-device changes appear immediately), subscribes to the
+  // mutation bus to push local changes fire-and-forget, and polls
+  // every minute while the vault is unlocked. Locking the vault tears
+  // everything down — no background work while we don't have a master
+  // in memory to encrypt with.
+  useEffect(() => {
+    if (screen.value === "shell") {
+      startAutoSync();
+      return () => {
+        stopAutoSync();
+      };
+    }
+    return undefined;
+  }, [screen.value]);
+
   return (
     <div class="relative h-screen w-screen overflow-hidden">
       <DotGrid />
+      <Titlebar />
       <AnimatePresence mode="wait" initial={false}>
         {renderScreen()}
       </AnimatePresence>
@@ -108,12 +127,7 @@ function renderShellView() {
 }
 
 function FullBleed({ children }: { children: ComponentChildren }) {
-  return (
-    <div class="relative z-10 h-full w-full">
-      <Titlebar />
-      {children}
-    </div>
-  );
+  return <div class="relative z-10 h-full w-full">{children}</div>;
 }
 
 async function bootstrap() {
@@ -133,11 +147,12 @@ async function bootstrap() {
 
     const state = await api.getState();
     historyEnabled.value = state.historyEnabled;
+    faviconFallbackEnabled.value = state.faviconFallbackEnabled;
     defaultProfile.value = state.defaultProfile;
     screen.value = "shell";
     view.value = "generator";
   } catch (err) {
-    errorMessage.value = err instanceof Error ? err.message : "could not initialise";
+    errorMessage.value = describeError(err) || "could not initialise";
     screen.value = "unlock";
   }
 }

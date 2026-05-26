@@ -17,9 +17,7 @@ import { allAccounts, historyEnabled } from "../state.js";
 import type { AccountEntry, Profile } from "../types.js";
 import { deriveEncryptionKey, syncLogin, syncRegister, type SyncSession } from "./auth.js";
 import { SyncApiError, SyncClient } from "./client.js";
-import { EMPTY_STATE, type SyncableState } from "./payload.js";
-
-const SNAPSHOT_LAMPORT = 1;
+import { EMPTY_STATE, type SyncableState, type SyncOp } from "./payload.js";
 
 let cachedSession: SyncSession | null = null;
 
@@ -113,17 +111,22 @@ export interface SyncStats {
 }
 
 /**
- * Snapshot-based sync.
+ * Hybrid sync.
  *
- * - **Pull**: fetch /snapshots/latest, decrypt, and replace the local
- *   `accounts` list (the source of truth for syncing).
- * - **Push**: serialise the local accounts into a fresh snapshot,
- *   encrypt, and POST.
+ * - **Pull**: try `/snapshots/latest` first (cheap O(1) replay); if the
+ *   server has no snapshot, replay `/events` from cursor 0. Either path
+ *   ends up with the same local state.
+ * - **Push**: emit one `upsert_account` event per local account through
+ *   `/events`, then take a fresh snapshot at the highest server seq the
+ *   server just gave back. That keeps `snapshot.upToSeq` always ≤ the
+ *   committed event log, so the server's guard
+ *   (`snapshot_ahead_of_log`) is satisfied — that was the source of the
+ *   400 we used to hit on a brand-new account where `latestSeq = 0` and
+ *   we naively posted `upToSeq = 1`.
  *
- * Conflict resolution is intentionally last-write-wins on the server's
- * `serverSeq`: simple, correct for a single-user multi-device setup,
- * and matches the "snapshot only" path the extension takes when no
- * incremental events are pending.
+ * The events carry the same `SyncOp` payload the browser extension
+ * uses, so a desktop push is interchangeable with an extension push for
+ * cross-device users.
  */
 export async function pull(master: string): Promise<SyncStats> {
   const session = await requireApprovedSession();
@@ -134,13 +137,36 @@ export async function pull(master: string): Promise<SyncStats> {
     sessionToken: session.sessionToken,
   });
 
+  // Fast path: snapshot.
   const snapshot = await client.latestSnapshot();
-  if (!snapshot) {
-    return { pulled: 0, pushed: 0, cursor: 0 };
+  if (snapshot) {
+    const state = await decryptState(key, snapshot.ciphertext, snapshot.nonce);
+    await applyStateLocally(state);
+    return { pulled: state.accounts.length, pushed: 0, cursor: snapshot.upToSeq };
   }
-  const state = await decryptState(key, snapshot.ciphertext, snapshot.nonce);
-  await applyStateLocally(state);
-  return { pulled: state.accounts.length, pushed: 0, cursor: snapshot.upToSeq };
+
+  // Slow path: replay events. Same logic as the extension's pullEvents.
+  let cursor = 0;
+  let applied = 0;
+  let hasMore = true;
+  while (hasMore) {
+    const page = await client.pullEvents(cursor, 200);
+    for (const ev of page.events) {
+      try {
+        const op = (await decryptOp(key, ev.ciphertext, ev.nonce)) as SyncOp;
+        await applyOpLocally(op);
+        applied++;
+      } catch {
+        // poison-pill: skip, advance cursor anyway so we don't loop
+      }
+      cursor = ev.serverSeq;
+    }
+    hasMore = page.hasMore;
+    if (!hasMore) cursor = page.nextCursor;
+  }
+  const refreshed = await api.listAccounts();
+  allAccounts.value = refreshed.entries;
+  return { pulled: applied, pushed: 0, cursor };
 }
 
 export async function push(master: string): Promise<SyncStats> {
@@ -152,30 +178,49 @@ export async function push(master: string): Promise<SyncStats> {
     sessionToken: session.sessionToken,
   });
 
-  // Snapshot the current local state. We rely on the existing IPC layer
-  // for the source-of-truth — the SQLite tables.
   const localAccounts = await api.listAccounts();
   const localState = await api.getState();
-  const state: SyncableState = {
-    ...EMPTY_STATE,
-    defaultProfile: localState.defaultProfile,
-    sites: localState.sites,
-    historyEnabled: localState.historyEnabled,
-    faviconFallbackEnabled: localState.faviconFallbackEnabled,
-    accounts: localAccounts.entries,
-  };
-  const { ciphertext, nonce } = await encryptState(key, state);
 
-  // No events are pending in the snapshot-only mode; use `upToSeq = 1`
-  // as a stable, monotonically-non-decreasing placeholder so the
-  // server accepts subsequent snapshots from this device.
-  const result = await client.putSnapshot({
-    upToSeq: SNAPSHOT_LAMPORT,
-    ciphertext: Array.from(ciphertext),
-    nonce: Array.from(nonce),
-  });
+  // Phase 1: push one event per account so the log grows server-side.
+  // Lamport timestamps need to be monotonic per-device; ms-since-epoch
+  // is plenty unique within a single push and matches the extension's
+  // bumpLamport behaviour at the granularity we care about.
+  let lamport = Date.now();
+  let lastSeq = 0;
+  let pushedCount = 0;
+  for (const entry of localAccounts.entries) {
+    const op: SyncOp = { t: "upsert_account", entry };
+    const { ciphertext, nonce } = await encryptOp(key, op);
+    const ack = await client.pushEvent({
+      lamport: lamport++,
+      ciphertext: Array.from(ciphertext),
+      nonce: Array.from(nonce),
+    });
+    lastSeq = Math.max(lastSeq, ack.serverSeq);
+    pushedCount++;
+  }
 
-  return { pulled: 0, pushed: state.accounts.length, cursor: result.compactedEvents };
+  // Phase 2: snapshot for fast subsequent pulls. `upToSeq` is the
+  // highest seq the server just acknowledged — never ahead of the log.
+  // For an empty account list we skip the snapshot entirely.
+  if (lastSeq > 0) {
+    const state: SyncableState = {
+      ...EMPTY_STATE,
+      defaultProfile: localState.defaultProfile,
+      sites: localState.sites,
+      historyEnabled: localState.historyEnabled,
+      faviconFallbackEnabled: localState.faviconFallbackEnabled,
+      accounts: localAccounts.entries,
+    };
+    const { ciphertext, nonce } = await encryptState(key, state);
+    await client.putSnapshot({
+      upToSeq: lastSeq,
+      ciphertext: Array.from(ciphertext),
+      nonce: Array.from(nonce),
+    });
+  }
+
+  return { pulled: 0, pushed: pushedCount, cursor: lastSeq };
 }
 
 async function requireApprovedSession(): Promise<Extract<SyncSession, { status: "approved" }>> {
@@ -213,14 +258,97 @@ async function decryptState(
   return JSON.parse(text) as SyncableState;
 }
 
+async function encryptOp(
+  key: CryptoKey,
+  op: SyncOp,
+): Promise<{ ciphertext: Uint8Array; nonce: Uint8Array }> {
+  const nonce = crypto.getRandomValues(new Uint8Array(12));
+  const plaintext = new TextEncoder().encode(JSON.stringify(op));
+  const ct = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv: nonce as BufferSource },
+    key,
+    plaintext as BufferSource,
+  );
+  return { ciphertext: new Uint8Array(ct), nonce };
+}
+
+async function decryptOp(key: CryptoKey, ciphertext: number[], nonce: number[]): Promise<SyncOp> {
+  const plain = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: new Uint8Array(nonce) as BufferSource },
+    key,
+    new Uint8Array(ciphertext) as BufferSource,
+  );
+  return JSON.parse(new TextDecoder().decode(plain)) as SyncOp;
+}
+
+/**
+ * Apply a single decrypted SyncOp to the local stores. Mirrors the
+ * extension's `applyOp`, except we go through the Tauri IPC layer
+ * (`api.*`) rather than direct chrome.storage writes. `skipBus: true`
+ * is critical — applying a remote op must not re-emit it as a local
+ * push, otherwise the two devices ping-pong forever.
+ */
+async function applyOpLocally(op: SyncOp): Promise<void> {
+  const silent = { skipBus: true } as const;
+  switch (op.t) {
+    case "set_default_profile":
+      await api.setDefaultProfile(op.profile, silent);
+      break;
+    case "set_site_profile":
+      await api.setProfile(op.domain, op.profile, silent);
+      break;
+    case "delete_site_profile":
+      await api.deleteProfile(op.domain, silent);
+      break;
+    case "set_pref":
+      if (op.key === "historyEnabled") {
+        await api.setHistoryEnabled(op.value, silent);
+        historyEnabled.value = op.value;
+      } else if (op.key === "faviconFallbackEnabled") {
+        await api.setFaviconFallbackEnabled(op.value, silent);
+      }
+      break;
+    case "upsert_account": {
+      const existing = await api.listAccounts();
+      const present = existing.entries.some(
+        (e) => e.domain === op.entry.domain && e.username === op.entry.username,
+      );
+      if (present) {
+        await api.updateAccountProfile(
+          op.entry.domain,
+          op.entry.username,
+          op.entry.profile,
+          silent,
+        );
+      } else {
+        await api.recordAccount(op.entry.domain, op.entry.username, op.entry.profile, silent);
+      }
+      break;
+    }
+    case "delete_account":
+      await api.deleteAccount(op.domain, op.username, silent);
+      break;
+    case "rename_account":
+      await api.renameAccount(op.domain, op.oldUsername, op.newUsername, silent);
+      break;
+    case "set_fingerprint":
+      // No-op locally: the fingerprint is derived at unlock, not stored.
+      break;
+  }
+}
+
 async function applyStateLocally(state: SyncableState): Promise<void> {
+  // Same `skipBus` discipline as `applyOpLocally`: replaying a remote
+  // snapshot must not re-push every applied entry as a local event.
+  const silent = { skipBus: true } as const;
+
   // Default profile and sites
-  await api.setDefaultProfile(state.defaultProfile);
+  await api.setDefaultProfile(state.defaultProfile, silent);
   for (const [domain, profile] of Object.entries(state.sites)) {
-    await api.setProfile(domain, profile as Profile);
+    await api.setProfile(domain, profile as Profile, silent);
   }
   // History toggle (push it down — needed for AccountList to surface)
-  await api.setHistoryEnabled(state.historyEnabled);
+  await api.setHistoryEnabled(state.historyEnabled, silent);
   historyEnabled.value = state.historyEnabled;
 
   // Replace local accounts with the snapshot contents. We do not
@@ -230,7 +358,7 @@ async function applyStateLocally(state: SyncableState): Promise<void> {
   const existingKeys = new Set(existing.entries.map((e) => key(e)));
   for (const entry of state.accounts) {
     if (!existingKeys.has(key(entry))) {
-      await api.recordAccount(entry.domain, entry.username, entry.profile);
+      await api.recordAccount(entry.domain, entry.username, entry.profile, silent);
     }
   }
   // Refresh the signal-backed list so the UI updates.

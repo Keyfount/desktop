@@ -2,9 +2,9 @@ import type { ComponentChildren } from "preact";
 import { useCallback, useEffect, useState } from "preact/hooks";
 import { AnimatePresence, motion } from "framer-motion";
 
-import { api } from "../api.js";
+import { api, describeError } from "../api.js";
 import { t } from "../i18n.js";
-import { IconCheck, IconRefresh, IconShield, IconUnlock } from "../icons.js";
+import { IconCheck, IconDownload, IconRefresh, IconShield, IconUnlock, IconUpload } from "../icons.js";
 import { POP_IN, SOFT_SPRING, TAP_SCALE } from "../motion.js";
 import { errorMessage } from "../state.js";
 import type { SyncSession } from "../sync/auth.js";
@@ -68,11 +68,12 @@ export function SyncScreen() {
                 setStatus("connecting");
                 errorMessage.value = null;
                 try {
-                  const next = await connect(args);
+                  const { master } = await api.sessionMaster();
+                  const next = await connect({ ...args, master });
                   setSession(next);
                   setStatus(next.status === "approved" ? "approved" : "pending");
                 } catch (err) {
-                  errorMessage.value = err instanceof Error ? err.message : "connect failed";
+                  errorMessage.value = humanConnectError(err);
                   setStatus("disconnected");
                 }
               }}
@@ -118,15 +119,15 @@ export function SyncScreen() {
 function subtitleFor(status: Status): string {
   switch (status) {
     case "loading":
-      return "Checking session…";
+      return t("sync_status_loading");
     case "disconnected":
-      return "Not connected";
+      return t("sync_status_disconnected");
     case "connecting":
-      return "Connecting…";
+      return t("sync_status_connecting");
     case "pending":
-      return "Waiting for admin approval";
+      return t("sync_status_pending");
     case "approved":
-      return "Connected";
+      return t("sync_status_approved");
   }
 }
 
@@ -135,14 +136,14 @@ function StatusPill({ status }: { status: "pending" | "approved" }) {
     return (
       <span class="chip-success status-pill">
         <span class="status-dot" />
-        Connected
+        {t("sync_chip_connected")}
       </span>
     );
   }
   return (
     <span class="chip-warning status-pill">
       <span class="status-dot" />
-      Pending
+      {t("sync_chip_pending")}
     </span>
   );
 }
@@ -156,20 +157,13 @@ function ConnectForm({
   busy: boolean;
   reachable: null | { ok: boolean; reason?: string };
   onTest: (url: string) => Promise<void>;
-  onSubmit: (args: {
-    baseUrl: string;
-    email: string;
-    master: string;
-    deviceLabel?: string;
-  }) => Promise<void>;
+  onSubmit: (args: { baseUrl: string; email: string; deviceLabel?: string }) => Promise<void>;
 }) {
   const [url, setUrl] = useState("");
   const [email, setEmail] = useState("");
-  const [master, setMaster] = useState("");
 
   const canTest = url.trim().length > 0 && !busy;
-  const canSubmit =
-    url.trim().length > 0 && email.trim().length > 0 && master.length >= 12 && !busy;
+  const canSubmit = url.trim().length > 0 && email.trim().length > 0 && !busy;
 
   return (
     <motion.div
@@ -205,35 +199,24 @@ function ConnectForm({
           {reachable ? (
             <span class={reachable.ok ? "chip-success status-pill" : "chip-danger status-pill"}>
               <span class="status-dot" />
-              {reachable.ok ? t("sync_reachable") : (reachable.reason ?? t("sync_unreachable"))}
+              {reachable.ok ? t("sync_reachable") : humanReachReason(reachable.reason)}
             </span>
           ) : null}
         </div>
       </div>
 
       <div class="card !p-5 flex flex-col gap-4">
-        <Field
-          label="Email"
-          hint="Only an HMAC of this email leaves the device; the server never sees plaintext."
-        >
+        <div class="callout text-xs leading-relaxed">
+          <strong>{t("sync_master_reused_title")}</strong>
+          <p class="m-0 mt-1 text-(--color-ink-muted)">{t("sync_master_reused_body")}</p>
+        </div>
+        <Field label={t("sync_email_label")} hint={t("sync_email_hint")}>
           <input
             class="input"
             type="email"
             autocomplete="email"
             value={email}
             onInput={(e) => setEmail((e.target as HTMLInputElement).value)}
-          />
-        </Field>
-        <Field
-          label="Master password"
-          hint="Used once to derive your sync login key. Never sent to the server."
-        >
-          <input
-            class="input"
-            type="password"
-            autocomplete="current-password"
-            value={master}
-            onInput={(e) => setMaster((e.target as HTMLInputElement).value)}
           />
         </Field>
       </div>
@@ -247,7 +230,6 @@ function ConnectForm({
           void onSubmit({
             baseUrl: url.trim(),
             email: email.trim(),
-            master,
             deviceLabel: navigator.userAgent.includes("Mac") ? "Mac" : "Desktop",
           })
         }
@@ -260,7 +242,7 @@ function ConnectForm({
             >
               <IconRefresh size={14} />
             </motion.span>
-            Connecting…
+            {t("sync_status_connecting")}
           </span>
         ) : (
           <span class="flex items-center gap-2">
@@ -296,7 +278,7 @@ function PendingPanel({
     <motion.div class="flex flex-col gap-5" variants={POP_IN} initial="initial" animate="animate">
       <div class="card !p-5 flex flex-col gap-3">
         <div class="flex items-center justify-between gap-3">
-          <span class="text-sm font-medium text-(--color-ink)">Waiting for admin approval</span>
+          <span class="text-sm font-medium text-(--color-ink)">{t("sync_pending_title")}</span>
           {polling ? (
             <motion.span animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}>
               <IconRefresh size={14} />
@@ -304,23 +286,20 @@ function PendingPanel({
           ) : null}
         </div>
         <div class="text-xs text-(--color-ink-muted) leading-relaxed flex flex-col gap-1.5">
-          <KeyValue k="Server" v={session.baseUrl} />
-          <KeyValue k="Email" v={session.email} />
-          <KeyValue k="User" v={`${session.userId.slice(0, 12)}…`} />
-          <KeyValue k="Device" v={`${session.deviceId.slice(0, 12)}…`} />
+          <KeyValue k={t("sync_kv_server")} v={session.baseUrl} />
+          <KeyValue k={t("sync_kv_email")} v={session.email} />
+          <KeyValue k={t("sync_kv_user")} v={`${session.userId.slice(0, 12)}…`} />
+          <KeyValue k={t("sync_kv_device")} v={`${session.deviceId.slice(0, 12)}…`} />
         </div>
       </div>
-      <div class="callout">
-        Ask the server administrator to approve this device. The status will refresh automatically
-        every few seconds.
-      </div>
+      <div class="callout">{t("sync_pending_body")}</div>
       <motion.button
         type="button"
         class="btn btn-danger btn-sm self-start"
         whileTap={TAP_SCALE}
         onClick={onAbort}
       >
-        Cancel and disconnect
+        {t("sync_pending_cancel")}
       </motion.button>
     </motion.div>
   );
@@ -333,72 +312,68 @@ function ApprovedPanel({
   session: SyncSession;
   onDisconnect: () => Promise<void>;
 }) {
-  const [master, setMaster] = useState("");
   const [busy, setBusy] = useState<"pull" | "push" | null>(null);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
   const runPull = useCallback(async () => {
-    if (master.length < 12) return;
     setBusy("pull");
     errorMessage.value = null;
     try {
+      const { master } = await api.sessionMaster();
       const stats = await pull(master);
-      setLastSync(`Pulled ${stats.pulled} accounts`);
+      setLastSync(t("sync_last_pulled", String(stats.pulled)));
       setSuccess(true);
       setTimeout(() => setSuccess(false), 1500);
     } catch (err) {
-      errorMessage.value = err instanceof Error ? err.message : "pull failed";
+      errorMessage.value = humanConnectError(err);
     } finally {
       setBusy(null);
     }
-  }, [master]);
+  }, []);
 
   const runPush = useCallback(async () => {
-    if (master.length < 12) return;
     setBusy("push");
     errorMessage.value = null;
     try {
+      const { master } = await api.sessionMaster();
       const stats = await push(master);
-      setLastSync(`Pushed ${stats.pushed} accounts`);
+      setLastSync(t("sync_last_pushed", String(stats.pushed)));
       setSuccess(true);
       setTimeout(() => setSuccess(false), 1500);
     } catch (err) {
-      errorMessage.value = err instanceof Error ? err.message : "push failed";
+      errorMessage.value = humanConnectError(err);
     } finally {
       setBusy(null);
     }
-  }, [master]);
+  }, []);
 
   return (
     <motion.div class="flex flex-col gap-5" variants={POP_IN} initial="initial" animate="animate">
       <div class="card !p-5 flex flex-col gap-3">
-        <span class="mono-tag">Connected to</span>
+        <span class="mono-tag">{t("sync_connected_to")}</span>
         <span class="font-mono text-sm text-(--color-ink) break-all">{session.baseUrl}</span>
         <div class="text-xs text-(--color-ink-muted) leading-relaxed flex flex-col gap-1.5 pt-2 border-t border-(--color-line)/60">
-          <KeyValue k="Email" v={session.email} />
-          <KeyValue k="Device" v={`${session.deviceId.slice(0, 12)}…`} />
-          <KeyValue k="Key fingerprint" v={session.ekFingerprint} />
+          <KeyValue k={t("sync_kv_email")} v={session.email} />
+          <KeyValue k={t("sync_kv_device")} v={`${session.deviceId.slice(0, 12)}…`} />
+          <KeyValue k={t("sync_kv_fingerprint")} v={session.ekFingerprint} />
         </div>
       </div>
 
+      <div class="callout callout-success flex items-center gap-2">
+        <IconCheck size={14} />
+        <span class="text-xs leading-relaxed">{t("sync_auto_active")}</span>
+      </div>
+
       <div class="card !p-5 flex flex-col gap-3">
-        <span class="field-label">Master password</span>
-        <input
-          class="input"
-          type="password"
-          autocomplete="current-password"
-          value={master}
-          placeholder="Re-enter to unlock the sync key"
-          onInput={(e) => setMaster((e.target as HTMLInputElement).value)}
-        />
+        <span class="field-label">{t("sync_force_label")}</span>
         <div class="flex gap-2">
           <motion.button
             type="button"
             class="btn flex-1"
             whileTap={TAP_SCALE}
             onClick={runPull}
-            disabled={busy !== null || master.length < 12}
+            disabled={busy !== null}
           >
             {busy === "pull" ? (
               <span class="flex items-center gap-2">
@@ -408,10 +383,13 @@ function ApprovedPanel({
                 >
                   <IconRefresh size={14} />
                 </motion.span>
-                Pulling…
+                {t("sync_pulling")}
               </span>
             ) : (
-              "Pull"
+              <span class="flex items-center gap-2">
+                <IconDownload size={14} />
+                {t("sync_pull")}
+              </span>
             )}
           </motion.button>
           <motion.button
@@ -419,7 +397,7 @@ function ApprovedPanel({
             class="btn btn-ghost flex-1"
             whileTap={TAP_SCALE}
             onClick={runPush}
-            disabled={busy !== null || master.length < 12}
+            disabled={busy !== null}
           >
             {busy === "push" ? (
               <span class="flex items-center gap-2">
@@ -429,10 +407,13 @@ function ApprovedPanel({
                 >
                   <IconRefresh size={14} />
                 </motion.span>
-                Pushing…
+                {t("sync_pushing")}
               </span>
             ) : (
-              "Push"
+              <span class="flex items-center gap-2">
+                <IconUpload size={14} />
+                {t("sync_push")}
+              </span>
             )}
           </motion.button>
         </div>
@@ -488,4 +469,36 @@ function KeyValue({ k, v }: { k: string; v: string }) {
       <span class="mono-tag">{k}</span> <span class="font-mono">{v}</span>
     </div>
   );
+}
+
+function humanReachReason(reason: string | undefined): string {
+  switch (reason) {
+    case "invalid_url":
+      return t("sync_reach_invalid_url");
+    case "timeout":
+      return t("sync_reach_timeout");
+    case "network_error":
+      return t("sync_reach_network");
+    case "unexpected_payload":
+      return t("sync_reach_unexpected");
+    default:
+      if (reason !== undefined && reason.startsWith("http_")) {
+        return t("sync_reach_http", reason.slice(5));
+      }
+      return t("sync_unreachable");
+  }
+}
+
+function humanConnectError(err: unknown): string {
+  const message = describeError(err);
+  if (message === "vault is locked") {
+    return t("sync_err_locked");
+  }
+  if (message === "master mismatch" || message === "wrong master password") {
+    return t("sync_err_master_mismatch");
+  }
+  if (message.includes("too_many_attempts")) {
+    return t("sync_err_too_many");
+  }
+  return t("sync_err_generic", message);
 }

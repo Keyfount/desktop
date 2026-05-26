@@ -191,6 +191,7 @@ pub fn run() {
             commands::sync_session_save,
             commands::sync_session_load,
             commands::sync_session_clear,
+            commands::sync_http,
             // native
             commands::show_quick_search,
             commands::open_preferences,
