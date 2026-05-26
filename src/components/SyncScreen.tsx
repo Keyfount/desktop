@@ -15,6 +15,7 @@ import {
 import { POP_IN, SOFT_SPRING, TAP_SCALE } from "../motion.js";
 import { errorMessage } from "../state.js";
 import type { SyncSession } from "../sync/auth.js";
+import { pushAllLocalAccountsAndPull } from "../sync/auto.js";
 import {
   clearSession,
   connect,
@@ -24,9 +25,26 @@ import {
   pull,
   push,
 } from "../sync/manager.js";
+import { pingNow } from "../sync/status.js";
 import { PageHeader } from "./PageHeader.js";
 
 type Status = "loading" | "disconnected" | "connecting" | "pending" | "approved";
+
+/**
+ * Fire the post-connect routine the moment a session lands on
+ * `approved`: push everything we had locally so the server gets
+ * caught up, pull anything the server already had, and kick a
+ * status probe so the sidebar dot and the Accounts header refresh
+ * button appear right now instead of waiting for the next polling
+ * tick. Without this the user had to relaunch the app for the UI
+ * to notice it was synced.
+ */
+function onSessionApproved(): void {
+  void (async () => {
+    await pushAllLocalAccountsAndPull();
+    await pingNow();
+  })();
+}
 
 export function SyncScreen() {
   const [status, setStatus] = useState<Status>("loading");
@@ -78,7 +96,12 @@ export function SyncScreen() {
                   const { master } = await api.sessionMaster();
                   const next = await connect({ ...args, master });
                   setSession(next);
-                  setStatus(next.status === "approved" ? "approved" : "pending");
+                  if (next.status === "approved") {
+                    setStatus("approved");
+                    onSessionApproved();
+                  } else {
+                    setStatus("pending");
+                  }
                 } catch (err) {
                   errorMessage.value = humanConnectError(err);
                   setStatus("disconnected");
@@ -92,7 +115,10 @@ export function SyncScreen() {
                 const next = await pollApproval();
                 if (next) {
                   setSession(next);
-                  if (next.status === "approved") setStatus("approved");
+                  if (next.status === "approved") {
+                    setStatus("approved");
+                    onSessionApproved();
+                  }
                 }
               }}
               onAbort={async () => {
