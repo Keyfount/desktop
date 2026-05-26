@@ -12,9 +12,9 @@
 //! — the platform bridges are implemented in M7.2 alongside an end-to-end
 //! integration test on real hardware.
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 mod macos;
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 pub use macos::Backend;
 
 #[cfg(target_os = "windows")]
@@ -22,9 +22,9 @@ mod windows;
 #[cfg(target_os = "windows")]
 pub use windows::Backend;
 
-#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+#[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "windows")))]
 mod stub;
-#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+#[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "windows")))]
 pub use stub::Backend;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
