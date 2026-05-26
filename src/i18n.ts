@@ -122,6 +122,11 @@ const EN = {
   accounts_generation_profile: "Generation profile",
   accounts_delete: "Delete account",
   accounts_chars: (n: string) => `${n} chars`,
+  accounts_refresh: "Pull from server",
+  accounts_refreshing: "Pulling…",
+  detail_rename_failed: "Rename failed",
+  detail_rename_password_changed:
+    "The username changed, so the derived password did too. Update it on the actual site:",
 
   generator_password_label: "Password",
   generator_chars: (n: string) => `${n} chars`,
@@ -164,6 +169,9 @@ const EN = {
   sync_auto_active:
     "Automatic sync is active. Your accounts update across devices without you doing anything.",
   sync_force_label: "Force a manual sync (rarely needed)",
+  sync_status_dot_online: "Server reachable",
+  sync_status_dot_offline: "Server unreachable",
+  sync_status_dot_checking: "Checking server…",
   sync_last_pulled: (n: string) => `Pulled ${n} accounts`,
   sync_last_pushed: (n: string) => `Pushed ${n} accounts`,
   sync_connected_to: "Connected to",
@@ -318,6 +326,11 @@ const FR: Record<keyof typeof EN, Entry> = {
   accounts_generation_profile: "Profil de génération",
   accounts_delete: "Supprimer le compte",
   accounts_chars: (n: string) => `${n} caractères`,
+  accounts_refresh: "Récupérer depuis le serveur",
+  accounts_refreshing: "Récupération…",
+  detail_rename_failed: "Renommage échoué",
+  detail_rename_password_changed:
+    "L'identifiant a changé, donc le mot de passe dérivé aussi. Mettez-le à jour sur le site :",
 
   generator_password_label: "Mot de passe",
   generator_chars: (n: string) => `${n} caractères`,
@@ -361,6 +374,9 @@ const FR: Record<keyof typeof EN, Entry> = {
   sync_auto_active:
     "Synchronisation automatique activée. Vos comptes se mettent à jour entre vos appareils sans intervention.",
   sync_force_label: "Forcer une synchronisation manuelle (rarement nécessaire)",
+  sync_status_dot_online: "Serveur accessible",
+  sync_status_dot_offline: "Serveur injoignable",
+  sync_status_dot_checking: "Vérification du serveur…",
   sync_last_pulled: (n: string) => `${n} comptes récupérés`,
   sync_last_pushed: (n: string) => `${n} comptes envoyés`,
   sync_connected_to: "Connecté à",
