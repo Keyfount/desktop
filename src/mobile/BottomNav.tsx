@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { t } from "../i18n.js";
 import { IconKey, IconSettings, IconUnlock } from "../icons.js";
 import { SOFT_SPRING, TAP_SCALE } from "../motion.js";
+import { historyEnabled } from "../state.js";
 
 export type MobileTab = "accounts" | "generator" | "settings";
 
@@ -23,10 +24,15 @@ const TABS: Array<{
 ];
 
 export function BottomNav({ active, platform, onChange }: Props) {
-  const surfaceClass = platform === "ios" ? "glass-ios" : "surface-android";
+  const surfaceClass = platform === "ios" ? "glass-ios-bottom" : "surface-android";
+  const visibleTabs = TABS.filter((tab) => {
+    if (tab.id === "accounts") return historyEnabled.value;
+    return true;
+  });
+
   return (
     <nav class={`safe-bottom px-3 pt-2 flex items-stretch justify-around ${surfaceClass}`}>
-      {TABS.map((tab) => {
+      {visibleTabs.map((tab) => {
         const isActive = tab.id === active;
         return (
           <motion.button
