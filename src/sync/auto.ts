@@ -279,13 +279,18 @@ export function startAutoSync(): void {
   unsubscribe = syncBus.subscribe((op) => {
     void pushOpInBackground(op);
   });
-  // Bootstrap: push everything we have locally, then pull whatever
-  // other devices have. Order matters slightly — pushing first means
-  // the subsequent pull won't think our locally-known events came
-  // "from another device" (deviceId guard in pullInBackground).
+  // Bootstrap order MATTERS: pull first, push second.
+  //
+  // If we pushed our local accounts before pulling, every account
+  // that another device just deleted would come right back as a
+  // stale upsert (we have no tombstone for it locally) and the
+  // delete would silently undo. Pulling first means we apply any
+  // pending `delete_account` events to our local store before
+  // emitting upserts, so we only push what's *currently* still
+  // local.
   void (async () => {
-    await bootstrapPushAll();
     await pullInBackground();
+    await bootstrapPushAll();
   })();
   pollTimer = setInterval(() => {
     void pullInBackground();

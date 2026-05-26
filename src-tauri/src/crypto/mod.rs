@@ -7,6 +7,7 @@
 pub mod argon2;
 pub mod emoji_table;
 pub mod fingerprint;
+pub mod master_kek;
 pub mod memorable;
 pub mod pin;
 pub mod render;
