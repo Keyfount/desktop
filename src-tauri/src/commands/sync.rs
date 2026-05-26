@@ -1,4 +1,5 @@
-//! Sync commands — session storage on disk under the vault dir.
+//! Sync commands — session storage on disk under the vault dir,
+//! **encrypted with a master-derived KEK**.
 //!
 //! The full OPAQUE handshake runs in the frontend with
 //! `@cloudflare/opaque-ts`, identical to what the browser extension
@@ -14,10 +15,17 @@
 //! the item but later reads after a relaunch fail with `errSecAuth`
 //! — silently in the keyring crate — so the sync session "disappears"
 //! across restarts even though it's technically still in the
-//! Keychain. Storing in the vault directory with `0600` permissions
-//! is reliable, survives reinstalls, and the SecAttr* protection is
-//! the OS user account anyway (same protection class as a Keychain
-//! item gated by user login).
+//! Keychain. Storing in the vault directory survives reinstalls.
+//!
+//! The bearer token, device private key, and the OPAQUE-derived
+//! salts in the session would let anyone with a copy of the file
+//! interact with the user's sync server account, so we always
+//! encrypt with `master_kek::encrypt_with_master` (Argon2id-derived
+//! AES-GCM). The file is unreadable to anyone who doesn't know the
+//! master, even if they exfiltrate the disk. Consequence: the
+//! frontend can only ever load the session AFTER the vault is
+//! unlocked, which matches the existing flow (the sync engine
+//! itself needs the master to derive EK).
 
 use std::fs;
 use std::path::PathBuf;
@@ -26,6 +34,7 @@ use serde::{Deserialize, Serialize};
 use tauri::State;
 
 use crate::AppState;
+use crate::crypto::master_kek::{EncryptedBlob, decrypt_with_master, encrypt_with_master};
 use crate::error::{AppError, AppResult};
 use crate::store::vaults as vault_store;
 use crate::sync::client::SyncClient;
@@ -39,7 +48,19 @@ pub struct SyncStatusResponse {
 #[tauri::command]
 pub async fn sync_status(state: State<'_, AppState>) -> AppResult<SyncStatusResponse> {
     let vault_id = active_vault_id(&state).await?;
-    match load_session_from_disk(&vault_id) {
+    let master_opt = {
+        let session = state.session.lock().await;
+        session.master().map(str::to_string)
+    };
+    let Some(master) = master_opt else {
+        // Locked: we can't decrypt the session blob. Tell the UI
+        // there's nothing connected so it doesn't show stale info.
+        return Ok(SyncStatusResponse {
+            connected: false,
+            session: None,
+        });
+    };
+    match load_session_from_disk(&vault_id, &master) {
         Ok(Some(session)) => Ok(SyncStatusResponse {
             connected: true,
             session: Some(session),
@@ -55,6 +76,14 @@ async fn active_vault_id(state: &State<'_, AppState>) -> AppResult<String> {
     let store = state.store.lock().await;
     let open = store.require()?;
     Ok(open.vault_id.clone())
+}
+
+async fn require_master(state: &State<'_, AppState>) -> AppResult<String> {
+    let session = state.session.lock().await;
+    session
+        .master()
+        .map(str::to_string)
+        .ok_or_else(|| AppError::invalid("vault is locked"))
 }
 
 fn session_path(vault_id: &str) -> PathBuf {
@@ -116,30 +145,47 @@ pub struct StoredSyncSession {
     pub expires_at: Option<i64>,
 }
 
-/// Persist the sync session to the per-vault directory. File mode is
-/// set to `0600` so other users on the same machine cannot read it.
+/// Persist the sync session to the per-vault directory, encrypted
+/// under a master-derived KEK. Requires the vault to be unlocked;
+/// surfaces `AppError::Invalid` if it isn't.
 #[tauri::command]
 pub async fn sync_session_save(
     session: serde_json::Value,
     state: State<'_, AppState>,
 ) -> AppResult<()> {
     let vault_id = active_vault_id(&state).await?;
+    let master = require_master(&state).await?;
+
+    let plaintext = serde_json::to_vec(&session)?;
+    let blob = encrypt_with_master(&master, &plaintext)?;
+    let envelope = serde_json::to_string(&blob)?;
+
     let path = session_path(&vault_id);
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    let json = serde_json::to_string(&session)?;
-    fs::write(&path, json)?;
+    fs::write(&path, envelope)?;
     restrict_to_owner(&path);
     Ok(())
 }
 
-/// Load the sync session for the active vault. Returns `null` when no
-/// session has been saved yet.
+/// Load the sync session for the active vault. Returns `null` when:
+///   - no session has been saved yet,
+///   - the vault is locked (we can't decrypt without the master),
+///   - the file exists but decryption failed (wrong master / corrupt
+///     blob / pre-encryption legacy cleartext) — treated as "no
+///     session" so the UI falls back to "connect a server".
 #[tauri::command]
 pub async fn sync_session_load(state: State<'_, AppState>) -> AppResult<Option<serde_json::Value>> {
     let vault_id = active_vault_id(&state).await?;
-    load_session_from_disk(&vault_id)
+    let master_opt = {
+        let session = state.session.lock().await;
+        session.master().map(str::to_string)
+    };
+    let Some(master) = master_opt else {
+        return Ok(None);
+    };
+    load_session_from_disk(&vault_id, &master)
 }
 
 /// Forget the persisted sync session for the active vault.
@@ -154,15 +200,33 @@ pub async fn sync_session_clear(state: State<'_, AppState>) -> AppResult<()> {
     }
 }
 
-fn load_session_from_disk(vault_id: &str) -> AppResult<Option<serde_json::Value>> {
+fn load_session_from_disk(vault_id: &str, master: &str) -> AppResult<Option<serde_json::Value>> {
     let path = session_path(vault_id);
-    match fs::read_to_string(&path) {
-        Ok(json) => {
-            let value: serde_json::Value = serde_json::from_str(&json)?;
+    let raw = match fs::read(&path) {
+        Ok(bytes) => bytes,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(AppError::Storage(format!("session read: {e}"))),
+    };
+    let envelope = match serde_json::from_slice::<EncryptedBlob>(&raw) {
+        Ok(env) => env,
+        Err(_) => {
+            // Legacy cleartext blob from before this commit — discard
+            // it so the user reconnects under the encrypted format.
+            // Continuing to read cleartext sessions would defeat the
+            // at-rest encryption guarantee.
+            tracing::warn!("sync-session.json is not an encrypted envelope; discarding for safety");
+            return Ok(None);
+        }
+    };
+    match decrypt_with_master(master, &envelope) {
+        Ok(plain) => {
+            let value: serde_json::Value = serde_json::from_slice(&plain)?;
             Ok(Some(value))
         }
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-        Err(e) => Err(AppError::Storage(format!("session read: {e}"))),
+        Err(err) => {
+            tracing::warn!(?err, "sync-session decryption failed (wrong master?)");
+            Ok(None)
+        }
     }
 }
 
