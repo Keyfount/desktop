@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Logo } from "../Logo.js";
+import { t } from "../i18n.js";
 
 export function LoadingScreen() {
   return (
@@ -15,7 +16,7 @@ export function LoadingScreen() {
       >
         <Logo class="w-9 h-9" />
       </motion.div>
-      <span class="mono-tag">Loading…</span>
+      <span class="mono-tag">{t("common_loading")}</span>
     </motion.div>
   );
 }

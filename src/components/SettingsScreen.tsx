@@ -2,10 +2,16 @@ import type { ComponentChildren } from "preact";
 import { useCallback, useEffect, useState } from "preact/hooks";
 import { motion } from "framer-motion";
 
-import { api } from "../api.js";
+import { api, describeError } from "../api.js";
 import { t } from "../i18n.js";
 import { TAP_SCALE } from "../motion.js";
-import { defaultProfile, errorMessage, historyEnabled, view } from "../state.js";
+import {
+  defaultProfile,
+  errorMessage,
+  faviconFallbackEnabled,
+  historyEnabled,
+  view,
+} from "../state.js";
 import type { GetStateResponse, Profile } from "../types.js";
 import { PageHeader } from "./PageHeader.js";
 import { ProfileEditor } from "./ProfileEditor.js";
@@ -14,11 +20,24 @@ export function SettingsScreen() {
   const [state, setState] = useState<GetStateResponse | null>(null);
   const [autofillEnabled, setAutofillEnabled] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [biometricSupported, setBiometricSupported] = useState(false);
+  const [biometricEnrolled, setBiometricEnrolled] = useState(false);
 
   useEffect(() => {
     void api.getState().then(setState);
     void api.autofillStatus().then((r) => setAutofillEnabled(r.enabled));
-    void api.biometricAvailable().then((r) => setBiometricEnabled(r.supported && r.enrolled));
+    void api
+      .biometricAvailable()
+      .then((r) => {
+        setBiometricSupported(r.supported);
+        setBiometricEnrolled(r.enrolled);
+        setBiometricEnabled(r.vaultEnrolled);
+      })
+      .catch(() => {
+        setBiometricSupported(false);
+        setBiometricEnrolled(false);
+        setBiometricEnabled(false);
+      });
   }, []);
 
   const setDefault = useCallback(async (next: Profile) => {
@@ -30,7 +49,7 @@ export function SettingsScreen() {
   if (state === null) {
     return (
       <div class="flex flex-col h-full">
-        <PageHeader title={t("settings_title")} subtitle="Preferences" />
+        <PageHeader title={t("settings_title")} subtitle={t("common_preferences")} />
         <div class="p-8 mx-auto w-full max-w-3xl flex flex-col gap-3">
           {[0, 1, 2].map((i) => (
             <div key={i} class="skeleton h-16 rounded-2xl" />
@@ -42,7 +61,7 @@ export function SettingsScreen() {
 
   return (
     <div class="flex flex-col h-full">
-      <PageHeader title={t("settings_title")} subtitle="Preferences" />
+      <PageHeader title={t("settings_title")} subtitle={t("common_preferences")} />
 
       <div class="flex-1 overflow-y-auto px-8 py-8">
         <div class="mx-auto w-full max-w-3xl flex flex-col gap-6">
@@ -88,8 +107,8 @@ export function SettingsScreen() {
                 historyEnabled.value = v;
                 setState({ ...state, historyEnabled: v });
               }}
-              label="Remember accounts I generate passwords for"
-              hint="Only the (domain, username) pair is saved — never the derived password."
+              label={t("settings_history_label")}
+              hint={t("settings_history_hint")}
             />
           </Section>
 
@@ -98,33 +117,44 @@ export function SettingsScreen() {
               checked={state.faviconFallbackEnabled}
               onChange={async (v) => {
                 await api.setFaviconFallbackEnabled(v);
+                faviconFallbackEnabled.value = v;
                 setState({ ...state, faviconFallbackEnabled: v });
               }}
-              label="Use a remote favicon service as a fallback"
-              hint="Off by default to keep your account list off any third party."
+              label={t("settings_favicon_label")}
+              hint={t("settings_favicon_hint")}
             />
           </Section>
 
-          <Section title={t("settings_biometric")}>
-            <Toggle
-              checked={biometricEnabled}
-              onChange={async (v) => {
-                try {
-                  if (v) {
-                    await api.enableBiometric();
-                  } else {
-                    await api.disableBiometric();
+          {biometricSupported ? (
+            <Section title={t("settings_biometric")}>
+              <Toggle
+                checked={biometricEnabled}
+                onChange={async (v) => {
+                  try {
+                    if (v) {
+                      await api.enableBiometric();
+                    } else {
+                      await api.disableBiometric();
+                    }
+                    setBiometricEnabled(v);
+                    errorMessage.value = null;
+                  } catch (err) {
+                    const raw = describeError(err);
+                    errorMessage.value = raw.toLowerCase().includes("unsupported")
+                      ? t("biometric_unsupported")
+                      : t("biometric_toggle_failed", raw);
                   }
-                  setBiometricEnabled(v);
-                } catch (err) {
-                  errorMessage.value =
-                    err instanceof Error ? err.message : "biometric toggle failed";
+                }}
+                label={t("biometric_toggle_label")}
+                hint={
+                  biometricEnrolled
+                    ? t("biometric_toggle_hint")
+                    : t("biometric_toggle_not_enrolled_hint")
                 }
-              }}
-              label="Unlock with Touch ID / Windows Hello"
-              hint="Requires biometrics to be enrolled at the OS level."
-            />
-          </Section>
+                disabled={!biometricEnrolled}
+              />
+            </Section>
+          ) : null}
 
           <Section title={t("settings_autofill")}>
             <Toggle
@@ -138,26 +168,25 @@ export function SettingsScreen() {
                   }
                   setAutofillEnabled(v);
                 } catch (err) {
-                  errorMessage.value =
-                    err instanceof Error ? err.message : "autofill toggle failed";
+                  errorMessage.value = describeError(err) || "autofill toggle failed";
                 }
               }}
-              label="Watch focused password fields and offer to fill them"
-              hint="Opt-in. Requires granting accessibility (macOS) or UI Automation (Windows)."
+              label={t("settings_autofill_label")}
+              hint={t("settings_autofill_hint")}
             />
           </Section>
 
           <div class="grid grid-cols-2 gap-4">
             <LinkCard
               label={t("settings_sync")}
-              hint="Connect a self-hosted Keyfount server."
+              hint={t("settings_sync_hint")}
               onClick={() => {
                 view.value = "sync";
               }}
             />
             <LinkCard
-              label="Vaults"
-              hint="Switch between vaults or create a new one."
+              label={t("settings_vaults")}
+              hint={t("settings_vaults_hint")}
               onClick={() => {
                 view.value = "vaults";
               }}
@@ -189,18 +218,25 @@ function Toggle({
   onChange,
   label,
   hint,
+  disabled,
 }: {
   checked: boolean;
   onChange: (next: boolean) => void;
   label: string;
   hint?: string;
+  disabled?: boolean;
 }) {
   return (
-    <div class="card !p-4 flex items-start gap-3">
+    <div
+      class={
+        "card !p-4 flex items-start gap-3 " + (disabled ? "opacity-60 cursor-not-allowed" : "")
+      }
+    >
       <label class="switch shrink-0 mt-0.5">
         <input
           type="checkbox"
           checked={checked}
+          disabled={disabled}
           onChange={(e) => onChange((e.target as HTMLInputElement).checked)}
         />
         <span class="switch-track" />

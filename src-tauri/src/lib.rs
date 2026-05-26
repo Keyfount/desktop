@@ -44,6 +44,28 @@ impl AppState {
     }
 }
 
+/// Reopen whichever vault `vaults.json` lists as active. Called once at
+/// boot so subsequent `status()` calls reflect "locked, existing vault"
+/// instead of "first run", which prevents the setup screen from creating
+/// a duplicate entry over the one already on disk.
+async fn restore_active_vault(
+    store: &Arc<Mutex<store::StoreHandle>>,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let registry_path = store::vaults::registry_path();
+    let registry = store::vaults::VaultRegistry::load(&registry_path)?;
+    let Some(active_id) = registry.active_id.clone() else {
+        return Ok(());
+    };
+    if !registry.vaults.iter().any(|v| v.id == active_id) {
+        return Ok(());
+    }
+    let dir = store::vaults::vault_dir(&active_id);
+    let handle = store::StoreHandle::open(active_id, &dir)?;
+    let mut guard = store.lock().await;
+    *guard = handle;
+    Ok(())
+}
+
 /// Application entry point invoked by `main.rs`.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -82,14 +104,19 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             {
                 use tauri::ActivationPolicy;
-                // In dev we want a Dock icon and a window in the app
-                // switcher so iterating on the UI is straightforward.
-                // The release build defaults to `Accessory` (menu-bar
-                // only) — see the `not(debug_assertions)` branch.
-                #[cfg(debug_assertions)]
+                // Always start in Regular — we want the main window to
+                // come up on the first `open`, get a dock icon, and
+                // show up in the app switcher just like a regular Mac
+                // app. The previous release default of `Accessory`
+                // (menu-bar only) had two UX problems: users had to
+                // run `open` twice for the window to appear (the first
+                // launch put the process in tray-only mode and the
+                // window stayed unfocused under other apps), and the
+                // Cmd-Tab switcher couldn't surface Keyfount at all.
+                // The tray icon (installed below) is still available
+                // for quick-search; we just no longer hide the dock
+                // icon to enable it.
                 app.set_activation_policy(ActivationPolicy::Regular);
-                #[cfg(not(debug_assertions))]
-                app.set_activation_policy(ActivationPolicy::Accessory);
             }
 
             // On macOS the visual effect is configured by
@@ -104,6 +131,19 @@ pub fn run() {
 
             native::tray::install(app.handle())?;
             native::hotkey::register_default(app.handle())?;
+
+            // Reopen the active vault from the registry. Without this we
+            // start with an empty `StoreHandle` every run, the UI sees
+            // "first run", and `setup` happily mints a brand-new vault —
+            // duplicating the entry already on disk.
+            let state: tauri::State<'_, AppState> = app.state();
+            let store_handle = state.store.clone();
+            tauri::async_runtime::block_on(async move {
+                if let Err(err) = restore_active_vault(&store_handle).await {
+                    tracing::warn!(?err, "could not restore active vault at startup");
+                }
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -114,6 +154,7 @@ pub fn run() {
             commands::unlock_with_pin,
             commands::lock,
             commands::fingerprint,
+            commands::session_master,
             // generation
             commands::generate,
             commands::get_profile,
@@ -147,13 +188,10 @@ pub fn run() {
             // sync
             commands::sync_status,
             commands::sync_test_connection,
-            commands::sync_connect,
-            commands::sync_poll_approval,
-            commands::sync_disconnect,
-            commands::sync_pull,
-            commands::sync_push_all,
-            commands::get_account_sync_info,
-            commands::get_sync_map,
+            commands::sync_session_save,
+            commands::sync_session_load,
+            commands::sync_session_clear,
+            commands::sync_http,
             // native
             commands::show_quick_search,
             commands::open_preferences,
@@ -172,6 +210,23 @@ pub fn run() {
             commands::export_vault,
             commands::import_vault,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running keyfount");
+        .build(tauri::generate_context!())
+        .expect("error while building keyfount")
+        .run(|app_handle, event| {
+            // macOS fires `Reopen` when the user clicks the dock icon
+            // while every window is hidden/closed (the default Cocoa
+            // "click app icon to bring it back" behaviour). Without
+            // this handler the app would stay invisible and the user
+            // would think it's dead.
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen { .. } = event {
+                if let Some(win) = app_handle.get_webview_window("main") {
+                    let _ = win.show();
+                    let _ = win.unminimize();
+                    let _ = win.set_focus();
+                }
+            }
+            let _ = event;
+            let _ = app_handle;
+        });
 }

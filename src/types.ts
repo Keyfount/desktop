@@ -130,6 +130,7 @@ export interface SyncTestConnectionResponse {
 export interface BiometricAvailableResponse {
   supported: boolean;
   enrolled: boolean;
+  vaultEnrolled: boolean;
 }
 
 export interface AutofillStatusResponse {

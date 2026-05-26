@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
 import { AnimatePresence, motion } from "framer-motion";
 
-import { api } from "../api.js";
+import { api, describeError } from "../api.js";
 import { t } from "../i18n.js";
 import {
   IconCheck,
@@ -62,12 +62,12 @@ export function AccountsView() {
   return (
     <div class="flex flex-col h-full">
       <PageHeader
-        title="Accounts"
-        subtitle={`${allAccounts.value.length} saved`}
+        title={t("accounts_title")}
+        subtitle={t("accounts_count", String(allAccounts.value.length))}
         actions={
           <motion.button type="button" class="btn btn-sm" whileTap={TAP_SCALE} onClick={onCreate}>
             <IconPlus size={14} />
-            New
+            {t("common_new")}
           </motion.button>
         }
       />
@@ -80,7 +80,7 @@ export function AccountsView() {
               <input
                 type="text"
                 class="flex-1 bg-transparent outline-none text-sm text-(--color-ink) placeholder:text-(--color-ink-subtle)"
-                placeholder="Search accounts…"
+                placeholder={t("accounts_search_placeholder")}
                 value={query}
                 onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
               />
@@ -95,11 +95,15 @@ export function AccountsView() {
               </ul>
             ) : matches.length === 0 ? (
               <EmptyState
-                title={allAccounts.value.length === 0 ? "No accounts yet" : "No matches"}
+                title={
+                  allAccounts.value.length === 0
+                    ? t("accounts_empty_title")
+                    : t("common_no_matches")
+                }
                 hint={
                   allAccounts.value.length === 0
-                    ? 'Generate a password from the "Generator" tab, then save the (site, username) pair to bring it here.'
-                    : "Try a different search term."
+                    ? t("accounts_empty_hint")
+                    : t("accounts_no_matches_hint")
                 }
               />
             ) : (
@@ -135,10 +139,7 @@ export function AccountsView() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
               >
-                <EmptyState
-                  title="Pick an account"
-                  hint="Select an entry on the left to view its derived password."
-                />
+                <EmptyState title={t("accounts_pick_title")} hint={t("accounts_pick_hint")} />
               </motion.div>
             )}
           </AnimatePresence>
@@ -190,7 +191,7 @@ function AccountDetail({ entry }: { entry: AccountEntry }) {
         setRevealed(false);
         setCopied(false);
       } catch (err) {
-        errorMessage.value = err instanceof Error ? err.message : "generation failed";
+        errorMessage.value = describeError(err) || "generation failed";
       } finally {
         setBusy(false);
       }
@@ -264,10 +265,10 @@ function AccountDetail({ entry }: { entry: AccountEntry }) {
         animate="animate"
       >
         <div class="flex items-center justify-between gap-3">
-          <span class="mono-tag">Derived password</span>
+          <span class="mono-tag">{t("accounts_derived_password")}</span>
           {password ? (
             <span class="mono-tag !text-[9px] text-(--color-ink-subtle)">
-              {password.length} chars
+              {t("accounts_chars", String(password.length))}
             </span>
           ) : null}
         </div>
@@ -313,16 +314,16 @@ function AccountDetail({ entry }: { entry: AccountEntry }) {
             whileTap={TAP_SCALE}
             onClick={() => regenerate(profile)}
             disabled={busy}
-            aria-label="Regenerate"
+            aria-label={t("main_recompute")}
           >
             <IconRefresh size={14} />
-            Recompute
+            {t("main_recompute")}
           </motion.button>
         </div>
       </motion.div>
 
       <section class="flex flex-col gap-3">
-        <span class="field-label">Generation profile</span>
+        <span class="field-label">{t("accounts_generation_profile")}</span>
         <div class="card !p-5">
           <ProfileEditor profile={profile} onChange={updateProfile} />
         </div>
@@ -336,7 +337,7 @@ function AccountDetail({ entry }: { entry: AccountEntry }) {
           onClick={onDelete}
         >
           <IconTrash size={14} />
-          Delete account
+          {t("accounts_delete")}
         </motion.button>
       </footer>
     </motion.div>

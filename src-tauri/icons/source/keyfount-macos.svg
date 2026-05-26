@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  macOS Big Sur+ app icon. The 1024×1024 canvas is filled by an Apple
+  squircle (superellipse) approximated with the canonical SVG path used
+  across community templates. The brand mark sits in the inner ~824 px
+  zone Apple recommends so the icon reads correctly at every dock size.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1f8de8" />
+      <stop offset="1" stop-color="#0a4d8c" />
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.18" />
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0" />
+    </linearGradient>
+    <filter id="markShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#06294d" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- Apple squircle (superellipse) -->
+  <path fill="url(#bg)" d="M 512 0
+    C 113.072 0 0 113.072 0 512
+    C 0 910.928 113.072 1024 512 1024
+    C 910.928 1024 1024 910.928 1024 512
+    C 1024 113.072 910.928 0 512 0 Z" />
+
+  <!-- Subtle top sheen for depth -->
+  <path fill="url(#sheen)" d="M 512 0
+    C 113.072 0 0 113.072 0 512
+    C 0 910.928 113.072 1024 512 1024
+    C 910.928 1024 1024 910.928 1024 512
+    C 1024 113.072 910.928 0 512 0 Z" />
+
+  <!--
+    Brand mark, centred in the 824×824 inner zone (margin: 100 px each side).
+    The original Keyfount glyph is normalised from its 100-viewBox to span
+    640 px here so it occupies ~62 % of the canvas — the spot where Apple's
+    own production icons (Mail, Notes, etc.) sit visually.
+  -->
+  <g transform="translate(192 192) scale(6.4)" fill="#ffffff" filter="url(#markShadow)">
+    <path d="m70 10.9h-60.2c-4.4 0.1-8.1 4-8 8.7v60.8c0 4.5 3.4 8.7 8.3 8.7h59.9c4.3 0 8.7-3.4 8.7-8.7v-60.8c-0.1-4.2-3.7-8.6-8.7-8.7zm3.9 70.6c-0.5 1.4-1.9 2.7-3.9 2.7h-60.1c-1.9-0.1-3.3-1.4-3.8-3.5v-61.1c0.1-1.9 1.8-3.8 3.9-3.9h60c2.2 0 3.9 1.9 4 3.8v60.9l-0.1 1.1z" />
+    <path d="m91.6 42.7c-3.7-0.3-7.5 2.4-7.5 7.1-0.1 3.6 2.5 7.5 7.3 7.6 3.5 0 7-2.8 7-7.4 0.1-3.6-2.9-6.9-6.8-7.3z" />
+    <rect x="19.1" y="33.2" width="3.4" height="33" />
+  </g>
+</svg>

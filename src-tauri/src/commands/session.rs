@@ -21,7 +21,30 @@ pub struct StatusResponse {
 #[tauri::command]
 pub async fn status(state: State<'_, AppState>) -> AppResult<StatusResponse> {
     let session = state.session.lock().await;
-    let store = state.store.lock().await;
+    let mut store = state.store.lock().await;
+
+    // Lazily reopen the active vault from the on-disk registry. Without
+    // this, the very first `status()` after launch sees an empty
+    // StoreHandle (because nothing initialised it) and reports
+    // `isFirstRun: true` — so the UI runs the setup wizard again and
+    // mints a duplicate vault next to the original. Doing it here makes
+    // the restoration self-healing regardless of startup-hook timing.
+    if store.require().is_err() {
+        if let Ok(registry) = vault_store::VaultRegistry::load(vault_store::registry_path()) {
+            if let Some(active_id) = registry.active_id.clone() {
+                if registry.vaults.iter().any(|v| v.id == active_id) {
+                    let dir = vault_store::vault_dir(&active_id);
+                    match crate::store::StoreHandle::open(active_id, &dir) {
+                        Ok(handle) => *store = handle,
+                        Err(err) => {
+                            tracing::warn!(?err, "could not reopen active vault");
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     let (fingerprint, has_pin, has_state) = match store.require() {
         Ok(open) => {
             let st = settings_store::load(&open.conn)?;
@@ -57,18 +80,31 @@ pub async fn setup(master: String, state: State<'_, AppState>) -> AppResult<Unlo
     let fp_bytes = fingerprint_master(&master)?;
     let mut store = state.store.lock().await;
     if store.require().is_err() {
-        let vault_id = uuid::Uuid::now_v7().to_string();
-        let dir = vault_store::vault_dir(&vault_id);
-        *store = crate::store::StoreHandle::open(vault_id.clone(), &dir)?;
+        // Last-ditch: if a registry already exists with an active vault,
+        // reopen it instead of minting a fresh one. Belt-and-braces so a
+        // failed lazy-restore in status() doesn't end up creating a
+        // duplicate vault the user can't easily delete.
         let mut registry = vault_store::VaultRegistry::load(vault_store::registry_path())?;
-        registry.upsert(crate::types::VaultMeta {
-            id: vault_id.clone(),
-            fingerprint: hex::encode(fp_bytes),
-            created_at: vault_store::now_ms(),
-            last_used_at: vault_store::now_ms(),
-        });
-        registry.active_id = Some(vault_id);
-        registry.save(vault_store::registry_path())?;
+        if let Some(active_id) = registry.active_id.clone() {
+            if registry.vaults.iter().any(|v| v.id == active_id) {
+                let dir = vault_store::vault_dir(&active_id);
+                *store = crate::store::StoreHandle::open(active_id, &dir)?;
+            }
+        }
+
+        if store.require().is_err() {
+            let vault_id = uuid::Uuid::now_v7().to_string();
+            let dir = vault_store::vault_dir(&vault_id);
+            *store = crate::store::StoreHandle::open(vault_id.clone(), &dir)?;
+            registry.upsert(crate::types::VaultMeta {
+                id: vault_id.clone(),
+                fingerprint: hex::encode(fp_bytes),
+                created_at: vault_store::now_ms(),
+                last_used_at: vault_store::now_ms(),
+            });
+            registry.active_id = Some(vault_id);
+            registry.save(vault_store::registry_path())?;
+        }
     }
     let open = store.require_mut()?;
     settings_store::set_fingerprint(&open.conn, &hex::encode(fp_bytes))?;
@@ -140,6 +176,27 @@ pub async fn fingerprint(master: String) -> AppResult<FingerprintResponse> {
     Ok(FingerprintResponse {
         fingerprint: format_fingerprint(&bytes)?,
     })
+}
+
+#[derive(Debug, Serialize)]
+pub struct SessionMasterResponse {
+    pub master: String,
+}
+
+/// Returns the master held in the unlocked session. Sync flows need it
+/// to run the OPAQUE handshake and derive EK; mirroring the extension's
+/// `readMaster()` lets the UI avoid prompting twice while the vault is
+/// already open. Errors out when locked so the caller can route the user
+/// back to the unlock screen.
+#[tauri::command]
+pub async fn session_master(state: State<'_, AppState>) -> AppResult<SessionMasterResponse> {
+    let session = state.session.lock().await;
+    match session.master() {
+        Some(master) => Ok(SessionMasterResponse {
+            master: master.to_string(),
+        }),
+        None => Err(AppError::invalid("vault is locked")),
+    }
 }
 
 fn hex_to_3_bytes(s: &str) -> AppResult<[u8; 3]> {
