@@ -137,21 +137,34 @@ export async function pull(master: string): Promise<SyncStats> {
     sessionToken: session.sessionToken,
   });
 
-  // Fast path: snapshot.
+  // Snapshot first (cheap O(1) replay) — but ALWAYS follow up with an
+  // event pull starting at `upToSeq`. The snapshot is just the state
+  // up to that seq; any event the server has accepted since (other
+  // device pushes, our own deferred pushes) lives in /events past it.
+  // Returning early after the snapshot is the bug we just fixed —
+  // cross-device mutations posted after the last snapshot were
+  // silently ignored.
+  let cursor = 0;
+  let applied = 0;
   const snapshot = await client.latestSnapshot();
   if (snapshot) {
     const state = await decryptState(key, snapshot.ciphertext, snapshot.nonce);
     await applyStateLocally(state);
-    return { pulled: state.accounts.length, pushed: 0, cursor: snapshot.upToSeq };
+    applied += state.accounts.length;
+    cursor = snapshot.upToSeq;
   }
 
-  // Slow path: replay events. Same logic as the extension's pullEvents.
-  let cursor = 0;
-  let applied = 0;
+  // Replay events past the snapshot cursor. Same logic as the
+  // extension's pullEvents.
   let hasMore = true;
   while (hasMore) {
     const page = await client.pullEvents(cursor, 200);
     for (const ev of page.events) {
+      if (ev.deviceId === session.deviceId) {
+        // Our own push echoed back — already applied locally.
+        cursor = ev.serverSeq;
+        continue;
+      }
       try {
         const op = (await decryptOp(key, ev.ciphertext, ev.nonce)) as SyncOp;
         await applyOpLocally(op);
@@ -162,7 +175,7 @@ export async function pull(master: string): Promise<SyncStats> {
       cursor = ev.serverSeq;
     }
     hasMore = page.hasMore;
-    if (!hasMore) cursor = page.nextCursor;
+    if (!hasMore && page.nextCursor > cursor) cursor = page.nextCursor;
   }
   const refreshed = await api.listAccounts();
   allAccounts.value = refreshed.entries;
@@ -244,7 +257,7 @@ async function encryptState(
   return { ciphertext: new Uint8Array(ct), nonce };
 }
 
-async function decryptState(
+export async function decryptState(
   key: CryptoKey,
   ciphertext: number[],
   nonce: number[],
@@ -337,7 +350,7 @@ async function applyOpLocally(op: SyncOp): Promise<void> {
   }
 }
 
-async function applyStateLocally(state: SyncableState): Promise<void> {
+export async function applyStateLocally(state: SyncableState): Promise<void> {
   // Same `skipBus` discipline as `applyOpLocally`: replaying a remote
   // snapshot must not re-push every applied entry as a local event.
   const silent = { skipBus: true } as const;
