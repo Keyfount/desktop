@@ -22,7 +22,7 @@ import { allAccounts, historyEnabled, faviconFallbackEnabled } from "../state.js
 import { deriveEncryptionKey, type ApprovedSyncSession } from "./auth.js";
 import { syncBus } from "./bus.js";
 import { SyncClient } from "./client.js";
-import { loadStoredSession } from "./manager.js";
+import { applyStateLocally, decryptState, loadStoredSession } from "./manager.js";
 import type { SyncOp } from "./payload.js";
 
 const POLL_INTERVAL_MS = 60_000;
@@ -160,8 +160,12 @@ async function pushOpInBackground(op: SyncOp): Promise<void> {
       ciphertext: Array.from(ciphertext),
       nonce: Array.from(nonce),
     });
-  } catch {
-    /* swallow — best-effort */
+  } catch (err) {
+    // Log so the diagnostic story makes sense — sync failures used to
+    // be swallowed and look like "the engine does nothing". Still
+    // best-effort: we never throw out of a mutation just because the
+    // server is unreachable.
+    console.warn("[keyfount-sync] push op failed:", op.t, err);
   } finally {
     pushing--;
   }
@@ -174,6 +178,11 @@ async function pushOpInBackground(op: SyncOp): Promise<void> {
  *
  * Re-entrant safe: a second call while a pull is in flight returns
  * immediately to avoid duplicate event application.
+ *
+ * On the very first call (lastCursor still 0), we pull the snapshot
+ * too so a fresh app install converges on the latest state without
+ * waiting for the next polling tick. Subsequent calls just chase
+ * events past `lastCursor`.
  */
 export async function pullInBackground(): Promise<void> {
   if (pulling) return;
@@ -189,6 +198,23 @@ export async function pullInBackground(): Promise<void> {
       sessionToken: session.sessionToken,
     });
 
+    // First call after launch: apply the snapshot so we don't have
+    // to replay every historical event. Subsequent calls skip this
+    // since `lastCursor > 0` means we already caught up.
+    if (lastCursor === 0) {
+      try {
+        const snapshot = await client.latestSnapshot();
+        if (snapshot) {
+          const state = await decryptState(key, snapshot.ciphertext, snapshot.nonce);
+          await applyStateLocally(state);
+          applied += state.accounts.length;
+          lastCursor = snapshot.upToSeq;
+        }
+      } catch (err) {
+        console.warn("[keyfount-sync] snapshot fetch/apply failed:", err);
+      }
+    }
+
     let hasMore = true;
     while (hasMore) {
       const page = await client.pullEvents(lastCursor, PULL_PAGE);
@@ -202,8 +228,8 @@ export async function pullInBackground(): Promise<void> {
           const op = await decryptOp(key, ev.ciphertext, ev.nonce);
           await applyOp(op);
           applied++;
-        } catch {
-          /* poison-pill: skip, advance cursor anyway */
+        } catch (err) {
+          console.warn("[keyfount-sync] decrypt/apply op failed (seq", ev.serverSeq + "):", err);
         }
         lastCursor = ev.serverSeq;
       }
@@ -216,10 +242,30 @@ export async function pullInBackground(): Promise<void> {
       const refreshed = await api.listAccounts();
       allAccounts.value = refreshed.entries;
     }
-  } catch {
-    /* swallow */
+  } catch (err) {
+    console.warn("[keyfount-sync] pull failed:", err);
   } finally {
     pulling = false;
+  }
+}
+
+/**
+ * Push every local account through the same event pipe. Idempotent
+ * on the receiving side because `applyOp` checks `(domain, username)`
+ * presence — duplicates land as no-op updates. Called once per
+ * unlock so accounts that were created before auto-sync existed
+ * (or while the network was down) finally make it to the server.
+ */
+async function bootstrapPushAll(): Promise<void> {
+  try {
+    const session = await approvedSession();
+    if (session === null) return;
+    const { entries } = await api.listAccounts();
+    for (const entry of entries) {
+      await pushOpInBackground({ t: "upsert_account", entry });
+    }
+  } catch (err) {
+    console.warn("[keyfount-sync] bootstrap push failed:", err);
   }
 }
 
@@ -233,9 +279,14 @@ export function startAutoSync(): void {
   unsubscribe = syncBus.subscribe((op) => {
     void pushOpInBackground(op);
   });
-  // Kick off an immediate pull so the user sees fresh data without
-  // having to wait for the first interval tick.
-  void pullInBackground();
+  // Bootstrap: push everything we have locally, then pull whatever
+  // other devices have. Order matters slightly — pushing first means
+  // the subsequent pull won't think our locally-known events came
+  // "from another device" (deviceId guard in pullInBackground).
+  void (async () => {
+    await bootstrapPushAll();
+    await pullInBackground();
+  })();
   pollTimer = setInterval(() => {
     void pullInBackground();
   }, POLL_INTERVAL_MS);
