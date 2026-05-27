@@ -68,20 +68,18 @@ final class CreateAccountViewController: UITableViewController, UITextFieldDeleg
         bar.tintColor = KeyfountTheme.accent
 
         let item = UINavigationItem(title: "Nouveau compte")
-        item.leftBarButtonItem = UIBarButtonItem(title: "Annuler", style: .plain, target: self, action: #selector(handleCancel))
-        item.rightBarButtonItem = saveButton
+        let leftBtn = createCircularButton(systemName: "xmark", action: #selector(handleCancel))
+        item.leftBarButtonItem = UIBarButtonItem(customView: leftBtn)
+        item.rightBarButtonItem = UIBarButtonItem(customView: saveButton)
         bar.items = [item]
         return bar
     }()
 
-    private lazy var saveButton: UIBarButtonItem = {
-        let b = UIBarButtonItem(title: "Créer", style: .done, target: self, action: #selector(handleSave))
-        b.isEnabled = false
-        b.setTitleTextAttributes(
-            [.font: KeyfountTheme.Font.body(.semibold), .foregroundColor: KeyfountTheme.accent],
-            for: .normal
-        )
-        return b
+    private lazy var saveButton: UIButton = {
+        let btn = createCircularButton(systemName: "checkmark", action: #selector(handleSave))
+        btn.isEnabled = false
+        btn.alpha = 0.5
+        return btn
     }()
 
     private lazy var domainField: UITextField = {
@@ -102,25 +100,44 @@ final class CreateAccountViewController: UITableViewController, UITextFieldDeleg
     }()
 
     private func themedField(placeholder: String) -> UITextField {
-        let f = PaddedTextField()
+        let f = UITextField()
         f.autocapitalizationType = .none
         f.autocorrectionType = .no
         f.delegate = self
-        f.font = KeyfountTheme.Font.body()
+        f.font = KeyfountTheme.Font.bodyLarge(.medium)
         f.textColor = KeyfountTheme.ink
         f.attributedPlaceholder = NSAttributedString(
             string: placeholder,
             attributes: [
                 .foregroundColor: KeyfountTheme.inkSubtle,
-                .font: KeyfountTheme.Font.body(),
+                .font: KeyfountTheme.Font.bodyLarge(),
             ]
         )
-        f.backgroundColor = KeyfountTheme.surfaceElev
-        f.layer.borderColor = KeyfountTheme.line.cgColor
-        f.layer.borderWidth = 1
-        f.layer.cornerRadius = KeyfountTheme.Radius.pill
-        f.heightAnchor.constraint(equalToConstant: 40).isActive = true
+        f.backgroundColor = .clear
+        f.borderStyle = .none
         return f
+    }
+
+    private func createCircularButton(systemName: String, action: Selector) -> UIButton {
+        let btn = UIButton(type: .system)
+        btn.translatesAutoresizingMaskIntoConstraints = false
+        
+        let config = UIImage.SymbolConfiguration(pointSize: 14, weight: .semibold)
+        let image = UIImage(systemName: systemName, withConfiguration: config)
+        btn.setImage(image, for: .normal)
+        
+        btn.tintColor = KeyfountTheme.ink
+        btn.backgroundColor = KeyfountTheme.surfaceSunken
+        btn.layer.cornerRadius = 18
+        btn.layer.masksToBounds = true
+        
+        NSLayoutConstraint.activate([
+            btn.widthAnchor.constraint(equalToConstant: 36),
+            btn.heightAnchor.constraint(equalToConstant: 36)
+        ])
+        
+        btn.addTarget(self, action: action, for: .touchUpInside)
+        return btn
     }
 
     private lazy var modeSegment: UISegmentedControl = {
@@ -226,8 +243,10 @@ final class CreateAccountViewController: UITableViewController, UITextFieldDeleg
     }
 
     private func refreshSaveEnabled() {
-        saveButton.isEnabled = !domain.trimmingCharacters(in: .whitespaces).isEmpty
+        let isEnabled = !domain.trimmingCharacters(in: .whitespaces).isEmpty
             && !username.trimmingCharacters(in: .whitespaces).isEmpty
+        saveButton.isEnabled = isEnabled
+        saveButton.alpha = isEnabled ? 1.0 : 0.5
     }
 
     private func currentResult() -> Result? {
@@ -311,25 +330,24 @@ final class CreateAccountViewController: UITableViewController, UITextFieldDeleg
         let cell = tableView.dequeueReusableCell(withIdentifier: "Cell", for: indexPath)
         cell.contentView.subviews.forEach { $0.removeFromSuperview() }
         let field = row == 0 ? domainField : usernameField
-        let title = row == 0 ? "Domaine" : "Identifiant"
+        let title = row == 0 ? "DOMAINE" : "IDENTIFIANT"
         let label = UILabel()
         label.text = title
-        label.font = KeyfountTheme.Font.body()
-        label.textColor = KeyfountTheme.ink
+        label.font = KeyfountTheme.Font.fieldLabel()
+        label.textColor = KeyfountTheme.inkSubtle
         label.translatesAutoresizingMaskIntoConstraints = false
         field.translatesAutoresizingMaskIntoConstraints = false
         cell.contentView.addSubview(label)
         cell.contentView.addSubview(field)
         NSLayoutConstraint.activate([
             label.leadingAnchor.constraint(equalTo: cell.contentView.layoutMarginsGuide.leadingAnchor),
-            label.centerYAnchor.constraint(equalTo: cell.contentView.centerYAnchor),
-            label.widthAnchor.constraint(equalToConstant: 96),
+            label.topAnchor.constraint(equalTo: cell.contentView.topAnchor, constant: 10),
+            label.trailingAnchor.constraint(equalTo: cell.contentView.layoutMarginsGuide.trailingAnchor),
 
-            field.leadingAnchor.constraint(equalTo: label.trailingAnchor, constant: 12),
+            field.leadingAnchor.constraint(equalTo: cell.contentView.layoutMarginsGuide.leadingAnchor),
+            field.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 4),
             field.trailingAnchor.constraint(equalTo: cell.contentView.layoutMarginsGuide.trailingAnchor),
-            field.centerYAnchor.constraint(equalTo: cell.contentView.centerYAnchor),
-
-            cell.contentView.heightAnchor.constraint(greaterThanOrEqualToConstant: 56),
+            field.bottomAnchor.constraint(equalTo: cell.contentView.bottomAnchor, constant: -10),
         ])
         return cell
     }

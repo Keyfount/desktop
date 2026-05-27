@@ -996,7 +996,7 @@ final class KeyfountAccountCell: UITableViewCell {
         badgeContainer.backgroundColor = KeyfountTheme.surfaceSunken
         badgeContainer.layer.borderColor = KeyfountTheme.line.cgColor
         badgeContainer.layer.borderWidth = 0.5
-        badgeContainer.layer.cornerRadius = 8
+        badgeContainer.layer.cornerRadius = 16
         badgeContainer.layer.masksToBounds = true
 
         initialBadge.translatesAutoresizingMaskIntoConstraints = false
@@ -1007,7 +1007,7 @@ final class KeyfountAccountCell: UITableViewCell {
 
         faviconView.translatesAutoresizingMaskIntoConstraints = false
         faviconView.contentMode = .scaleAspectFit
-        faviconView.layer.cornerRadius = 6
+        faviconView.layer.cornerRadius = 16
         faviconView.layer.masksToBounds = true
         badgeContainer.addSubview(faviconView)
 
