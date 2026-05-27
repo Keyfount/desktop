@@ -60,8 +60,10 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
         table.translatesAutoresizingMaskIntoConstraints = false
         table.dataSource = self
         table.delegate = self
-        table.register(UITableViewCell.self, forCellReuseIdentifier: "AccountCell")
+        table.register(KeyfountAccountCell.self, forCellReuseIdentifier: "AccountCell")
         table.tableHeaderView = self.searchBar
+        table.backgroundColor = KeyfountTheme.surface
+        table.separatorColor = KeyfountTheme.line
         table.isHidden = true
         return table
     }()
@@ -73,6 +75,9 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
         s.autocapitalizationType = .none
         s.autocorrectionType = .no
         s.delegate = self
+        s.tintColor = KeyfountTheme.accent
+        s.searchTextField.font = KeyfountTheme.Font.body()
+        s.searchTextField.textColor = KeyfountTheme.ink
         // Fit the header to its intrinsic size — without this the bar
         // collapses to zero height inside a `tableHeaderView`.
         s.sizeToFit()
@@ -84,8 +89,8 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
         label.translatesAutoresizingMaskIntoConstraints = false
         label.textAlignment = .center
         label.numberOfLines = 0
-        label.textColor = .secondaryLabel
-        label.font = .preferredFont(forTextStyle: .body)
+        label.textColor = KeyfountTheme.inkMuted
+        label.font = KeyfountTheme.Font.body()
         label.isHidden = true
         return label
     }()
@@ -96,6 +101,20 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
     private lazy var navigationBar: UINavigationBar = {
         let bar = UINavigationBar()
         bar.translatesAutoresizingMaskIntoConstraints = false
+        // Match the "Liquid Glass" header treatment from the mobile
+        // app (semi-transparent surface with a hairline separator).
+        let appearance = UINavigationBarAppearance()
+        appearance.configureWithDefaultBackground()
+        appearance.backgroundColor = KeyfountTheme.surface.withAlphaComponent(0.85)
+        appearance.shadowColor = KeyfountTheme.line
+        appearance.titleTextAttributes = [
+            .foregroundColor: KeyfountTheme.ink,
+            .font: KeyfountTheme.Font.title(),
+        ]
+        bar.standardAppearance = appearance
+        bar.scrollEdgeAppearance = appearance
+        bar.tintColor = KeyfountTheme.accent
+
         let item = UINavigationItem(title: "Keyfount")
         item.leftBarButtonItem = UIBarButtonItem(
             barButtonSystemItem: .cancel,
@@ -124,7 +143,7 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
     private lazy var lockOverlay: UIView = {
         let v = UIView()
         v.translatesAutoresizingMaskIntoConstraints = false
-        v.backgroundColor = .systemGroupedBackground
+        v.backgroundColor = KeyfountTheme.surface
         return v
     }()
 
@@ -132,9 +151,9 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
         let l = UILabel()
         l.translatesAutoresizingMaskIntoConstraints = false
         l.text = "Déverrouille Keyfount"
-        l.font = .preferredFont(forTextStyle: .title2).withWeight(.semibold)
+        l.font = KeyfountTheme.Font.largeTitle()
         l.textAlignment = .center
-        l.textColor = .label
+        l.textColor = KeyfountTheme.ink
         return l
     }()
 
@@ -142,20 +161,32 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
         let l = UILabel()
         l.translatesAutoresizingMaskIntoConstraints = false
         l.text = "Entre ton mot de passe maître"
-        l.font = .preferredFont(forTextStyle: .subheadline)
+        l.font = KeyfountTheme.Font.body()
         l.textAlignment = .center
-        l.textColor = .secondaryLabel
+        l.textColor = KeyfountTheme.inkMuted
         return l
     }()
 
     private lazy var masterField: UITextField = {
-        let f = UITextField()
+        let f = PaddedTextField()
         f.translatesAutoresizingMaskIntoConstraints = false
         f.isSecureTextEntry = true
-        f.borderStyle = .roundedRect
         f.placeholder = "Mot de passe maître"
         f.returnKeyType = .go
         f.delegate = self
+        f.font = KeyfountTheme.Font.body()
+        f.textColor = KeyfountTheme.ink
+        f.attributedPlaceholder = NSAttributedString(
+            string: "Mot de passe maître",
+            attributes: [
+                .foregroundColor: KeyfountTheme.inkSubtle,
+                .font: KeyfountTheme.Font.body(),
+            ]
+        )
+        f.backgroundColor = KeyfountTheme.surfaceElev
+        f.layer.borderColor = KeyfountTheme.line.cgColor
+        f.layer.borderWidth = 1
+        f.layer.cornerRadius = KeyfountTheme.Radius.pill
         f.addTarget(self, action: #selector(masterFieldChanged), for: .editingChanged)
         return f
     }()
@@ -164,11 +195,12 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
         let b = UIButton(type: .system)
         b.translatesAutoresizingMaskIntoConstraints = false
         b.setTitle("Déverrouiller", for: .normal)
-        b.setTitleColor(.white, for: .normal)
-        b.titleLabel?.font = .preferredFont(forTextStyle: .body).withWeight(.semibold)
-        b.backgroundColor = .tintColor
-        b.layer.cornerRadius = 12
+        b.setTitleColor(KeyfountTheme.primaryButtonForeground, for: .normal)
+        b.titleLabel?.font = KeyfountTheme.Font.body(.medium)
+        b.backgroundColor = KeyfountTheme.primaryButtonBackground
+        b.layer.cornerRadius = KeyfountTheme.Radius.pill
         b.isEnabled = false
+        b.alpha = 0.5
         b.addTarget(self, action: #selector(handleUnlockTap), for: .touchUpInside)
         return b
     }()
@@ -178,10 +210,11 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
         b.translatesAutoresizingMaskIntoConstraints = false
         b.setTitle("  Utiliser Face ID", for: .normal)
         b.setImage(UIImage(systemName: "faceid"), for: .normal)
-        b.tintColor = .tintColor
-        b.titleLabel?.font = .preferredFont(forTextStyle: .body).withWeight(.semibold)
-        b.backgroundColor = .tintColor.withAlphaComponent(0.12)
-        b.layer.cornerRadius = 12
+        b.tintColor = KeyfountTheme.accent
+        b.setTitleColor(KeyfountTheme.accent, for: .normal)
+        b.titleLabel?.font = KeyfountTheme.Font.body(.medium)
+        b.backgroundColor = KeyfountTheme.accentSoft
+        b.layer.cornerRadius = KeyfountTheme.Radius.pill
         b.isHidden = true
         b.addTarget(self, action: #selector(handleBiometricTap), for: .touchUpInside)
         return b
@@ -190,8 +223,8 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
     private lazy var lockErrorLabel: UILabel = {
         let l = UILabel()
         l.translatesAutoresizingMaskIntoConstraints = false
-        l.font = .preferredFont(forTextStyle: .footnote)
-        l.textColor = .systemRed
+        l.font = KeyfountTheme.Font.caption()
+        l.textColor = KeyfountTheme.dangerText
         l.textAlignment = .center
         l.numberOfLines = 0
         l.isHidden = true
@@ -209,7 +242,8 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemGroupedBackground
+        KeyfountTheme.registerBundledFonts()
+        view.backgroundColor = KeyfountTheme.surface
 
         view.addSubview(navigationBar)
         view.addSubview(tableView)
@@ -442,11 +476,6 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
 
     // MARK: - Unlock flow
 
-    @objc private func masterFieldChanged() {
-        unlockButton.isEnabled = !(masterField.text ?? "").isEmpty
-        lockErrorLabel.isHidden = true
-    }
-
     @objc private func handleUnlockTap() {
         guard let master = masterField.text, !master.isEmpty else { return }
         attemptMasterUnlock(master: master)
@@ -519,6 +548,7 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
     private func setUnlockingState(_ unlocking: Bool) {
         unlockButton.setTitle(unlocking ? "" : "Déverrouiller", for: .normal)
         unlockButton.isEnabled = !unlocking && !(masterField.text ?? "").isEmpty
+        unlockButton.alpha = unlockButton.isEnabled ? 1.0 : 0.5
         biometricButton.isEnabled = !unlocking
         masterField.isEnabled = !unlocking
         if unlocking {
@@ -526,6 +556,12 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
         } else {
             unlockSpinner.stopAnimating()
         }
+    }
+
+    @objc private func masterFieldChanged() {
+        unlockButton.isEnabled = !(masterField.text ?? "").isEmpty
+        unlockButton.alpha = unlockButton.isEnabled ? 1.0 : 0.5
+        lockErrorLabel.isHidden = true
     }
 
     private func showLockError(_ message: String) {
@@ -614,14 +650,10 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "AccountCell", for: indexPath)
+        let cell = tableView.dequeueReusableCell(withIdentifier: "AccountCell", for: indexPath) as! KeyfountAccountCell
         guard let s = Section(rawValue: indexPath.section) else { return cell }
         let account = entries(in: s)[indexPath.row]
-        var config = cell.defaultContentConfiguration()
-        config.text = account.username
-        config.secondaryText = account.domain
-        cell.contentConfiguration = config
-        cell.accessoryType = .disclosureIndicator
+        cell.configure(username: account.username, domain: account.domain)
         return cell
     }
 
@@ -629,11 +661,20 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
         guard let s = Section(rawValue: section) else { return nil }
         switch s {
         case .suggestions:
-            return suggestions.isEmpty ? nil : "Suggestions pour \(requestedDomain)"
+            return suggestions.isEmpty ? nil : "SUGGESTIONS POUR \(requestedDomain.uppercased())"
         case .others:
             if others.isEmpty { return nil }
-            return suggestions.isEmpty ? "Tous les comptes" : "Autres comptes"
+            return suggestions.isEmpty ? "TOUS LES COMPTES" : "AUTRES COMPTES"
         }
+    }
+
+    func tableView(_ tableView: UITableView, willDisplayHeaderView view: UIView, forSection section: Int) {
+        guard let header = view as? UITableViewHeaderFooterView else { return }
+        // Replace the system grey uppercase header with the theme's
+        // mono field-label treatment.
+        header.textLabel?.font = KeyfountTheme.Font.fieldLabel()
+        header.textLabel?.textColor = KeyfountTheme.inkSubtle
+        header.textLabel?.text = header.textLabel?.text  // re-trigger casing
     }
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
@@ -825,13 +866,98 @@ extension CredentialProviderViewController: UISearchBarDelegate {
     }
 }
 
-// MARK: - UIFont helper
+// MARK: - PaddedTextField
 
-private extension UIFont {
-    func withWeight(_ weight: UIFont.Weight) -> UIFont {
-        let descriptor = fontDescriptor.addingAttributes([
-            .traits: [UIFontDescriptor.TraitKey.weight: weight]
+/// `UITextField` with horizontal padding so it can wear a pill-radius
+/// background without text touching the edge. Matches the `.input`
+/// class in `theme.css` (`px-3.5` → 14pt insets).
+final class PaddedTextField: UITextField {
+    private let inset = UIEdgeInsets(top: 0, left: 18, bottom: 0, right: 18)
+
+    override func textRect(forBounds bounds: CGRect) -> CGRect {
+        bounds.inset(by: inset)
+    }
+    override func placeholderRect(forBounds bounds: CGRect) -> CGRect {
+        bounds.inset(by: inset)
+    }
+    override func editingRect(forBounds bounds: CGRect) -> CGRect {
+        bounds.inset(by: inset)
+    }
+}
+
+// MARK: - KeyfountAccountCell
+
+/// Account row used in the credential list. Mirrors `.account-row` /
+/// `.account-row__favicon` from `theme.css`: a rounded surface-elev
+/// background with the domain initial in a square favicon-style chip,
+/// the username on the primary line, and the domain on the secondary.
+final class KeyfountAccountCell: UITableViewCell {
+    private let usernameLabel = UILabel()
+    private let domainLabel = UILabel()
+    private let initialBadge = UILabel()
+    private let badgeContainer = UIView()
+
+    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
+        super.init(style: style, reuseIdentifier: reuseIdentifier)
+        backgroundColor = .clear
+        contentView.backgroundColor = .clear
+        // The cell already lives inside a grouped section, so we keep
+        // the background to the row level and just style the labels.
+        accessoryType = .disclosureIndicator
+        tintColor = KeyfountTheme.lineStrong
+
+        badgeContainer.translatesAutoresizingMaskIntoConstraints = false
+        badgeContainer.backgroundColor = KeyfountTheme.surfaceSunken
+        badgeContainer.layer.borderColor = KeyfountTheme.line.cgColor
+        badgeContainer.layer.borderWidth = 0.5
+        badgeContainer.layer.cornerRadius = KeyfountTheme.Radius.small
+        badgeContainer.layer.masksToBounds = true
+
+        initialBadge.translatesAutoresizingMaskIntoConstraints = false
+        initialBadge.font = KeyfountTheme.Font.caption(.semibold)
+        initialBadge.textColor = KeyfountTheme.inkMuted
+        initialBadge.textAlignment = .center
+        badgeContainer.addSubview(initialBadge)
+
+        usernameLabel.translatesAutoresizingMaskIntoConstraints = false
+        usernameLabel.font = KeyfountTheme.Font.bodyLarge(.medium)
+        usernameLabel.textColor = KeyfountTheme.ink
+        usernameLabel.lineBreakMode = .byTruncatingTail
+
+        domainLabel.translatesAutoresizingMaskIntoConstraints = false
+        domainLabel.font = KeyfountTheme.Font.caption()
+        domainLabel.textColor = KeyfountTheme.inkSubtle
+        domainLabel.lineBreakMode = .byTruncatingTail
+
+        contentView.addSubview(badgeContainer)
+        contentView.addSubview(usernameLabel)
+        contentView.addSubview(domainLabel)
+
+        NSLayoutConstraint.activate([
+            badgeContainer.leadingAnchor.constraint(equalTo: contentView.layoutMarginsGuide.leadingAnchor),
+            badgeContainer.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+            badgeContainer.widthAnchor.constraint(equalToConstant: 32),
+            badgeContainer.heightAnchor.constraint(equalToConstant: 32),
+
+            initialBadge.centerXAnchor.constraint(equalTo: badgeContainer.centerXAnchor),
+            initialBadge.centerYAnchor.constraint(equalTo: badgeContainer.centerYAnchor),
+
+            usernameLabel.leadingAnchor.constraint(equalTo: badgeContainer.trailingAnchor, constant: 12),
+            usernameLabel.trailingAnchor.constraint(lessThanOrEqualTo: contentView.layoutMarginsGuide.trailingAnchor),
+            usernameLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 10),
+
+            domainLabel.leadingAnchor.constraint(equalTo: usernameLabel.leadingAnchor),
+            domainLabel.trailingAnchor.constraint(equalTo: usernameLabel.trailingAnchor),
+            domainLabel.topAnchor.constraint(equalTo: usernameLabel.bottomAnchor, constant: 2),
+            domainLabel.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -10),
         ])
-        return UIFont(descriptor: descriptor, size: pointSize)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) not implemented") }
+
+    func configure(username: String, domain: String) {
+        usernameLabel.text = username
+        domainLabel.text = domain
+        initialBadge.text = String(domain.prefix(1)).uppercased()
     }
 }
