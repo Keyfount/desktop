@@ -307,8 +307,14 @@ export async function pushAllLocalAccountsAndPull(): Promise<void> {
     await pullInBackground();
     const session = await approvedSession();
     if (session === null) return;
-    const { entries } = await api.listAccounts();
+    const [{ entries }, tombstones] = await Promise.all([api.listAccounts(), api.listTombstones()]);
+    // Defence in depth: even if applyStateLocally missed a tombstone,
+    // skip any (domain, username) the local store knows we've
+    // deleted. Otherwise this would re-emit upsert_account for an
+    // account the user explicitly removed.
+    const tombKeys = new Set(tombstones.map((t) => `${t.domain}|${t.username}`));
     for (const entry of entries) {
+      if (tombKeys.has(`${entry.domain}|${entry.username}`)) continue;
       await pushOpInBackground({ t: "upsert_account", entry });
     }
   } catch (err) {
