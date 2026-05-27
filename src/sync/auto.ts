@@ -24,6 +24,7 @@ import { syncBus } from "./bus.js";
 import { SyncClient } from "./client.js";
 import { applyStateLocally, decryptState, loadStoredSession } from "./manager.js";
 import type { SyncOp } from "./payload.js";
+import { drainPendingOps, enqueueOp } from "./pending.js";
 
 const POLL_INTERVAL_MS = 60_000;
 const PULL_PAGE = 200;
@@ -136,39 +137,64 @@ async function applyOp(op: SyncOp): Promise<void> {
 }
 
 /**
- * Push a single op fire-and-forget. Catches every error — a failed
- * push must never abort the local mutation that produced the op.
+ * Persist the op in the local retry queue, then try to drain it
+ * (and anything else queued ahead of it) against the server.
  *
- * The bus listener (registered by `startAutoSync`) invokes this; it
- * is also exported so tests / future "retry" buttons can call it.
+ * Enqueueing always happens first so a mutation made under
+ * unfavourable conditions (locked vault, pending session, network
+ * down) still survives in SQLite until the next drain opportunity.
+ *
+ * A failure to drain — including the trivial "no approved session
+ * yet" path — never aborts the local mutation that produced the op.
+ * The op stays in the queue and will be picked up by the next push
+ * path, pull, or polling tick.
  */
 async function pushOpInBackground(op: SyncOp): Promise<void> {
-  const session = await approvedSession();
-  if (session === null) return;
+  try {
+    await enqueueOp(op);
+  } catch (err) {
+    console.warn("[keyfount-sync] enqueue op failed:", op.t, err);
+    return;
+  }
   pushing++;
   try {
-    const { master } = await api.sessionMaster();
-    const key = await deriveEncryptionKey(session, master);
+    await drainNow();
+  } catch (err) {
+    console.warn("[keyfount-sync] drain after enqueue failed:", err);
+  } finally {
+    pushing--;
+  }
+}
+
+/**
+ * Attempt to drain the persistent queue against the server right now.
+ * Returns silently if any prerequisite is missing (no approved
+ * session, locked vault, key derivation failure). Each queued op is
+ * encrypted under the freshly-derived EK and POSTed to /events.
+ */
+async function drainNow(): Promise<void> {
+  const session = await approvedSession();
+  if (session === null) return;
+  let master: string;
+  try {
+    master = (await api.sessionMaster()).master;
+  } catch {
+    return;
+  }
+  const key = await deriveEncryptionKey(session, master);
+  const client = new SyncClient({
+    baseUrl: session.baseUrl,
+    sessionToken: session.sessionToken,
+  });
+  await drainPendingOps(async (op) => {
     const { ciphertext, nonce } = await encryptOp(key, op);
-    const client = new SyncClient({
-      baseUrl: session.baseUrl,
-      sessionToken: session.sessionToken,
-    });
     lamportClock = Math.max(lamportClock, Date.now()) + 1;
     await client.pushEvent({
       lamport: lamportClock,
       ciphertext: Array.from(ciphertext),
       nonce: Array.from(nonce),
     });
-  } catch (err) {
-    // Log so the diagnostic story makes sense — sync failures used to
-    // be swallowed and look like "the engine does nothing". Still
-    // best-effort: we never throw out of a mutation just because the
-    // server is unreachable.
-    console.warn("[keyfount-sync] push op failed:", op.t, err);
-  } finally {
-    pushing--;
-  }
+  });
 }
 
 /**
@@ -186,11 +212,22 @@ async function pushOpInBackground(op: SyncOp): Promise<void> {
  */
 export async function pullInBackground(): Promise<void> {
   if (pulling) return;
-  const session = await approvedSession();
-  if (session === null) return;
   pulling = true;
   let applied = 0;
   try {
+    // Drain any queued local ops before chasing remote events. If a
+    // local delete is queued behind a fresh remote upsert for the
+    // same account, server-side ordering would put the upsert ahead
+    // of the delete and the account would resurrect — drain first
+    // closes that race.
+    try {
+      await drainNow();
+    } catch (err) {
+      console.warn("[keyfount-sync] drain before pull failed:", err);
+    }
+
+    const session = await approvedSession();
+    if (session === null) return;
     const { master } = await api.sessionMaster();
     const key = await deriveEncryptionKey(session, master);
     const client = new SyncClient({

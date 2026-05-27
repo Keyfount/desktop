@@ -8,9 +8,10 @@ use rusqlite::Connection;
 
 use crate::error::AppResult;
 
-const MIGRATIONS: &[(u32, &str)] = &[(
-    1,
-    r#"
+const MIGRATIONS: &[(u32, &str)] = &[
+    (
+        1,
+        r#"
     CREATE TABLE IF NOT EXISTS meta (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
@@ -60,7 +61,26 @@ const MIGRATIONS: &[(u32, &str)] = &[(
         updated_at INTEGER NOT NULL
     ) STRICT;
     "#,
-)];
+    ),
+    (
+        2,
+        r#"
+    -- Persistent FIFO queue of sync ops that have been locally committed
+    -- but not yet acknowledged by the server. Drained on every sync push
+    -- path; survives vault lock, pending session, and network outage.
+    CREATE TABLE IF NOT EXISTS pending_ops (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        op_json     TEXT NOT NULL,
+        created_at  INTEGER NOT NULL,
+        attempts    INTEGER NOT NULL DEFAULT 0,
+        last_error  TEXT
+    ) STRICT;
+
+    CREATE INDEX IF NOT EXISTS pending_ops_oldest_idx
+        ON pending_ops(id ASC);
+    "#,
+    ),
+];
 
 pub fn ensure_schema(conn: &Connection) -> AppResult<()> {
     let current: u32 = conn.query_row(
@@ -98,7 +118,7 @@ mod tests {
                 |r| r.get(0),
             )
             .unwrap();
-        assert_eq!(version, "1");
+        assert_eq!(version, "2");
     }
 
     #[test]
@@ -106,5 +126,27 @@ mod tests {
         let conn = Connection::open_in_memory().unwrap();
         ensure_schema(&conn).unwrap();
         ensure_schema(&conn).unwrap();
+    }
+
+    #[test]
+    fn migration_v2_creates_pending_ops_table() {
+        let conn = Connection::open_in_memory().unwrap();
+        ensure_schema(&conn).unwrap();
+        let count: i64 = conn
+            .query_row(
+                "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='pending_ops'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 1);
+        let version: String = conn
+            .query_row(
+                "SELECT value FROM meta WHERE key = 'schema_version'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(version, "2");
     }
 }

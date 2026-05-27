@@ -220,6 +220,11 @@ pub fn run() {
             commands::delete_account,
             commands::get_account_sync_info,
             commands::account_stamp_synced,
+            // pending ops (retry queue)
+            commands::pending_ops_enqueue,
+            commands::pending_ops_list,
+            commands::pending_ops_delete,
+            commands::pending_ops_record_failure,
             // vaults
             commands::list_vaults,
             commands::switch_vault,

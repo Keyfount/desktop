@@ -191,6 +191,27 @@ export const api = {
   accountStampSynced: (domain: string, username: string, dir: SyncStampDir) =>
     call<void>("account_stamp_synced", { domain, username, dir }),
 
+  /**
+   * Persistent retry queue for sync ops. Mutations that can't reach
+   * the server right now (vault locked, session pending, offline) are
+   * enqueued here and drained by `sync/pending.ts` on every push path
+   * once conditions are favourable again.
+   */
+  pendingOpsEnqueue: (opJson: string) => call<number>("pending_ops_enqueue", { opJson }),
+  pendingOpsList: () =>
+    call<
+      {
+        id: number;
+        opJson: string;
+        createdAt: number;
+        attempts: number;
+        lastError: string | null;
+      }[]
+    >("pending_ops_list"),
+  pendingOpsDelete: (id: number) => call<void>("pending_ops_delete", { id }),
+  pendingOpsRecordFailure: (id: number, error: string) =>
+    call<void>("pending_ops_record_failure", { id, error }),
+
   listVaults: () => call<ListVaultsResponse>("list_vaults"),
   switchVault: (id: string) => call<void>("switch_vault", { id }),
   deleteVault: (id: string) => call<void>("delete_vault", { id }),
