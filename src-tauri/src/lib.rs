@@ -112,11 +112,31 @@ pub fn run() {
     builder
         .manage(AppState::new())
         .setup(|app| {
-            #[cfg(any(target_os = "android", target_os = "ios"))]
+            // Android has no `HOME` and no equivalent of an App Group;
+            // point it at Tauri's per-app data dir so the macOS-style
+            // `$HOME/Library/Application Support/Keyfount` lookup in
+            // `store::vaults` still lands inside the sandbox.
+            //
+            // iOS is deliberately excluded: `Sources/keyfount/main.mm`
+            // sets HOME to the `group.io.keyfount.app` container so the
+            // AutoFill extension can read the same vault directory.
+            // Overwriting it here with `app_data_dir()` would redirect
+            // writes back into the app-private sandbox, which the
+            // extension can't see.
+            #[cfg(target_os = "android")]
             {
                 if let Ok(data_dir) = app.path().app_data_dir() {
                     std::fs::create_dir_all(&data_dir).ok();
                     unsafe { std::env::set_var("HOME", &data_dir); }
+                }
+            }
+
+            #[cfg(target_os = "ios")]
+            {
+                if let Some(home) = std::env::var_os("HOME") {
+                    let data_dir =
+                        std::path::PathBuf::from(home).join("Library/Application Support/Keyfount");
+                    std::fs::create_dir_all(&data_dir).ok();
                 }
             }
 
