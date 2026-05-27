@@ -415,11 +415,11 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
     /// `LIKE %domain%` suggestion query is stable.
     static func extractDomain(from serviceIdentifiers: [ASCredentialServiceIdentifier]) -> String {
         if let raw = serviceIdentifiers.first(where: { $0.type == .domain })?.identifier {
-            return normalizeHost(raw)
+            return getBaseDomain(normalizeHost(raw))
         }
         if let urlString = serviceIdentifiers.first(where: { $0.type == .URL })?.identifier,
            let host = URL(string: urlString)?.host {
-            return normalizeHost(host)
+            return getBaseDomain(normalizeHost(host))
         }
         return ""
     }
@@ -430,6 +430,25 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
             host.removeFirst(4)
         }
         return host
+    }
+
+    private static func getBaseDomain(_ host: String) -> String {
+        let parts = host.split(separator: ".")
+        guard parts.count > 2 else { return host }
+        
+        let lastPart = String(parts[parts.count - 1])
+        let secondLastPart = String(parts[parts.count - 2])
+        
+        // Common double-part suffixes, e.g., co.uk, com.fr, net.au, org.nz, etc.
+        let doublePartSuffixes = ["co", "com", "org", "net", "edu", "gov", "asn", "id", "nom", "ltd"]
+        
+        if doublePartSuffixes.contains(secondLastPart) && lastPart.count == 2 {
+            let baseParts = parts.suffix(3)
+            return baseParts.joined(separator: ".")
+        } else {
+            let baseParts = parts.suffix(2)
+            return baseParts.joined(separator: ".")
+        }
     }
 
     @objc private func handleCancel() {
