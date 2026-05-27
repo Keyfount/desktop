@@ -37,6 +37,9 @@ export function MobileGeneratorScreen() {
     setRevealed(false);
     setCopied(false);
     setSaved(false);
+    // Drop the cached profile so the Customize panel re-fetches for
+    // the new domain on next open — see GeneratorView for the same fix.
+    setProfile(null);
   }, [activeDomain.value, activeEmail.value]);
 
   useEffect(() => {
@@ -59,7 +62,7 @@ export function MobileGeneratorScreen() {
       );
       generated.value = r.password;
     } catch (err) {
-      errorMessage.value = describeError(err) || "generation failed";
+      errorMessage.value = describeError(err) || t("err_generation_failed");
     } finally {
       busy.value = false;
     }

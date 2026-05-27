@@ -47,7 +47,7 @@ function onSessionApproved(): void {
 }
 
 interface Props {
-  onBack?: () => void;
+  onBack?: (() => void) | undefined;
 }
 
 export function SyncScreen({ onBack }: Props) {

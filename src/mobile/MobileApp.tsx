@@ -203,7 +203,7 @@ async function bootstrap() {
     screen.value = "shell";
     view.value = "generator";
   } catch (err) {
-    errorMessage.value = describeError(err) || "could not initialise";
+    errorMessage.value = describeError(err) || t("err_init_failed");
     screen.value = "unlock";
   }
 }

@@ -11,7 +11,7 @@ import { ConfirmModal } from "./ConfirmModal.js";
 import { PageHeader } from "./PageHeader.js";
 
 interface Props {
-  onBack?: () => void;
+  onBack?: (() => void) | undefined;
 }
 
 export function VaultsScreen({ onBack }: Props) {

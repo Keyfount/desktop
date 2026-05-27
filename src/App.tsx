@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 
 import { api, describeError } from "./api.js";
 import { DotGrid } from "./DotGrid.js";
+import { t } from "./i18n.js";
 import { AccountsView } from "./components/AccountsView.js";
 import { AppShell } from "./components/AppShell.js";
 import { GeneratorView } from "./components/GeneratorView.js";
@@ -24,6 +25,7 @@ import {
   fingerprint,
   hasPin,
   historyEnabled,
+  previousView,
   screen,
   view,
 } from "./state.js";
@@ -115,6 +117,16 @@ function renderScreen() {
 }
 
 function renderShellView() {
+  // Sync/Vaults reached from Settings get a back arrow that returns
+  // there; reached from the sidebar they don't (the sidebar IS the
+  // back path).
+  const backToSettings =
+    previousView.value === "settings"
+      ? () => {
+          previousView.value = null;
+          view.value = "settings";
+        }
+      : undefined;
   switch (view.value) {
     case "generator":
       return <GeneratorView key="generator" />;
@@ -123,9 +135,9 @@ function renderShellView() {
     case "settings":
       return <SettingsScreen key="settings" />;
     case "sync":
-      return <SyncScreen key="sync" />;
+      return <SyncScreen key="sync" onBack={backToSettings} />;
     case "vaults":
-      return <VaultsScreen key="vaults" />;
+      return <VaultsScreen key="vaults" onBack={backToSettings} />;
   }
 }
 
@@ -155,7 +167,7 @@ async function bootstrap() {
     screen.value = "shell";
     view.value = "generator";
   } catch (err) {
-    errorMessage.value = describeError(err) || "could not initialise";
+    errorMessage.value = describeError(err) || t("err_init_failed");
     screen.value = "unlock";
   }
 }

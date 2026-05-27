@@ -17,6 +17,7 @@ import {
 } from "../state.js";
 import { clearSession, disconnect, loadStoredSession } from "../sync/manager.js";
 import type { GetStateResponse, Profile } from "../types.js";
+import { previousView } from "../state.js";
 import { PageHeader } from "./PageHeader.js";
 import { ProfileEditor } from "./ProfileEditor.js";
 
@@ -121,7 +122,7 @@ export function SettingsScreen() {
         view.value = "generator";
       }
     } catch (err) {
-      errorMessage.value = describeError(err) || "history toggle failed";
+      errorMessage.value = describeError(err) || t("err_history_toggle_failed");
     } finally {
       setHistoryConfirm(null);
     }
@@ -246,7 +247,7 @@ export function SettingsScreen() {
                   }
                   setAutofillEnabled(v);
                 } catch (err) {
-                  errorMessage.value = describeError(err) || "autofill toggle failed";
+                  errorMessage.value = describeError(err) || t("err_autofill_toggle_failed");
                 }
               }}
               label={t("settings_autofill_label")}
@@ -259,6 +260,7 @@ export function SettingsScreen() {
               label={t("settings_sync")}
               hint={t("settings_sync_hint")}
               onClick={() => {
+                previousView.value = "settings";
                 view.value = "sync";
               }}
             />
@@ -266,6 +268,7 @@ export function SettingsScreen() {
               label={t("settings_vaults")}
               hint={t("settings_vaults_hint")}
               onClick={() => {
+                previousView.value = "settings";
                 view.value = "vaults";
               }}
             />

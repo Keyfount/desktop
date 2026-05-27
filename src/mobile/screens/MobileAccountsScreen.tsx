@@ -57,9 +57,9 @@ export function MobileAccountsScreen() {
             view.value = "generator";
           }}
           whileTap={TAP_SCALE}
-          class="rounded-full bg-(--color-ink) text-(--color-surface) px-3.5 py-1.5 text-xs font-semibold flex items-center gap-1 transition-all active:scale-[0.98] border-0 cursor-pointer"
+          class="min-h-11 rounded-full bg-(--color-ink) text-(--color-surface) px-4 py-2.5 text-sm font-semibold flex items-center gap-1.5 transition-all active:scale-[0.98] border-0 cursor-pointer"
         >
-          <IconPlus size={12} />
+          <IconPlus size={14} />
           {t("common_new")}
         </motion.button>
       </div>

@@ -223,7 +223,7 @@ export function MobileAccountDetailSheet(_props: Props) {
                 whileTap={TAP_SCALE}
                 onClick={() => { selectedAccount.value = null; }}
                 class="w-8 h-8 rounded-full bg-(--color-surface-sunken) grid place-items-center text-(--color-ink-muted) cursor-pointer hover:bg-(--color-line) border-0"
-                aria-label="Close"
+                aria-label={t("common_close")}
               >
                 <IconClose size={16} />
               </motion.button>

@@ -113,7 +113,7 @@ export function MobileSettingsScreen({ onLock }: Props) {
       historyEnabled.value = false;
       setState((s) => (s ? { ...s, historyEnabled: false } : s));
     } catch (err) {
-      errorMessage.value = describeError(err) || "history toggle failed";
+      errorMessage.value = describeError(err) || t("err_history_toggle_failed");
     } finally {
       setHistoryConfirm(null);
     }
@@ -347,7 +347,7 @@ export function MobileSettingsScreen({ onLock }: Props) {
                   }
                   setAutofillEnabled(active);
                 } catch (err) {
-                  errorMessage.value = describeError(err) || "autofill toggle failed";
+                  errorMessage.value = describeError(err) || t("err_autofill_toggle_failed");
                 }
               }}
             />

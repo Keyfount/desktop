@@ -11,6 +11,7 @@ import {
   fingerprint,
   generated,
   historyEnabled,
+  previousView,
   screen,
   view as currentView,
   type ShellView,
@@ -101,6 +102,9 @@ function NavLink({ id, labelKey, icon, active }: NavItem & { active: boolean }) 
       type="button"
       whileTap={TAP_SCALE}
       onClick={() => {
+        // Sidebar nav is its own back path — clear any breadcrumb
+        // that a previous Settings → Sync/Vaults jump left behind.
+        previousView.value = null;
         currentView.value = id;
       }}
       class={
