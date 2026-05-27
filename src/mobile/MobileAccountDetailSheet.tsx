@@ -21,7 +21,7 @@ interface Props {
   platform: "ios" | "android";
 }
 
-export function MobileAccountDetailSheet({ platform }: Props) {
+export function MobileAccountDetailSheet(_props: Props) {
   const entry = selectedAccount.value;
   const isOpen = entry !== null;
 
