@@ -48,9 +48,7 @@ export async function enqueueOp(op: SyncOp): Promise<void> {
  * call's loop will pick up any rows the second caller would have
  * processed.
  */
-export async function drainPendingOps(
-  pushSingle: (op: SyncOp) => Promise<void>,
-): Promise<void> {
+export async function drainPendingOps(pushSingle: (op: SyncOp) => Promise<void>): Promise<void> {
   if (draining) return;
   draining = true;
   try {

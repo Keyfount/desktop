@@ -53,7 +53,15 @@ const UPSERT_OP: SyncOp = {
   entry: {
     domain: "ex.com",
     username: "u",
-    profile: { mode: "random", length: 16, lower: true, upper: true, digits: true, symbols: true, counter: 1 },
+    profile: {
+      mode: "random",
+      length: 16,
+      lower: true,
+      upper: true,
+      digits: true,
+      symbols: true,
+      counter: 1,
+    },
     createdAt: 0,
     lastUsedAt: 0,
   },
