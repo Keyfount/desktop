@@ -65,9 +65,7 @@ export function MobileSetupScreen({ mode, onCancel }: Props) {
         ) : null}
       </header>
 
-      <p class="text-[14px] leading-relaxed text-(--color-ink-muted)">
-        {t("setup_intro")}
-      </p>
+      <p class="text-[14px] leading-relaxed text-(--color-ink-muted)">{t("setup_intro")}</p>
 
       <form class="flex flex-col gap-4" onSubmit={onSubmit}>
         <label class="flex flex-col gap-1.5">

@@ -113,7 +113,7 @@ export function MobileSettingsScreen({ onLock }: Props) {
       historyEnabled.value = false;
       setState((s) => (s ? { ...s, historyEnabled: false } : s));
     } catch (err) {
-      errorMessage.value = describeError(err) || "history toggle failed";
+      errorMessage.value = describeError(err) || t("err_history_toggle_failed");
     } finally {
       setHistoryConfirm(null);
     }
@@ -152,16 +152,9 @@ export function MobileSettingsScreen({ onLock }: Props) {
         {t("settings_default_profile")}
       </h2>
       <div class={SECTION_CLASSES}>
-        <button
-          type="button"
-          class={ROW_CLASSES}
-          onClick={() => setShowDefaultProfile((v) => !v)}
-        >
+        <button type="button" class={ROW_CLASSES} onClick={() => setShowDefaultProfile((v) => !v)}>
           <span class="font-medium">{t("settings_default_profile")}</span>
-          <motion.span
-            animate={{ rotate: showDefaultProfile ? 180 : 0 }}
-            transition={SOFT_SPRING}
-          >
+          <motion.span animate={{ rotate: showDefaultProfile ? 180 : 0 }} transition={SOFT_SPRING}>
             <IconChevronDown size={16} />
           </motion.span>
         </button>
@@ -241,7 +234,9 @@ export function MobileSettingsScreen({ onLock }: Props) {
             <div class="flex flex-col gap-0.5 min-w-0 flex-1 pr-2">
               <span class="font-medium">{biometricToggleLabel()}</span>
               <span class="text-xs text-(--color-ink-subtle)">
-                {biometricEnrolled ? t("biometric_toggle_hint") : t("biometric_toggle_not_enrolled_hint")}
+                {biometricEnrolled
+                  ? t("biometric_toggle_hint")
+                  : t("biometric_toggle_not_enrolled_hint")}
               </span>
             </div>
             <label class="switch shrink-0">
@@ -274,7 +269,12 @@ export function MobileSettingsScreen({ onLock }: Props) {
         ) : null}
 
         {/* Lock App Row */}
-        <button type="button" data-action="lock" class={`${ROW_CLASSES} !text-red-500 font-medium`} onClick={onLock}>
+        <button
+          type="button"
+          data-action="lock"
+          class={`${ROW_CLASSES} !text-red-500 font-medium`}
+          onClick={onLock}
+        >
           <div class="flex items-center gap-2">
             <IconLock size={16} />
             <span>{t("sidebar_lock")}</span>
@@ -347,7 +347,7 @@ export function MobileSettingsScreen({ onLock }: Props) {
                   }
                   setAutofillEnabled(active);
                 } catch (err) {
-                  errorMessage.value = describeError(err) || "autofill toggle failed";
+                  errorMessage.value = describeError(err) || t("err_autofill_toggle_failed");
                 }
               }}
             />
@@ -366,7 +366,9 @@ export function MobileSettingsScreen({ onLock }: Props) {
         <button
           type="button"
           class={ROW_CLASSES}
-          onClick={() => { view.value = "sync"; }}
+          onClick={() => {
+            view.value = "sync";
+          }}
         >
           <div class="flex items-center gap-2">
             <span
@@ -383,10 +385,13 @@ export function MobileSettingsScreen({ onLock }: Props) {
           </div>
           <div class="flex items-center gap-2 text-xs text-(--color-ink-subtle)">
             <span>
-              {syncServerStatus.value === "online" ? t("sync_status_dot_online")
-                : syncServerStatus.value === "offline" ? t("sync_status_dot_offline")
-                : syncServerStatus.value === "checking" ? t("sync_status_dot_checking")
-                : ""}
+              {syncServerStatus.value === "online"
+                ? t("sync_status_dot_online")
+                : syncServerStatus.value === "offline"
+                  ? t("sync_status_dot_offline")
+                  : syncServerStatus.value === "checking"
+                    ? t("sync_status_dot_checking")
+                    : ""}
             </span>
             <IconChevronRight size={16} class="opacity-50" />
           </div>
@@ -401,7 +406,9 @@ export function MobileSettingsScreen({ onLock }: Props) {
         <button
           type="button"
           class={ROW_CLASSES}
-          onClick={() => { view.value = "vaults"; }}
+          onClick={() => {
+            view.value = "vaults";
+          }}
         >
           <span class="font-medium">{t("settings_vaults_hint")}</span>
           <IconChevronRight size={16} class="opacity-50" />

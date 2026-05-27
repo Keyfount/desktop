@@ -44,7 +44,9 @@ graph TD
 An App Extension runs in a separate process with its own sandbox. To read Keyfount's accounts and securely retrieve the vault's master password, the main app and extension must share access.
 
 ### A. App Groups (Database & Settings Sharing)
+
 To share the list of domains, usernames, and site profiles, the database must reside in a shared folder:
+
 1. Enable the **App Groups** capability in Xcode for both targets.
 2. Use a shared identifier, e.g., `group.io.keyfount.app`.
 3. In Rust/Tauri, instead of resolving the local app data directory, resolve the shared app group container path:
@@ -55,7 +57,9 @@ To share the list of domains, usernames, and site profiles, the database must re
 4. Configure Keyfount's SQLite database connection path to use this shared container path.
 
 ### B. Keychain Sharing (Secure Master Password sharing)
-Since Keyfount is a *deterministic* manager, it does not store passwords; it derives them on the fly from the **Master Password**. 
+
+Since Keyfount is a _deterministic_ manager, it does not store passwords; it derives them on the fly from the **Master Password**.
+
 1. Enable the **Keychain Sharing** capability in Xcode for both targets.
 2. Use a shared keychain group (e.g., `io.keyfount.shared`).
 3. When the user enables biometrics in Settings, the master password is encrypted and saved under this shared keychain service group.
@@ -73,6 +77,7 @@ To derive the password matching the site's profile, the Swift extension must run
 Rather than rewriting PBKDF2/Argon2/AES-GCM in Swift, compile the Rust core as a static library (`.a`) or XCFramework and expose the derivation function via a C header or **UniFFI**:
 
 ### Exposed Rust Bridge Function
+
 ```rust
 // Exposed C-ABI function or UniFFI module
 #[no_mangle]
@@ -103,9 +108,9 @@ import AuthenticationServices
 import LocalAuthentication
 
 class CredentialProviderViewController: ASCredentialProviderViewController {
-    
+
     @IBOutlet weak var tableView: UITableView!
-    
+
     // Loaded from the shared SQLite database in the App Group
     var matchingAccounts: [Account] = []
     var domainRequested: String = ""
@@ -118,14 +123,14 @@ class CredentialProviderViewController: ASCredentialProviderViewController {
                 break
             }
         }
-        
+
         // 2. Query the shared database for accounts matching self.domainRequested
         self.matchingAccounts = loadAccountsFromSharedDatabase(for: self.domainRequested)
-        
+
         // 3. Reload tableView UI
         self.tableView.reloadData()
     }
-    
+
     func selectAccountAndAutofill(_ account: Account) {
         // 1. Trigger Face ID/Touch ID to retrieve master password from shared Keychain
         unsealMasterPassword(vaultId: account.vaultId) { result in
@@ -138,28 +143,28 @@ class CredentialProviderViewController: ASCredentialProviderViewController {
                     email: account.username,
                     profileJson: account.profileJson
                 )
-                
+
                 // 3. Hand credentials back to iOS
                 let credential = ASPasswordCredential(user: account.username, password: derivedPassword)
                 self.extensionContext.completeRequest(withSelectedCredential: credential, completionHandler: nil)
-                
+
             case .failure(let error):
                 self.showError("Authentication failed: \(error.localizedDescription)")
             }
         }
     }
-    
+
     // Core biometric-unseal wrapper
     private func unsealMasterPassword(vaultId: String, completion: @escaping (Result<String, Error>) -> Void) {
         let context = LAContext()
         context.localizedReason = "Unlock Keyfount to autofill credentials"
-        
+
         context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: context.localizedReason) { success, error in
             guard success else {
                 completion(.failure(error ?? NSError(domain: "LAError", code: -1)))
                 return
             }
-            
+
             // Read password from keychain
             do {
                 let master = try KeychainHelper.readSharedPassword(account: "keyfount.vault.\(vaultId).biometric")

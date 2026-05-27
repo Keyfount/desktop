@@ -23,7 +23,15 @@ vi.mock("@tauri-apps/api/core", () => ({
     }
     if (cmd === "get_state") {
       return Promise.resolve({
-        defaultProfile: { mode: "random", counter: 1, length: 16, lower: true, upper: true, digits: true, symbols: true },
+        defaultProfile: {
+          mode: "random",
+          counter: 1,
+          length: 16,
+          lower: true,
+          upper: true,
+          digits: true,
+          symbols: true,
+        },
         autoLockMinutes: 10,
         clipboardClearSeconds: 30,
         historyEnabled: true,
@@ -47,7 +55,7 @@ describe("<MobileUnlockScreen />", () => {
     expect(root.textContent).toMatch(/master password|mot de passe maître/i);
   });
 
-  it("displays a Use PIN button and switches mode when clicked", async () => {
+  it("starts in PIN mode when hasPin is true and switches to master on toggle", async () => {
     mockBiometricAvailable.mockResolvedValue({
       supported: false,
       enrolled: false,
@@ -55,18 +63,25 @@ describe("<MobileUnlockScreen />", () => {
     });
     const root = document.createElement("div");
     render(<MobileUnlockScreen hasPin={true} />, root);
-    
-    // Check toggle button exists
+
+    // PIN tab is preselected — the numeric input + PIN subtitle prove it.
+    const pinInput = root.querySelector("input[inputmode='numeric']");
+    expect(pinInput).not.toBeNull();
+
+    // The toggle button now offers the *other* mode: "Use master password".
     const toggleButton = Array.from(root.querySelectorAll("button")).find(
-      (b) => b.textContent?.includes("Use PIN") || b.textContent?.includes("Utiliser le PIN")
+      (b) =>
+        b.textContent?.includes("Use master password") ||
+        b.textContent?.includes("Utiliser le mot de passe"),
     );
     expect(toggleButton).toBeDefined();
 
-    // Click it to switch to PIN mode
+    // Click it: we should land on master mode.
     toggleButton!.click();
     await new Promise((resolve) => setTimeout(resolve, 10));
 
-    expect(root.textContent).toMatch(/PIN/);
+    const masterInput = root.querySelector("input[inputmode='text']");
+    expect(masterInput).not.toBeNull();
   });
 
   it("renders biometric button when biometric unlock is available", async () => {
@@ -82,8 +97,9 @@ describe("<MobileUnlockScreen />", () => {
     await new Promise((resolve) => setTimeout(resolve, 50));
 
     // Biometric button should render (which has the aria-label matching biometricLabel)
-    const bioButton = root.querySelector("button[aria-label*='Touch ID'], button[aria-label*='biometric'], button[aria-label*='biométrique']");
+    const bioButton = root.querySelector(
+      "button[aria-label*='Touch ID'], button[aria-label*='biometric'], button[aria-label*='biométrique']",
+    );
     expect(bioButton).not.toBeNull();
   });
 });
-

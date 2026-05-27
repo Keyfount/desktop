@@ -1,6 +1,7 @@
 import type { ComponentChildren } from "preact";
 import { motion } from "framer-motion";
 import { IconChevronLeft } from "../icons.js";
+import { t } from "../i18n.js";
 import { TAP_SCALE } from "../motion.js";
 
 interface Props {
@@ -24,7 +25,7 @@ export function PageHeader({ title, subtitle, actions, onBack }: Props) {
             class="btn btn-ghost btn-icon btn-sm shrink-0"
             whileTap={TAP_SCALE}
             onClick={onBack}
-            aria-label="Back"
+            aria-label={t("common_back")}
           >
             <IconChevronLeft size={16} />
           </motion.button>

@@ -14,6 +14,7 @@ import {
 import { POP_IN, SOFT_SPRING, TAP_SCALE } from "../motion.js";
 import { selectedAccount, allAccounts } from "../state.js";
 import { AccountAvatar } from "../components/AccountAvatar.js";
+import { ConfirmModal } from "../components/ConfirmModal.js";
 import { ProfileEditor } from "../components/ProfileEditor.js";
 import type { Profile } from "../types.js";
 
@@ -21,7 +22,7 @@ interface Props {
   platform: "ios" | "android";
 }
 
-export function MobileAccountDetailSheet({ platform }: Props) {
+export function MobileAccountDetailSheet(_props: Props) {
   const entry = selectedAccount.value;
   const isOpen = entry !== null;
 
@@ -37,6 +38,7 @@ export function MobileAccountDetailSheet({ platform }: Props) {
   const [previewPassword, setPreviewPassword] = useState<string | null>(null);
   const [previewRevealed, setPreviewRevealed] = useState(false);
   const [previewCopied, setPreviewCopied] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   useEffect(() => {
     if (entry) {
@@ -54,7 +56,9 @@ export function MobileAccountDetailSheet({ platform }: Props) {
     }
   }, [entry]);
 
-  const usernameDirty = entry ? usernameDraft.trim() !== entry.username && usernameDraft.trim().length > 0 : false;
+  const usernameDirty = entry
+    ? usernameDraft.trim() !== entry.username && usernameDraft.trim().length > 0
+    : false;
 
   // Preview password debounce
   useEffect(() => {
@@ -91,7 +95,7 @@ export function MobileAccountDetailSheet({ platform }: Props) {
         setPassword(r.password);
         setRevealed(false);
         setCopied(false);
-      } catch (err) {
+      } catch {
         /* swallow */
       } finally {
         setBusy(false);
@@ -107,7 +111,7 @@ export function MobileAccountDetailSheet({ platform }: Props) {
       try {
         await api.updateAccountProfile(entry.domain, entry.username, next);
         allAccounts.value = allAccounts.value.map((e) =>
-          e.domain === entry.domain && e.username === entry.username ? { ...e, profile: next } : e
+          e.domain === entry.domain && e.username === entry.username ? { ...e, profile: next } : e,
         );
         selectedAccount.value = { ...entry, profile: next };
       } catch {
@@ -129,13 +133,19 @@ export function MobileAccountDetailSheet({ platform }: Props) {
     }
   }, [password]);
 
-  const onDelete = useCallback(async () => {
+  const performDelete = useCallback(async () => {
     if (!entry) return;
-    await api.deleteAccount(entry.domain, entry.username);
-    allAccounts.value = allAccounts.value.filter(
-      (e) => !(e.domain === entry.domain && e.username === entry.username)
-    );
-    selectedAccount.value = null;
+    try {
+      await api.deleteAccount(entry.domain, entry.username);
+      allAccounts.value = allAccounts.value.filter(
+        (e) => !(e.domain === entry.domain && e.username === entry.username),
+      );
+      selectedAccount.value = null;
+    } catch {
+      /* swallow — surface via shared errorMessage later if needed */
+    } finally {
+      setConfirmingDelete(false);
+    }
   }, [entry]);
 
   const renameSubmit = useCallback(
@@ -150,7 +160,7 @@ export function MobileAccountDetailSheet({ platform }: Props) {
         const r = await api.renameAccount(entry.domain, entry.username, next);
         const updated = r.entry;
         allAccounts.value = allAccounts.value.map((e) =>
-          e.domain === entry.domain && e.username === entry.username ? updated : e
+          e.domain === entry.domain && e.username === entry.username ? updated : e,
         );
         selectedAccount.value = updated;
         try {
@@ -196,7 +206,7 @@ export function MobileAccountDetailSheet({ platform }: Props) {
             class={`mobile-sheet ${surfaceClass} safe-bottom max-h-[85vh] overflow-y-auto px-4 pb-6 flex flex-col gap-4`}
           >
             <div class="mobile-sheet__handle shrink-0" />
-            
+
             {/* Header */}
             <header class="flex items-center justify-between gap-3 pt-2">
               <div class="flex items-center gap-3">
@@ -213,16 +223,21 @@ export function MobileAccountDetailSheet({ platform }: Props) {
               <motion.button
                 type="button"
                 whileTap={TAP_SCALE}
-                onClick={() => { selectedAccount.value = null; }}
+                onClick={() => {
+                  selectedAccount.value = null;
+                }}
                 class="w-8 h-8 rounded-full bg-(--color-surface-sunken) grid place-items-center text-(--color-ink-muted) cursor-pointer hover:bg-(--color-line) border-0"
-                aria-label="Close"
+                aria-label={t("common_close")}
               >
                 <IconClose size={16} />
               </motion.button>
             </header>
 
             {/* Rename form */}
-            <form onSubmit={renameSubmit} class="flex flex-col gap-2 rounded-2xl bg-(--color-surface-elev) border border-(--color-line) p-3">
+            <form
+              onSubmit={renameSubmit}
+              class="flex flex-col gap-2 rounded-2xl bg-(--color-surface-elev) border border-(--color-line) p-3"
+            >
               <div class="flex items-center justify-between gap-2">
                 <span class="text-[10px] font-mono uppercase tracking-[0.22em] text-(--color-ink-subtle)">
                   {t("main_username_label")}
@@ -268,13 +283,17 @@ export function MobileAccountDetailSheet({ platform }: Props) {
                   animate="animate"
                   exit="exit"
                 >
-                  <strong class="text-xs text-(--color-ink) font-semibold">{t("detail_rename_warning_title")}</strong>
+                  <strong class="text-xs text-(--color-ink) font-semibold">
+                    {t("detail_rename_warning_title")}
+                  </strong>
                   <span class="text-[11px] text-(--color-ink-muted) leading-relaxed">
                     {t("detail_rename_warning_body")}
                   </span>
                   {previewPassword !== null ? (
                     <div class="flex flex-col gap-1.5 pt-1.5 border-t border-amber-300/20 mt-1">
-                      <span class="text-[9px] uppercase tracking-wider text-(--color-ink-subtle)">{t("detail_rename_preview_label")}</span>
+                      <span class="text-[9px] uppercase tracking-wider text-(--color-ink-subtle)">
+                        {t("detail_rename_preview_label")}
+                      </span>
                       <code
                         class={
                           previewRevealed
@@ -282,7 +301,9 @@ export function MobileAccountDetailSheet({ platform }: Props) {
                             : "font-mono text-sm break-all text-(--color-ink-muted) tracking-[0.15em] select-all"
                         }
                       >
-                        {previewRevealed ? previewPassword : "•".repeat(Math.min(previewPassword.length, 16))}
+                        {previewRevealed
+                          ? previewPassword
+                          : "•".repeat(Math.min(previewPassword.length, 16))}
                       </code>
                       <div class="flex gap-2 mt-1">
                         <motion.button
@@ -292,7 +313,9 @@ export function MobileAccountDetailSheet({ platform }: Props) {
                           onClick={() => setPreviewRevealed((v) => !v)}
                         >
                           {previewRevealed ? <IconEyeOff size={12} /> : <IconEye size={12} />}
-                          <span class="text-xs">{previewRevealed ? t("common_hide") : t("common_reveal")}</span>
+                          <span class="text-xs">
+                            {previewRevealed ? t("common_hide") : t("common_reveal")}
+                          </span>
                         </motion.button>
                         <motion.button
                           type="button"
@@ -301,7 +324,9 @@ export function MobileAccountDetailSheet({ platform }: Props) {
                           onClick={copyPreview}
                         >
                           {previewCopied ? <IconCheck size={12} /> : <IconCopy size={12} />}
-                          <span class="text-xs">{previewCopied ? t("common_copied") : t("common_copy")}</span>
+                          <span class="text-xs">
+                            {previewCopied ? t("common_copied") : t("common_copy")}
+                          </span>
                         </motion.button>
                       </div>
                     </div>
@@ -321,8 +346,12 @@ export function MobileAccountDetailSheet({ platform }: Props) {
                   animate="animate"
                   exit="exit"
                 >
-                  <span class="text-xs font-medium text-(--color-ink)">{t("detail_rename_password_changed")}</span>
-                  <code class="font-mono text-xs break-all text-(--color-ink) select-all">{renameToast}</code>
+                  <span class="text-xs font-medium text-(--color-ink)">
+                    {t("detail_rename_password_changed")}
+                  </span>
+                  <code class="font-mono text-xs break-all text-(--color-ink) select-all">
+                    {renameToast}
+                  </code>
                 </motion.div>
               ) : null}
             </AnimatePresence>
@@ -404,13 +433,23 @@ export function MobileAccountDetailSheet({ platform }: Props) {
                 type="button"
                 class="btn btn-danger btn-sm w-full !h-10 rounded-xl"
                 whileTap={TAP_SCALE}
-                onClick={onDelete}
+                onClick={() => setConfirmingDelete(true)}
               >
                 <IconTrash size={14} />
                 <span class="text-sm font-semibold">{t("accounts_delete")}</span>
               </motion.button>
             </footer>
           </motion.div>
+
+          {confirmingDelete ? (
+            <ConfirmModal
+              title={t("accounts_delete_confirm_title")}
+              body={t("accounts_delete_confirm_body")}
+              confirmLabel={t("accounts_delete")}
+              onCancel={() => setConfirmingDelete(false)}
+              onConfirm={() => void performDelete()}
+            />
+          ) : null}
         </>
       ) : null}
     </AnimatePresence>

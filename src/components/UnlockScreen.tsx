@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from "preact/hooks";
+import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { api, describeError } from "../api.js";
 import { t } from "../i18n.js";
 import { IconTouchId, IconWindowsHello } from "../icons.js";
-import { SOFT_SPRING, TAP_SCALE } from "../motion.js";
+import { POP_IN, SOFT_SPRING, TAP_SCALE } from "../motion.js";
 import { detectPlatform } from "../platform.js";
 import {
   busy,
@@ -12,6 +12,7 @@ import {
   errorMessage,
   fingerprint,
   historyEnabled,
+  livePreview,
   screen,
   view,
 } from "../state.js";
@@ -22,13 +23,14 @@ interface Props {
 }
 
 export function UnlockScreen({ hasPin }: Props) {
-  const [mode, setMode] = useState<"master" | "pin">("master");
+  // Default to the PIN tab whenever the vault has one configured —
+  // it's the faster path, and matches the extension's UnlockScreen
+  // behaviour. The user can still flip to "Use master password" via
+  // the toggle below.
+  const [mode, setMode] = useState<"master" | "pin">(hasPin ? "pin" : "master");
   const [value, setValue] = useState("");
   const [bioAvailable, setBioAvailable] = useState(false);
-
-  useEffect(() => {
-    if (hasPin && mode === "master") setMode("master");
-  }, [hasPin]);
+  const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     void api
@@ -36,6 +38,39 @@ export function UnlockScreen({ hasPin }: Props) {
       .then((r) => setBioAvailable(r.supported && r.enrolled && r.vaultEnrolled))
       .catch(() => setBioAvailable(false));
   }, []);
+
+  // Live fingerprint preview while the user types the master. Lets us
+  // warn early when they're typing the wrong vault's master before
+  // they hit Unlock — the actual unlock path eats Argon2 latency, but
+  // a debounced fingerprint() call is cheap enough to run on every
+  // pause. PIN mode skips this (the PIN never derives a fingerprint
+  // directly).
+  useEffect(() => {
+    if (previewTimer.current !== null) clearTimeout(previewTimer.current);
+    if (mode !== "master" || value.length === 0) {
+      livePreview.value = null;
+      return;
+    }
+    previewTimer.current = setTimeout(() => {
+      void api
+        .fingerprint(value)
+        .then((r) => {
+          livePreview.value = r.fingerprint;
+        })
+        .catch(() => {
+          livePreview.value = null;
+        });
+    }, 500);
+    return () => {
+      if (previewTimer.current !== null) clearTimeout(previewTimer.current);
+    };
+  }, [value, mode]);
+
+  // Reset the live preview when leaving the master tab so it doesn't
+  // linger after a tab switch.
+  useEffect(() => {
+    if (mode !== "master") livePreview.value = null;
+  }, [mode]);
 
   const submit = useCallback(
     async (event: Event) => {
@@ -52,7 +87,7 @@ export function UnlockScreen({ hasPin }: Props) {
         view.value = "generator";
         screen.value = "shell";
       } catch (err) {
-        errorMessage.value = describeError(err) || "unlock failed";
+        errorMessage.value = describeError(err) || t("err_unlock_failed");
       } finally {
         busy.value = false;
       }
@@ -73,7 +108,7 @@ export function UnlockScreen({ hasPin }: Props) {
       view.value = "generator";
       screen.value = "shell";
     } catch (err) {
-      errorMessage.value = describeError(err) || "biometric unlock failed";
+      errorMessage.value = describeError(err) || t("err_biometric_failed");
     } finally {
       busy.value = false;
     }
@@ -107,6 +142,27 @@ export function UnlockScreen({ hasPin }: Props) {
           onInput={(e) => setValue((e.target as HTMLInputElement).value)}
         />
       </label>
+
+      <AnimatePresence>
+        {mode === "master" &&
+        livePreview.value !== null &&
+        fingerprint.value !== null &&
+        livePreview.value !== fingerprint.value ? (
+          <motion.div
+            key="mismatch"
+            class="callout flex flex-col gap-2 items-start border border-amber-500/40 bg-amber-500/8"
+            variants={POP_IN}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            aria-live="polite"
+          >
+            <span class="field-label">{t("unlock_typed_label")}</span>
+            <span class="fingerprint">{livePreview.value}</span>
+            <span class="field-hint">{t("unlock_mismatch_hint")}</span>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       <AnimatePresence>
         {errorMessage.value !== null ? (

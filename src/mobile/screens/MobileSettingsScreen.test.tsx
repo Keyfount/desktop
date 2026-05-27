@@ -8,7 +8,15 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn().mockImplementation((cmd) => {
     if (cmd === "get_state") {
       return Promise.resolve({
-        defaultProfile: { mode: "random", counter: 1, length: 16, lower: true, upper: true, digits: true, symbols: true },
+        defaultProfile: {
+          mode: "random",
+          counter: 1,
+          length: 16,
+          lower: true,
+          upper: true,
+          digits: true,
+          symbols: true,
+        },
         autoLockMinutes: 10,
         clipboardClearSeconds: 30,
         historyEnabled: true,
@@ -30,7 +38,7 @@ describe("<MobileSettingsScreen />", () => {
     historyEnabled.value = true;
     const root = document.createElement("div");
     render(<MobileSettingsScreen />, root);
-    
+
     // Allow the promise to resolve so settings layout mounts
     await new Promise((resolve) => setTimeout(resolve, 50));
 
@@ -45,7 +53,7 @@ describe("<MobileSettingsScreen />", () => {
     const calls: string[] = [];
     const root = document.createElement("div");
     render(<MobileSettingsScreen onLock={() => calls.push("lock")} />, root);
-    
+
     // Allow the promise to resolve so lock button mounts
     await new Promise((resolve) => setTimeout(resolve, 50));
 

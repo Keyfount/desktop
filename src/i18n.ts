@@ -29,6 +29,19 @@ const EN = {
   common_delete: "Delete",
   common_preferences: "Preferences",
   common_no_matches: "No matches",
+  common_close: "Close",
+  common_unlock: "Unlock",
+
+  err_init_failed: "Could not initialise the vault. Try again or restart the app.",
+  err_unlock_failed: "Could not unlock the vault.",
+  err_biometric_failed: "Biometric unlock failed.",
+  err_setup_failed: "Could not finish setting up the vault.",
+  err_generation_failed: "Password generation failed.",
+  err_switch_failed: "Could not switch vault.",
+  err_delete_failed: "Delete failed.",
+  err_autofill_toggle_failed: "Could not toggle system autofill.",
+  err_history_toggle_failed: "Could not change the history setting.",
+  err_no_other_vault: "No other vault available to switch back to.",
 
   setup_welcome: "Set up your master password",
   setup_intro:
@@ -42,6 +55,7 @@ const EN = {
   setup_create_button: "Create vault",
   setup_fingerprint_hint:
     "Memorise this fingerprint — you should see the same one every time you unlock.",
+  setup_cancel_existing: "Cancel — use an existing vault",
 
   unlock_title: "Unlock",
   unlock_subtitle: "Enter your master password.",
@@ -53,6 +67,10 @@ const EN = {
   unlock_use_touchid: "Use Touch ID",
   unlock_use_windowshello: "Use Windows Hello",
   unlock_biometric_unavailable: "Biometric unlock is not configured for this vault.",
+  unlock_expected_label: "This vault's fingerprint",
+  unlock_typed_label: "What you typed would unlock",
+  unlock_mismatch_hint:
+    "Different from this vault — check that you're typing the master for the right profile.",
 
   main_no_site: "Pick a site to derive a password for.",
   main_domain_label: "Site",
@@ -138,6 +156,9 @@ const EN = {
   accounts_chars: (n: string) => `${n} chars`,
   accounts_refresh: "Pull from server",
   accounts_refreshing: "Pulling…",
+  accounts_delete_confirm_title: "Delete this account?",
+  accounts_delete_confirm_body:
+    "This removes the (site, username) entry from your list. The derived password keeps working — saved entries are just a reminder so you don't have to retype the username next time.",
   detail_rename_failed: "Rename failed",
   detail_rename_password_changed:
     "The username changed, so the derived password did too. Update it on the actual site:",
@@ -209,6 +230,11 @@ const EN = {
   vaults_empty: "No vault yet.",
   vaults_label: (id: string) => `Vault ${id}`,
   vaults_created: (date: string) => `Created ${date}`,
+  vaults_delete_confirm_title: "Delete this vault?",
+  vaults_delete_confirm_body:
+    "Deleting this vault erases all of its saved accounts and the sync session attached to it. The derivation still works from the master password, but the (site, username) list and any biometric/PIN unlock are gone. This action is irreversible.",
+  vaults_delete_aria: "Delete this vault",
+  vaults_switch_aria: "Switch to this vault",
 
   history_setup_title: "Remember accounts?",
   history_setup_body:
@@ -258,6 +284,19 @@ const FR: Record<keyof typeof EN, Entry> = {
   common_delete: "Supprimer",
   common_preferences: "Préférences",
   common_no_matches: "Aucun résultat",
+  common_close: "Fermer",
+  common_unlock: "Déverrouiller",
+
+  err_init_failed: "Impossible d'initialiser le coffre. Réessayez ou relancez l'application.",
+  err_unlock_failed: "Impossible de déverrouiller le coffre.",
+  err_biometric_failed: "Le déverrouillage biométrique a échoué.",
+  err_setup_failed: "Impossible de finaliser la création du coffre.",
+  err_generation_failed: "La génération du mot de passe a échoué.",
+  err_switch_failed: "Impossible de changer de coffre.",
+  err_delete_failed: "La suppression a échoué.",
+  err_autofill_toggle_failed: "Impossible de basculer le remplissage système.",
+  err_history_toggle_failed: "Impossible de modifier le réglage d'historique.",
+  err_no_other_vault: "Aucun autre coffre disponible.",
 
   setup_welcome: "Configurer votre mot de passe maître",
   setup_intro:
@@ -272,6 +311,7 @@ const FR: Record<keyof typeof EN, Entry> = {
   setup_create_button: "Créer le coffre",
   setup_fingerprint_hint:
     "Mémorisez cette empreinte — vous devriez voir la même à chaque déverrouillage.",
+  setup_cancel_existing: "Annuler — utiliser un coffre existant",
 
   unlock_title: "Déverrouiller",
   unlock_subtitle: "Entrez votre mot de passe maître.",
@@ -283,6 +323,10 @@ const FR: Record<keyof typeof EN, Entry> = {
   unlock_use_touchid: "Utiliser Touch ID",
   unlock_use_windowshello: "Utiliser Windows Hello",
   unlock_biometric_unavailable: "Le déverrouillage biométrique n'est pas configuré.",
+  unlock_expected_label: "Empreinte de ce coffre",
+  unlock_typed_label: "Le mot de passe tapé ouvrirait",
+  unlock_mismatch_hint:
+    "Différent de ce coffre — vérifie que tu tapes le mot de passe maître du bon profil.",
 
   main_no_site: "Choisissez un site pour dériver un mot de passe.",
   main_domain_label: "Site",
@@ -371,6 +415,9 @@ const FR: Record<keyof typeof EN, Entry> = {
   accounts_chars: (n: string) => `${n} caractères`,
   accounts_refresh: "Récupérer depuis le serveur",
   accounts_refreshing: "Récupération…",
+  accounts_delete_confirm_title: "Supprimer ce compte ?",
+  accounts_delete_confirm_body:
+    "Cela retire l'entrée (site, identifiant) de ta liste. Le mot de passe dérivé continue de fonctionner — les entrées enregistrées ne sont qu'un rappel pour éviter de retaper l'identifiant la prochaine fois.",
   detail_rename_failed: "Renommage échoué",
   detail_rename_password_changed:
     "L'identifiant a changé, donc le mot de passe dérivé aussi. Mettez-le à jour sur le site :",
@@ -444,6 +491,11 @@ const FR: Record<keyof typeof EN, Entry> = {
   vaults_empty: "Aucun coffre pour l'instant.",
   vaults_label: (id: string) => `Coffre ${id}`,
   vaults_created: (date: string) => `Créé le ${date}`,
+  vaults_delete_confirm_title: "Supprimer ce coffre ?",
+  vaults_delete_confirm_body:
+    "Supprimer ce coffre efface tous ses comptes enregistrés et la session de sync attachée. La dérivation continue de fonctionner depuis le mot de passe maître, mais la liste (site, identifiant) et les déverrouillages biométrique/PIN disparaissent. Cette action est irréversible.",
+  vaults_delete_aria: "Supprimer ce coffre",
+  vaults_switch_aria: "Basculer sur ce coffre",
 
   history_setup_title: "Mémoriser les comptes ?",
   history_setup_body:

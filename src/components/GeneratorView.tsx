@@ -40,6 +40,11 @@ export function GeneratorView() {
     setRevealed(false);
     setCopied(false);
     setSaved(false);
+    // Drop the cached profile so the next time the Customize panel
+    // opens we fetch the per-site profile for the new domain. Without
+    // this, switching site kept the previously-loaded profile on screen
+    // and the user would tweak the wrong one.
+    setProfile(null);
   }, [activeDomain.value, activeEmail.value]);
 
   useEffect(() => {
@@ -62,7 +67,7 @@ export function GeneratorView() {
       );
       generated.value = r.password;
     } catch (err) {
-      errorMessage.value = describeError(err) || "generation failed";
+      errorMessage.value = describeError(err) || t("err_generation_failed");
     } finally {
       busy.value = false;
     }

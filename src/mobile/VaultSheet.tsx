@@ -20,7 +20,7 @@ interface Props {
   onNew: () => void;
 }
 
-export function VaultSheet({ platform, vaults, onSwitch, onLock, onNew }: Props) {
+export function VaultSheet({ vaults, onSwitch, onLock, onNew }: Props) {
   const surfaceClass = "bg-(--color-surface) border-t border-(--color-line)";
   return (
     <AnimatePresence>

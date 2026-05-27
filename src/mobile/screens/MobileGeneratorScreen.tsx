@@ -37,6 +37,9 @@ export function MobileGeneratorScreen() {
     setRevealed(false);
     setCopied(false);
     setSaved(false);
+    // Drop the cached profile so the Customize panel re-fetches for
+    // the new domain on next open — see GeneratorView for the same fix.
+    setProfile(null);
   }, [activeDomain.value, activeEmail.value]);
 
   useEffect(() => {
@@ -59,13 +62,11 @@ export function MobileGeneratorScreen() {
       );
       generated.value = r.password;
     } catch (err) {
-      errorMessage.value = describeError(err) || "generation failed";
+      errorMessage.value = describeError(err) || t("err_generation_failed");
     } finally {
       busy.value = false;
     }
   }, [profile]);
-
-
 
   const updateProfile = useCallback(async (next: Profile) => {
     setProfile(next);
@@ -286,9 +287,7 @@ export function MobileGeneratorScreen() {
             </div>
           </motion.div>
         ) : !canGenerate.value ? (
-          <p class="text-xs text-(--color-ink-subtle) leading-snug px-1">
-            {t("main_no_email")}
-          </p>
+          <p class="text-xs text-(--color-ink-subtle) leading-snug px-1">{t("main_no_email")}</p>
         ) : null}
       </AnimatePresence>
 

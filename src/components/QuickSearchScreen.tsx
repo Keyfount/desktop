@@ -43,7 +43,7 @@ export function QuickSearchScreen() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch (err) {
-      errorMessage.value = describeError(err) || "generation failed";
+      errorMessage.value = describeError(err) || t("err_generation_failed");
     } finally {
       setBusy(false);
     }
