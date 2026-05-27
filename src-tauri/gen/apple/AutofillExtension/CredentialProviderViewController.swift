@@ -98,9 +98,9 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
         requestedDomain = serviceIdentifiers.first(where: { $0.type == .domain })?.identifier ?? ""
 
         switch loadVault() {
-        case .failure(let message):
+        case .unavailable(let message):
             showEmptyState(message)
-        case .success(let context):
+        case .ready(let context):
             activeVaultId = context.activeId
             matches = queryAccounts(dbPath: context.dbPath, domain: requestedDomain)
             if matches.isEmpty {
@@ -153,11 +153,16 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
         let dbPath: String
     }
 
-    private func loadVault() -> Result<VaultContext, String> {
+    private enum VaultLookup {
+        case ready(VaultContext)
+        case unavailable(String)
+    }
+
+    private func loadVault() -> VaultLookup {
         guard let sharedURL = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: Self.AppGroup
         ) else {
-            return .failure("Conteneur App Group introuvable.")
+            return .unavailable("Conteneur App Group introuvable.")
         }
 
         let rootURL = sharedURL.appendingPathComponent(Self.VaultRootRelativePath)
@@ -166,11 +171,11 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
         guard let registryData = try? Data(contentsOf: registryURL),
               let json = try? JSONSerialization.jsonObject(with: registryData) as? [String: Any],
               let activeId = json["activeId"] as? String else {
-            return .failure("Ouvre Keyfount au moins une fois pour activer un coffre.")
+            return .unavailable("Ouvre Keyfount au moins une fois pour activer un coffre.")
         }
 
         let dbPath = rootURL.appendingPathComponent(activeId).appendingPathComponent("vault.db").path
-        return .success(VaultContext(activeId: activeId, dbPath: dbPath))
+        return .ready(VaultContext(activeId: activeId, dbPath: dbPath))
     }
 
     private func showEmptyState(_ message: String) {
