@@ -15,6 +15,7 @@ import { POP_IN, SOFT_SPRING, TAP_SCALE } from "../motion.js";
 import { selectedAccount, allAccounts } from "../state.js";
 import { AccountAvatar } from "../components/AccountAvatar.js";
 import { ConfirmModal } from "../components/ConfirmModal.js";
+import { LastSyncedLine } from "../components/LastSyncedLine.js";
 import { ProfileEditor } from "../components/ProfileEditor.js";
 import { RotationPanel } from "../components/RotationPanel.js";
 import type { Profile } from "../types.js";
@@ -444,8 +445,9 @@ export function MobileAccountDetailSheet(_props: Props) {
               />
             </div>
 
-            {/* Footer / Delete */}
-            <footer class="flex pt-3 border-t border-(--color-line)/60 mt-2 shrink-0">
+            {/* Last synced + Delete footer */}
+            <footer class="flex flex-col gap-2 pt-3 border-t border-(--color-line)/60 mt-2 shrink-0">
+              <LastSyncedLine domain={entry.domain} username={entry.username} compact />
               <motion.button
                 type="button"
                 class="btn btn-danger btn-sm w-full !h-10 rounded-xl"

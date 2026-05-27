@@ -146,3 +146,16 @@ export interface ImportResponse {
   accountsImported: number;
   sitesImported: number;
 }
+
+/** Direction of the last sync that touched a single account row. */
+export type SyncStampDir = "push" | "pull";
+
+/** Stamp on a single account: when sync last touched it, and how. */
+export interface AccountSyncStamp {
+  ts: number;
+  dir: SyncStampDir;
+}
+
+export interface GetAccountSyncInfoResponse {
+  lastSyncedAt: AccountSyncStamp | null;
+}

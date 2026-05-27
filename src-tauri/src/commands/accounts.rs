@@ -117,3 +117,64 @@ pub async fn delete_account(
     let open = store.require()?;
     accounts_store::delete(&open.conn, &domain, &username)
 }
+
+#[derive(Debug, Serialize)]
+pub struct SyncStampView {
+    pub ts: i64,
+    pub dir: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GetAccountSyncInfoResponse {
+    #[serde(rename = "lastSyncedAt")]
+    pub last_synced_at: Option<SyncStampView>,
+}
+
+/// Read the (last_synced_at, last_synced_dir) stamp for a single
+/// account. Powers the "Synced 12 min ago" footer on the account
+/// detail screens. Returns `lastSyncedAt: null` when the row has
+/// never been observed by the sync pipeline (local-only or
+/// freshly-created).
+#[tauri::command]
+pub async fn get_account_sync_info(
+    domain: String,
+    username: String,
+    state: State<'_, AppState>,
+) -> AppResult<GetAccountSyncInfoResponse> {
+    let store = state.store.lock().await;
+    let open = store.require()?;
+    let stamp = accounts_store::get_sync_stamp(&open.conn, &domain, &username)?;
+    Ok(GetAccountSyncInfoResponse {
+        last_synced_at: stamp.map(|s| SyncStampView {
+            ts: s.ts_ms,
+            dir: match s.dir {
+                accounts_store::SyncDir::Push => "push".into(),
+                accounts_store::SyncDir::Pull => "pull".into(),
+            },
+        }),
+    })
+}
+
+/// Stamp an account row as just-synced. Called by the JS sync engine
+/// after a successful push or pull so the UI can show how stale (or
+/// fresh) each entry is. `dir` is `"push"` or `"pull"`.
+#[tauri::command]
+pub async fn account_stamp_synced(
+    domain: String,
+    username: String,
+    dir: String,
+    state: State<'_, AppState>,
+) -> AppResult<()> {
+    let parsed = match dir.as_str() {
+        "push" => accounts_store::SyncDir::Push,
+        "pull" => accounts_store::SyncDir::Pull,
+        other => {
+            return Err(crate::error::AppError::invalid(format!(
+                "invalid sync direction `{other}` (expected `push` or `pull`)"
+            )));
+        }
+    };
+    let store = state.store.lock().await;
+    let open = store.require()?;
+    accounts_store::stamp_synced(&open.conn, &domain, &username, now_ms(), parsed)
+}
