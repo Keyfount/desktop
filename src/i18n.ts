@@ -177,6 +177,14 @@ const EN = {
   detail_rotate_new_label: "New password",
   detail_rotate_confirm: "Confirm rotation",
 
+  detail_last_synced_push: (age: string) => `Pushed to the server ${age}.`,
+  detail_last_synced_pull: (age: string) => `Pulled from the server ${age}.`,
+  detail_last_synced_never: "Never synced to a server.",
+  relative_just_now: "just now",
+  relative_minutes_ago: (n: string) => (n === "1" ? "1 min ago" : `${n} min ago`),
+  relative_hours_ago: (n: string) => (n === "1" ? "1 hour ago" : `${n} hours ago`),
+  relative_days_ago: (n: string) => (n === "1" ? "yesterday" : `${n} days ago`),
+
   sync_step_url: "Server",
   sync_step_auth: "Identify",
   sync_step_done: "Approval",
@@ -527,6 +535,14 @@ const FR: Record<keyof typeof EN, Entry> = {
   detail_rotate_old_label: "Mot de passe actuel",
   detail_rotate_new_label: "Nouveau mot de passe",
   detail_rotate_confirm: "Confirmer la rotation",
+
+  detail_last_synced_push: (age: string) => `Envoyé au serveur ${age}.`,
+  detail_last_synced_pull: (age: string) => `Reçu du serveur ${age}.`,
+  detail_last_synced_never: "Jamais synchronisé avec un serveur.",
+  relative_just_now: "à l'instant",
+  relative_minutes_ago: (n: string) => (n === "1" ? "il y a 1 min" : `il y a ${n} min`),
+  relative_hours_ago: (n: string) => (n === "1" ? "il y a 1 h" : `il y a ${n} h`),
+  relative_days_ago: (n: string) => (n === "1" ? "hier" : `il y a ${n} j`),
 
   sync_step_url: "Serveur",
   sync_step_auth: "Identité",

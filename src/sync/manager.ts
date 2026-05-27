@@ -232,6 +232,7 @@ export async function push(master: string): Promise<SyncStats> {
     });
     lastSeq = Math.max(lastSeq, ack.serverSeq);
     pushedCount++;
+    await stampOrSwallow(entry.domain, entry.username, "push");
   }
 
   // Phase 2: snapshot for fast subsequent pulls. `upToSeq` is the
@@ -357,6 +358,7 @@ async function applyOpLocally(op: SyncOp): Promise<void> {
       } else {
         await api.recordAccount(op.entry.domain, op.entry.username, op.entry.profile, silent);
       }
+      await stampOrSwallow(op.entry.domain, op.entry.username, "pull");
       break;
     }
     case "delete_account":
@@ -364,6 +366,7 @@ async function applyOpLocally(op: SyncOp): Promise<void> {
       break;
     case "rename_account":
       await api.renameAccount(op.domain, op.oldUsername, op.newUsername, silent);
+      await stampOrSwallow(op.domain, op.newUsername, "pull");
       break;
     case "set_fingerprint":
       // No-op locally: the fingerprint is derived at unlock, not stored.
@@ -394,6 +397,10 @@ export async function applyStateLocally(state: SyncableState): Promise<void> {
     if (!existingKeys.has(key(entry))) {
       await api.recordAccount(entry.domain, entry.username, entry.profile, silent);
     }
+    // Stamp every entry the snapshot covered, whether we just
+    // inserted it or it already existed — the latest snapshot proves
+    // the server holds the row at this moment.
+    await stampOrSwallow(entry.domain, entry.username, "pull");
   }
   // Refresh the signal-backed list so the UI updates.
   const refreshed = await api.listAccounts();
@@ -402,4 +409,22 @@ export async function applyStateLocally(state: SyncableState): Promise<void> {
 
 function key(entry: AccountEntry): string {
   return `${entry.domain}|${entry.username}`;
+}
+
+/**
+ * Best-effort per-account sync stamp. The actual sync push/pull
+ * already committed by the time we get here, so a failure to stamp
+ * (e.g. the row was deleted by the user between push and stamp)
+ * should not bubble up — it's only display metadata.
+ */
+async function stampOrSwallow(
+  domain: string,
+  username: string,
+  dir: "push" | "pull",
+): Promise<void> {
+  try {
+    await api.accountStampSynced(domain, username, dir);
+  } catch {
+    /* swallow — the stamp is best-effort display metadata */
+  }
 }

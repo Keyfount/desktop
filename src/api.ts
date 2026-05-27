@@ -21,9 +21,11 @@ import type {
   GenerateResponse,
   GetProfileResponse,
   GetStateResponse,
+  GetAccountSyncInfoResponse,
   ListAccountsResponse,
   RecordAccountResponse,
   ListVaultsResponse,
+  SyncStampDir,
   SyncStatusResponse,
   SyncTestConnectionResponse,
   AutofillStatusResponse,
@@ -173,6 +175,21 @@ export const api = {
     await call<void>("delete_account", { domain, username });
     if (opts?.skipBus !== true) syncBus.notify({ t: "delete_account", domain, username });
   },
+  /**
+   * Read the per-account sync stamp (`{ ts, dir }`) so the account
+   * detail screen can show "Synced 12 min ago". Returns
+   * `lastSyncedAt: null` for rows the sync pipeline has never touched.
+   */
+  getAccountSyncInfo: (domain: string, username: string) =>
+    call<GetAccountSyncInfoResponse>("get_account_sync_info", { domain, username }),
+  /**
+   * Internal: stamp an account as just-pushed-or-pulled. Called by
+   * `sync/manager.ts` after a successful event push or after a remote
+   * event is applied locally during a pull. UI code shouldn't call
+   * this directly.
+   */
+  accountStampSynced: (domain: string, username: string, dir: SyncStampDir) =>
+    call<void>("account_stamp_synced", { domain, username, dir }),
 
   listVaults: () => call<ListVaultsResponse>("list_vaults"),
   switchVault: (id: string) => call<void>("switch_vault", { id }),

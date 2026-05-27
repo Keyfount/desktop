@@ -219,6 +219,8 @@ pub fn run() {
             commands::update_account_profile,
             commands::rename_account,
             commands::delete_account,
+            commands::get_account_sync_info,
+            commands::account_stamp_synced,
             // vaults
             commands::list_vaults,
             commands::switch_vault,

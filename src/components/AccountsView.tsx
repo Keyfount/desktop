@@ -27,6 +27,7 @@ import { syncServerStatus } from "../sync/status.js";
 import type { AccountEntry, Profile } from "../types.js";
 import { AccountAvatar } from "./AccountAvatar.js";
 import { ConfirmModal } from "./ConfirmModal.js";
+import { LastSyncedLine } from "./LastSyncedLine.js";
 import { PageHeader } from "./PageHeader.js";
 import { ProfileEditor } from "./ProfileEditor.js";
 import { RotationPanel } from "./RotationPanel.js";
@@ -587,7 +588,8 @@ function AccountDetail({ entry }: { entry: AccountEntry }) {
         />
       </section>
 
-      <footer class="flex justify-end pt-4 border-t border-(--color-line)/60">
+      <footer class="flex items-center justify-between gap-3 pt-4 border-t border-(--color-line)/60">
+        <LastSyncedLine domain={entry.domain} username={entry.username} />
         <motion.button
           type="button"
           class="btn btn-danger btn-sm"
