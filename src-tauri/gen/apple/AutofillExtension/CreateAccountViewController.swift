@@ -55,6 +55,18 @@ final class CreateAccountViewController: UITableViewController, UITextFieldDeleg
     private lazy var navigationBar: UINavigationBar = {
         let bar = UINavigationBar()
         bar.translatesAutoresizingMaskIntoConstraints = false
+        let appearance = UINavigationBarAppearance()
+        appearance.configureWithDefaultBackground()
+        appearance.backgroundColor = KeyfountTheme.surface.withAlphaComponent(0.85)
+        appearance.shadowColor = KeyfountTheme.line
+        appearance.titleTextAttributes = [
+            .foregroundColor: KeyfountTheme.ink,
+            .font: KeyfountTheme.Font.title(),
+        ]
+        bar.standardAppearance = appearance
+        bar.scrollEdgeAppearance = appearance
+        bar.tintColor = KeyfountTheme.accent
+
         let item = UINavigationItem(title: "Nouveau compte")
         item.leftBarButtonItem = UIBarButtonItem(title: "Annuler", style: .plain, target: self, action: #selector(handleCancel))
         item.rightBarButtonItem = saveButton
@@ -65,45 +77,73 @@ final class CreateAccountViewController: UITableViewController, UITextFieldDeleg
     private lazy var saveButton: UIBarButtonItem = {
         let b = UIBarButtonItem(title: "Créer", style: .done, target: self, action: #selector(handleSave))
         b.isEnabled = false
+        b.setTitleTextAttributes(
+            [.font: KeyfountTheme.Font.body(.semibold), .foregroundColor: KeyfountTheme.accent],
+            for: .normal
+        )
         return b
     }()
 
     private lazy var domainField: UITextField = {
-        let f = UITextField()
-        f.placeholder = "exemple.com"
+        let f = themedField(placeholder: "exemple.com")
         f.text = domain
-        f.autocapitalizationType = .none
-        f.autocorrectionType = .no
         f.keyboardType = .URL
         f.returnKeyType = .next
-        f.delegate = self
         f.addTarget(self, action: #selector(domainChanged), for: .editingChanged)
         return f
     }()
 
     private lazy var usernameField: UITextField = {
-        let f = UITextField()
-        f.placeholder = "Identifiant ou email"
-        f.autocapitalizationType = .none
-        f.autocorrectionType = .no
+        let f = themedField(placeholder: "Identifiant ou email")
         f.keyboardType = .emailAddress
         f.returnKeyType = .done
-        f.delegate = self
         f.addTarget(self, action: #selector(usernameChanged), for: .editingChanged)
         return f
     }()
 
+    private func themedField(placeholder: String) -> UITextField {
+        let f = PaddedTextField()
+        f.autocapitalizationType = .none
+        f.autocorrectionType = .no
+        f.delegate = self
+        f.font = KeyfountTheme.Font.body()
+        f.textColor = KeyfountTheme.ink
+        f.attributedPlaceholder = NSAttributedString(
+            string: placeholder,
+            attributes: [
+                .foregroundColor: KeyfountTheme.inkSubtle,
+                .font: KeyfountTheme.Font.body(),
+            ]
+        )
+        f.backgroundColor = KeyfountTheme.surfaceElev
+        f.layer.borderColor = KeyfountTheme.line.cgColor
+        f.layer.borderWidth = 1
+        f.layer.cornerRadius = KeyfountTheme.Radius.pill
+        f.heightAnchor.constraint(equalToConstant: 40).isActive = true
+        return f
+    }
+
     private lazy var modeSegment: UISegmentedControl = {
         let s = UISegmentedControl(items: ["Aléatoire", "Mémorisable"])
         s.selectedSegmentIndex = profile.isRandom ? 0 : 1
+        s.selectedSegmentTintColor = KeyfountTheme.surfaceElev
+        s.backgroundColor = KeyfountTheme.surfaceSunken
+        s.setTitleTextAttributes(
+            [.foregroundColor: KeyfountTheme.inkMuted, .font: KeyfountTheme.Font.caption()],
+            for: .normal
+        )
+        s.setTitleTextAttributes(
+            [.foregroundColor: KeyfountTheme.ink, .font: KeyfountTheme.Font.caption(.semibold)],
+            for: .selected
+        )
         s.addTarget(self, action: #selector(modeChanged), for: .valueChanged)
         return s
     }()
 
     private lazy var previewLabel: UILabel = {
         let l = UILabel()
-        l.font = UIFont.monospacedSystemFont(ofSize: 17, weight: .regular)
-        l.textColor = .label
+        l.font = KeyfountTheme.Font.mono(16)
+        l.textColor = KeyfountTheme.ink
         l.textAlignment = .center
         l.numberOfLines = 0
         l.text = " "
@@ -114,7 +154,8 @@ final class CreateAccountViewController: UITableViewController, UITextFieldDeleg
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemGroupedBackground
+        KeyfountTheme.registerBundledFonts()
+        view.backgroundColor = KeyfountTheme.surface
 
         // The table is the root view of UITableViewController, but we
         // still need our own nav bar (no parent UINavigationController
@@ -127,6 +168,8 @@ final class CreateAccountViewController: UITableViewController, UITextFieldDeleg
             nav.trailingAnchor.constraint(equalTo: view.trailingAnchor),
         ])
         tableView.contentInset.top = nav.intrinsicContentSize.height
+        tableView.backgroundColor = KeyfountTheme.surface
+        tableView.separatorColor = KeyfountTheme.line
 
         tableView.keyboardDismissMode = .interactive
         tableView.allowsSelection = false
@@ -134,6 +177,16 @@ final class CreateAccountViewController: UITableViewController, UITextFieldDeleg
 
         refreshSaveEnabled()
         requestPreview()
+    }
+
+    override func tableView(_ tableView: UITableView, willDisplayHeaderView view: UIView, forSection section: Int) {
+        guard let header = view as? UITableViewHeaderFooterView else { return }
+        header.textLabel?.font = KeyfountTheme.Font.fieldLabel()
+        header.textLabel?.textColor = KeyfountTheme.inkSubtle
+    }
+
+    override func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
+        cell.backgroundColor = KeyfountTheme.surfaceElev
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -261,7 +314,8 @@ final class CreateAccountViewController: UITableViewController, UITextFieldDeleg
         let title = row == 0 ? "Domaine" : "Identifiant"
         let label = UILabel()
         label.text = title
-        label.font = .preferredFont(forTextStyle: .body)
+        label.font = KeyfountTheme.Font.body()
+        label.textColor = KeyfountTheme.ink
         label.translatesAutoresizingMaskIntoConstraints = false
         field.translatesAutoresizingMaskIntoConstraints = false
         cell.contentView.addSubview(label)
@@ -275,7 +329,7 @@ final class CreateAccountViewController: UITableViewController, UITextFieldDeleg
             field.trailingAnchor.constraint(equalTo: cell.contentView.layoutMarginsGuide.trailingAnchor),
             field.centerYAnchor.constraint(equalTo: cell.contentView.centerYAnchor),
 
-            cell.contentView.heightAnchor.constraint(greaterThanOrEqualToConstant: 44),
+            cell.contentView.heightAnchor.constraint(greaterThanOrEqualToConstant: 56),
         ])
         return cell
     }
@@ -374,7 +428,8 @@ final class CreateAccountViewController: UITableViewController, UITextFieldDeleg
 
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
-        label.font = .preferredFont(forTextStyle: .body)
+        label.font = KeyfountTheme.Font.body()
+        label.textColor = KeyfountTheme.ink
         cell.contentView.addSubview(label)
 
         NSLayoutConstraint.activate([
@@ -391,6 +446,10 @@ final class CreateAccountViewController: UITableViewController, UITextFieldDeleg
             slider.minimumValue = Float(min)
             slider.maximumValue = Float(max)
             slider.value = Float(value)
+            slider.tintColor = KeyfountTheme.accent
+            slider.minimumTrackTintColor = KeyfountTheme.accent
+            slider.maximumTrackTintColor = KeyfountTheme.line
+            slider.thumbTintColor = KeyfountTheme.accent
             slider.addAction(UIAction { [weak slider] _ in
                 guard let s = slider else { return }
                 let snapped = (Double(s.value) / step).rounded() * step
@@ -408,6 +467,7 @@ final class CreateAccountViewController: UITableViewController, UITextFieldDeleg
             let toggle = UISwitch()
             toggle.translatesAutoresizingMaskIntoConstraints = false
             toggle.isOn = value
+            toggle.onTintColor = KeyfountTheme.accent
             toggle.addAction(UIAction { [weak toggle] _ in
                 guard let t = toggle else { return }
                 onChange(t.isOn)
@@ -441,6 +501,16 @@ final class CreateAccountViewController: UITableViewController, UITextFieldDeleg
             let segment = UISegmentedControl(items: options)
             segment.translatesAutoresizingMaskIntoConstraints = false
             segment.selectedSegmentIndex = selected
+            segment.selectedSegmentTintColor = KeyfountTheme.surfaceElev
+            segment.backgroundColor = KeyfountTheme.surfaceSunken
+            segment.setTitleTextAttributes(
+                [.foregroundColor: KeyfountTheme.inkMuted, .font: KeyfountTheme.Font.caption()],
+                for: .normal
+            )
+            segment.setTitleTextAttributes(
+                [.foregroundColor: KeyfountTheme.ink, .font: KeyfountTheme.Font.caption(.semibold)],
+                for: .selected
+            )
             segment.addAction(UIAction { [weak segment] _ in
                 guard let s = segment else { return }
                 onChange(s.selectedSegmentIndex)
