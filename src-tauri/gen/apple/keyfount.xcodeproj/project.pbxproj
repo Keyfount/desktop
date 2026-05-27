@@ -6,8 +6,26 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXAggregateTarget section */
+		FC8AF6D19E304DFDC9FA4411 /* RustCore */ = {
+			isa = PBXAggregateTarget;
+			buildConfigurationList = E72A19F3C3B8334A2D2E5422 /* Build configuration list for PBXAggregateTarget "RustCore" */;
+			buildPhases = (
+				51444C6DCB38C39CC7FF1DFE /* Build Rust Code */,
+			);
+			dependencies = (
+			);
+			name = RustCore;
+			packageProductDependencies = (
+			);
+			productName = RustCore;
+		};
+/* End PBXAggregateTarget section */
+
 /* Begin PBXBuildFile section */
 		06BC15A7658858A4A0C83647 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B6DFF5F23E6ADC17D9CE6DB9 /* WebKit.framework */; };
+		09D23E7805639A724E7AA26A /* AutofillExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = BD74F6D34E3F59D300073407 /* AutofillExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		0B37F2DEEC4C2497E90C7EF2 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 428D253774B8A1F29B4A671D /* Security.framework */; };
 		244BB90FB9D4387D40EF3738 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6B883E42ACF58CF3D56D262A /* MetalKit.framework */; };
 		28EF156552752EA5E524D78C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2CF27915DC49609D43223D54 /* Assets.xcassets */; };
 		3898835E2C2790D6D72338D0 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 672930202C441B2CABC363FE /* assets */; };
@@ -17,9 +35,54 @@
 		A05F0087A6D8F6CAC8D687C9 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 2974C18D3E10161A03A5EC85 /* LaunchScreen.storyboard */; };
 		B10D3CB5B9C008E7CDD24AAD /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FFCE4A05C825BC885FE5BD62 /* UIKit.framework */; };
 		C62B54F2A09C6A09F9CDB915 /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = D7BD737068E3F51BD8EA2926 /* main.mm */; };
+		C72306E5550531C1B386BDE2 /* CredentialProviderViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D406FA8D262C8014E71EBDBD /* CredentialProviderViewController.swift */; };
+		CDAB9EA2357A5F5768201160 /* libapp.a in Resources */ = {isa = PBXBuildFile; fileRef = 8731FD9F68FBE5E690B1649C /* libapp.a */; };
 		DB8EA1CDB0FB5F39BC31E9BE /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3BADF9DEC4A212A3B4952C91 /* CoreGraphics.framework */; };
 		E22A0EFBA5C64F55F4686655 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9913D13ACD60FBFDB80BB4DA /* QuartzCore.framework */; };
+		EA66768D2B40689448FD8176 /* LocalAuthentication.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E9438C1E9EF8B2C518C72B60 /* LocalAuthentication.framework */; };
+		EB8F504B8DFAD1FB41F1E9DB /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3BADF9DEC4A212A3B4952C91 /* CoreGraphics.framework */; };
+		FA8D0CA374A01A4F25EB2366 /* libapp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5396F4F0ECF8F4608CAF4092 /* libapp.a */; };
+		FE368CFCFB81D7065CB14830 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FFCE4A05C825BC885FE5BD62 /* UIKit.framework */; };
+		FF5F1010288FAB14402A9C68 /* AuthenticationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F6D38601D63A6AB9D9CE2422 /* AuthenticationServices.framework */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		2F3E0333B9F3981BA7B41A2E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B51DA970B45796A56D0F578D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7AD9A1DABAC5BD96BB1AE7CD;
+			remoteInfo = AutofillExtension;
+		};
+		4694512CC9947686E49DC693 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B51DA970B45796A56D0F578D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FC8AF6D19E304DFDC9FA4411;
+			remoteInfo = RustCore;
+		};
+		FF45779510FF44F377B58E75 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B51DA970B45796A56D0F578D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FC8AF6D19E304DFDC9FA4411;
+			remoteInfo = RustCore;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		BFB6700E05BFB98C21251C85 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				09D23E7805639A724E7AA26A /* AutofillExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		003A48EC904D51CFD9F2EE42 /* generation.rs */ = {isa = PBXFileReference; path = generation.rs; sourceTree = "<group>"; };
@@ -28,6 +91,7 @@
 		0C91F70CC7626DBFC1C1C82B /* render.rs */ = {isa = PBXFileReference; path = render.rs; sourceTree = "<group>"; };
 		0FFA7B0DB690B18B20A44B11 /* memorable.rs */ = {isa = PBXFileReference; path = memorable.rs; sourceTree = "<group>"; };
 		1AA9479A51115C30D22F5BCB /* wordlist.rs */ = {isa = PBXFileReference; path = wordlist.rs; sourceTree = "<group>"; };
+		233EF9B945CEAC4BA7528600 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		234A5F6ABDF3D195CB0C82B8 /* pin.rs */ = {isa = PBXFileReference; path = pin.rs; sourceTree = "<group>"; };
 		2974C18D3E10161A03A5EC85 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		2A50A67FD646C6DCE528AC9E /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
@@ -55,6 +119,8 @@
 		6C900E5E47601A3DBCF0124A /* stub.rs */ = {isa = PBXFileReference; path = stub.rs; sourceTree = "<group>"; };
 		6CAF8B8357E8D78D34322E07 /* bindings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bindings.h; sourceTree = "<group>"; };
 		7FF6A7FEA333C3DDFB8E62C4 /* clipboard.rs */ = {isa = PBXFileReference; path = clipboard.rs; sourceTree = "<group>"; };
+		8731FD9F68FBE5E690B1649C /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
+		89E1048C441172EF8160B0A6 /* AutofillExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AutofillExtension.entitlements; sourceTree = "<group>"; };
 		8AA94D4BE6C68DA3BACE75E3 /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
 		8B2B3A8829FCB16B57887FAE /* native.rs */ = {isa = PBXFileReference; path = native.rs; sourceTree = "<group>"; };
 		8B3CEDEAA7F92BAA818F1E47 /* accounts.rs */ = {isa = PBXFileReference; path = accounts.rs; sourceTree = "<group>"; };
@@ -69,24 +135,41 @@
 		B615387515589B0E2D5F9D71 /* session.rs */ = {isa = PBXFileReference; path = session.rs; sourceTree = "<group>"; };
 		B6DFF5F23E6ADC17D9CE6DB9 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
 		BD55026348262D84DBAFBC0B /* error.rs */ = {isa = PBXFileReference; path = error.rs; sourceTree = "<group>"; };
+		BD74F6D34E3F59D300073407 /* AutofillExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = AutofillExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		BEE1955E09FCF93399CF0E82 /* biometric.rs */ = {isa = PBXFileReference; path = biometric.rs; sourceTree = "<group>"; };
 		C89073F4A33B745C22B51872 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		C8B999C64515CF8826CA678D /* settings.rs */ = {isa = PBXFileReference; path = settings.rs; sourceTree = "<group>"; };
 		D00C30B9CA0907002C969086 /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
+		D406FA8D262C8014E71EBDBD /* CredentialProviderViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialProviderViewController.swift; sourceTree = "<group>"; };
 		D7BD737068E3F51BD8EA2926 /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
 		D91204349CA9FC2A5FDB492F /* clipboard.rs */ = {isa = PBXFileReference; path = clipboard.rs; sourceTree = "<group>"; };
 		E39605127FD7FE7A3A5B1BAD /* tray.rs */ = {isa = PBXFileReference; path = tray.rs; sourceTree = "<group>"; };
 		E67A396268CC44C747662834 /* handle.rs */ = {isa = PBXFileReference; path = handle.rs; sourceTree = "<group>"; };
 		E733B89E5DE9DE91CF315AB2 /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
+		E9438C1E9EF8B2C518C72B60 /* LocalAuthentication.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = LocalAuthentication.framework; path = System/Library/Frameworks/LocalAuthentication.framework; sourceTree = SDKROOT; };
 		EAC9B979C6FA383A68D9F8FA /* session.rs */ = {isa = PBXFileReference; path = session.rs; sourceTree = "<group>"; };
 		ED1DA912D42F6ADCED9A2A90 /* master_kek.rs */ = {isa = PBXFileReference; path = master_kek.rs; sourceTree = "<group>"; };
 		F392E859120D3586342259A8 /* sync.rs */ = {isa = PBXFileReference; path = sync.rs; sourceTree = "<group>"; };
+		F6D38601D63A6AB9D9CE2422 /* AuthenticationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AuthenticationServices.framework; path = System/Library/Frameworks/AuthenticationServices.framework; sourceTree = SDKROOT; };
 		FAC98908656E8339EB90D70A /* vaults.rs */ = {isa = PBXFileReference; path = vaults.rs; sourceTree = "<group>"; };
 		FCA0B145A28161619D6C81A5 /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
 		FFCE4A05C825BC885FE5BD62 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		2BD6CDAE1C4A64F894ABE45C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FA8D0CA374A01A4F25EB2366 /* libapp.a in Frameworks */,
+				EB8F504B8DFAD1FB41F1E9DB /* CoreGraphics.framework in Frameworks */,
+				0B37F2DEEC4C2497E90C7EF2 /* Security.framework in Frameworks */,
+				FE368CFCFB81D7065CB14830 /* UIKit.framework in Frameworks */,
+				EA66768D2B40689448FD8176 /* LocalAuthentication.framework in Frameworks */,
+				FF5F1010288FAB14402A9C68 /* AuthenticationServices.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E1BEA17173362C1CC77FA8EE /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -129,6 +212,22 @@
 				AABF80EE9EEDAA9E6C37621C /* keyfount */,
 			);
 			path = Sources;
+			sourceTree = "<group>";
+		};
+		297B3B11CBC5D7598F86DE00 /* debug */ = {
+			isa = PBXGroup;
+			children = (
+				8731FD9F68FBE5E690B1649C /* libapp.a */,
+			);
+			path = debug;
+			sourceTree = "<group>";
+		};
+		311651531D54BE4C2E4FC3FD /* arm64 */ = {
+			isa = PBXGroup;
+			children = (
+				297B3B11CBC5D7598F86DE00 /* debug */,
+			);
+			path = arm64;
 			sourceTree = "<group>";
 		};
 		3630AC81B6550C32FDC989A6 /* store */ = {
@@ -241,6 +340,7 @@
 				672930202C441B2CABC363FE /* assets */,
 				2CF27915DC49609D43223D54 /* Assets.xcassets */,
 				2974C18D3E10161A03A5EC85 /* LaunchScreen.storyboard */,
+				DDF3A0C92914E2B1FE4E4F3F /* AutofillExtension */,
 				D504AFAD47AB332225B4B9F5 /* Externals */,
 				565880F791F84978EA7AF618 /* keyfount_iOS */,
 				1BFB7A32C9E48ABA22B87560 /* Sources */,
@@ -267,6 +367,7 @@
 		D504AFAD47AB332225B4B9F5 /* Externals */ = {
 			isa = PBXGroup;
 			children = (
+				311651531D54BE4C2E4FC3FD /* arm64 */,
 			);
 			path = Externals;
 			sourceTree = "<group>";
@@ -274,8 +375,10 @@
 		DBB245CB194E0B83E8DBEFA2 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				F6D38601D63A6AB9D9CE2422 /* AuthenticationServices.framework */,
 				3BADF9DEC4A212A3B4952C91 /* CoreGraphics.framework */,
 				5396F4F0ECF8F4608CAF4092 /* libapp.a */,
+				E9438C1E9EF8B2C518C72B60 /* LocalAuthentication.framework */,
 				609EFB58C9225F455937D46E /* Metal.framework */,
 				6B883E42ACF58CF3D56D262A /* MetalKit.framework */,
 				9913D13ACD60FBFDB80BB4DA /* QuartzCore.framework */,
@@ -286,29 +389,68 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		DDF3A0C92914E2B1FE4E4F3F /* AutofillExtension */ = {
+			isa = PBXGroup;
+			children = (
+				89E1048C441172EF8160B0A6 /* AutofillExtension.entitlements */,
+				D406FA8D262C8014E71EBDBD /* CredentialProviderViewController.swift */,
+				233EF9B945CEAC4BA7528600 /* Info.plist */,
+			);
+			path = AutofillExtension;
+			sourceTree = "<group>";
+		};
 		EE0F1B5B9B5F060FE95E2351 /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				BD74F6D34E3F59D300073407 /* AutofillExtension.appex */,
 				4A13572D1D64A28723E3F700 /* keyfount_iOS.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
+		"TEMP_E1451B04-5103-4624-97D1-C56BD8C6766D" /* x86_64 */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = x86_64;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		DFD588FD8F645D2AEFAB69E2 /* keyfount_iOS */ = {
+		7AD9A1DABAC5BD96BB1AE7CD /* AutofillExtension */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = B629A9568BBE7A2EBDAFD2B6 /* Build configuration list for PBXNativeTarget "keyfount_iOS" */;
+			buildConfigurationList = 0336206AB589EA95635F7A4D /* Build configuration list for PBXNativeTarget "AutofillExtension" */;
 			buildPhases = (
-				08E7C3DADBADD6617D54761F /* Build Rust Code */,
-				41BB940AAEC618D38B4174FF /* Sources */,
-				BC8A9A656818DBF65642B7BD /* Resources */,
-				E1BEA17173362C1CC77FA8EE /* Frameworks */,
+				8B8626103087FD173848F094 /* Sources */,
+				2BD6CDAE1C4A64F894ABE45C /* Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				0261958E087B807F492F7941 /* PBXTargetDependency */,
+			);
+			name = AutofillExtension;
+			packageProductDependencies = (
+			);
+			productName = AutofillExtension;
+			productReference = BD74F6D34E3F59D300073407 /* AutofillExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		DFD588FD8F645D2AEFAB69E2 /* keyfount_iOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B629A9568BBE7A2EBDAFD2B6 /* Build configuration list for PBXNativeTarget "keyfount_iOS" */;
+			buildPhases = (
+				41BB940AAEC618D38B4174FF /* Sources */,
+				BC8A9A656818DBF65642B7BD /* Resources */,
+				E1BEA17173362C1CC77FA8EE /* Frameworks */,
+				BFB6700E05BFB98C21251C85 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D9E2F081ECCCC7C4F14EDB5E /* PBXTargetDependency */,
+				9A852161FA00166460AC16B6 /* PBXTargetDependency */,
 			);
 			name = keyfount_iOS;
 			packageProductDependencies = (
@@ -342,6 +484,8 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				7AD9A1DABAC5BD96BB1AE7CD /* AutofillExtension */,
+				FC8AF6D19E304DFDC9FA4411 /* RustCore */,
 				DFD588FD8F645D2AEFAB69E2 /* keyfount_iOS */,
 			);
 		};
@@ -355,13 +499,14 @@
 				28EF156552752EA5E524D78C /* Assets.xcassets in Resources */,
 				A05F0087A6D8F6CAC8D687C9 /* LaunchScreen.storyboard in Resources */,
 				3898835E2C2790D6D72338D0 /* assets in Resources */,
+				CDAB9EA2357A5F5768201160 /* libapp.a in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		08E7C3DADBADD6617D54761F /* Build Rust Code */ = {
+		51444C6DCB38C39CC7FF1DFE /* Build Rust Code */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -380,7 +525,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "npm run -- tauri ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths \"${FRAMEWORK_SEARCH_PATHS:?}\" --header-search-paths \"${HEADER_SEARCH_PATHS:?}\" --gcc-preprocessor-definitions \"${GCC_PREPROCESSOR_DEFINITIONS:-}\" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}";
+			shellScript = "npm run -- tauri ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths \"${FRAMEWORK_SEARCH_PATHS:-}\" --header-search-paths \"${HEADER_SEARCH_PATHS:-}\" --gcc-preprocessor-definitions \"${GCC_PREPROCESSOR_DEFINITIONS:-}\" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -393,9 +538,63 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		8B8626103087FD173848F094 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C72306E5550531C1B386BDE2 /* CredentialProviderViewController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		0261958E087B807F492F7941 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FC8AF6D19E304DFDC9FA4411 /* RustCore */;
+			targetProxy = FF45779510FF44F377B58E75 /* PBXContainerItemProxy */;
+		};
+		9A852161FA00166460AC16B6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7AD9A1DABAC5BD96BB1AE7CD /* AutofillExtension */;
+			targetProxy = 2F3E0333B9F3981BA7B41A2E /* PBXContainerItemProxy */;
+		};
+		D9E2F081ECCCC7C4F14EDB5E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FC8AF6D19E304DFDC9FA4411 /* RustCore */;
+			targetProxy = 4694512CC9947686E49DC693 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		2F0D4EE89779B07FB5458022 /* debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = (
+					arm64,
+				);
+				CODE_SIGN_ENTITLEMENTS = AutofillExtension/AutofillExtension.entitlements;
+				CURRENT_PROJECT_VERSION = 0.1.0;
+				ENABLE_BITCODE = NO;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\".\"",
+				);
+				INFOPLIST_FILE = AutofillExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.keyfount.desktop.AutofillExtension;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALID_ARCHS = arm64;
+			};
+			name = debug;
+		};
 		42BAA4ACA36419252451BFE9 /* release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -462,6 +661,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = keyfount_iOS/keyfount_iOS.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 0.1.0;
 				ENABLE_BITCODE = NO;
 				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -475,6 +675,7 @@
 				);
 				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = io.keyfount.desktop;
 				PRODUCT_NAME = "Keyfount";
 				SDKROOT = iphoneos;
@@ -482,6 +683,12 @@
 				VALID_ARCHS = arm64;
 			};
 			name = debug;
+		};
+		78E1C9DB27246C31ECC464DD /* release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = release;
 		};
 		BC3DF1B882EBE490852160CC /* debug */ = {
 			isa = XCBuildConfiguration;
@@ -546,6 +753,40 @@
 			};
 			name = debug;
 		};
+		BDF69408D5C08FCAE36202FF /* debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = debug;
+		};
+		E50944FB72AB285DC8F2376F /* release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = (
+					arm64,
+				);
+				CODE_SIGN_ENTITLEMENTS = AutofillExtension/AutofillExtension.entitlements;
+				CURRENT_PROJECT_VERSION = 0.1.0;
+				ENABLE_BITCODE = NO;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\".\"",
+				);
+				INFOPLIST_FILE = AutofillExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.keyfount.desktop.AutofillExtension;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALID_ARCHS = arm64;
+			};
+			name = release;
+		};
 		E660AEECA60B319344302D10 /* release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -556,6 +797,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = keyfount_iOS/keyfount_iOS.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 0.1.0;
 				ENABLE_BITCODE = NO;
 				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -569,6 +811,7 @@
 				);
 				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = io.keyfount.desktop;
 				PRODUCT_NAME = "Keyfount";
 				SDKROOT = iphoneos;
@@ -580,6 +823,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		0336206AB589EA95635F7A4D /* Build configuration list for PBXNativeTarget "AutofillExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2F0D4EE89779B07FB5458022 /* debug */,
+				E50944FB72AB285DC8F2376F /* release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = debug;
+		};
 		A0FB5070878A006A578E4DBB /* Build configuration list for PBXProject "keyfount" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -594,6 +846,15 @@
 			buildConfigurations = (
 				76B94C4D123FDFEAEFD1C5F0 /* debug */,
 				E660AEECA60B319344302D10 /* release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = debug;
+		};
+		E72A19F3C3B8334A2D2E5422 /* Build configuration list for PBXAggregateTarget "RustCore" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BDF69408D5C08FCAE36202FF /* debug */,
+				78E1C9DB27246C31ECC464DD /* release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = debug;

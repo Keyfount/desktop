@@ -12,7 +12,7 @@ func rust_free_password(_ s: UnsafeMutablePointer<Int8>?)
 
 class CredentialProviderViewController: ASCredentialProviderViewController {
     
-    override func prepareInterface(for serviceIdentifiers: [ASCredentialServiceIdentifier]) {
+    override func prepareCredentialList(for serviceIdentifiers: [ASCredentialServiceIdentifier]) {
         let requestedDomain = serviceIdentifiers.first(where: { $0.type == .domain })?.identifier ?? ""
         
         let fileManager = FileManager.default
