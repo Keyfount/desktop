@@ -29,6 +29,7 @@ import { AccountAvatar } from "./AccountAvatar.js";
 import { ConfirmModal } from "./ConfirmModal.js";
 import { PageHeader } from "./PageHeader.js";
 import { ProfileEditor } from "./ProfileEditor.js";
+import { RotationPanel } from "./RotationPanel.js";
 
 export function AccountsView() {
   const [query, setQuery] = useState("");
@@ -570,6 +571,20 @@ function AccountDetail({ entry }: { entry: AccountEntry }) {
         <div class="card !p-5">
           <ProfileEditor profile={profile} onChange={updateProfile} />
         </div>
+      </section>
+
+      <section class="flex flex-col gap-3">
+        <RotationPanel
+          entry={entry}
+          onUpdated={(next) => {
+            allAccounts.value = allAccounts.value.map((e) =>
+              e.domain === entry.domain && e.username === entry.username ? next : e,
+            );
+            selectedAccount.value = next;
+            setProfile(next.profile);
+            void regenerate(next.profile);
+          }}
+        />
       </section>
 
       <footer class="flex justify-end pt-4 border-t border-(--color-line)/60">
