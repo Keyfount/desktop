@@ -41,7 +41,11 @@ pub async fn switch_vault(id: String, state: State<'_, AppState>) -> AppResult<(
     session.lock();
     let mut store = state.store.lock().await;
     store.close();
-    *store = crate::store::StoreHandle::open(id.clone(), vault_store::vault_dir(&id))?;
+    // We don't open the encrypted DB here: the master may not be in
+    // memory and we don't want to prompt as a side-effect of a
+    // vault-switch. The frontend re-runs the unlock flow after a
+    // switch.
+    store.set_active(id.clone(), vault_store::vault_dir(&id))?;
     Ok(())
 }
 
@@ -50,8 +54,8 @@ pub async fn delete_vault(id: String, state: State<'_, AppState>) -> AppResult<(
     let mut session = state.session.lock().await;
     session.lock();
     let mut store = state.store.lock().await;
-    if store.require().is_ok_and(|o| o.vault_id == id) {
-        store.close();
+    if store.active_id() == Some(id.as_str()) {
+        store.clear();
     }
     let dir = vault_store::vault_dir(&id);
     let _ = std::fs::remove_dir_all(&dir);
@@ -66,7 +70,7 @@ pub async fn start_new_vault(state: State<'_, AppState>) -> AppResult<()> {
     let mut session = state.session.lock().await;
     session.lock();
     let mut store = state.store.lock().await;
-    store.close();
+    store.clear();
     let mut registry = VaultRegistry::load(vault_store::registry_path())?;
     registry.active_id = None;
     registry.save(vault_store::registry_path())?;
