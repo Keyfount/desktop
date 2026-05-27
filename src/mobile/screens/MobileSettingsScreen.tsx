@@ -16,7 +16,10 @@ import {
 import { clearSession, disconnect, loadStoredSession } from "../../sync/manager.js";
 import { syncServerStatus } from "../../sync/status.js";
 import type { GetStateResponse, Profile } from "../../types.js";
+import { DangerZone } from "../../components/DangerZone.js";
+import { PinManager } from "../../components/PinManager.js";
 import { ProfileEditor } from "../../components/ProfileEditor.js";
+import { VaultExportImport } from "../../components/VaultExportImport.js";
 
 interface Props {
   onLock?: () => void;
@@ -413,6 +416,48 @@ export function MobileSettingsScreen({ onLock }: Props) {
           <span class="font-medium">{t("settings_vaults_hint")}</span>
           <IconChevronRight size={16} class="opacity-50" />
         </button>
+      </div>
+
+      {/* PIN Section */}
+      <h2 class="text-[10px] uppercase tracking-[0.22em] text-(--color-ink-subtle) px-2 pt-6 pb-2 font-mono">
+        {t("pin_section_title")}
+      </h2>
+      <div class={SECTION_CLASSES}>
+        <div class="p-4">
+          <p class="text-xs text-(--color-ink-muted) leading-relaxed mb-3">
+            {t("pin_section_hint")}
+          </p>
+          <PinManager
+            hasPin={state.hasPin}
+            onChange={() => {
+              void api.getState().then(setState);
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Export / Import Section */}
+      <h2 class="text-[10px] uppercase tracking-[0.22em] text-(--color-ink-subtle) px-2 pt-6 pb-2 font-mono">
+        {t("export_section_title")}
+      </h2>
+      <div class={SECTION_CLASSES}>
+        <div class="p-4">
+          <VaultExportImport
+            onImported={() => {
+              void api.getState().then(setState);
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Danger Zone */}
+      <h2 class="text-[10px] uppercase tracking-[0.22em] text-(--color-danger) px-2 pt-6 pb-2 font-mono">
+        {t("settings_danger")}
+      </h2>
+      <div class={`${SECTION_CLASSES} border-red-500/40`}>
+        <div class="p-4">
+          <DangerZone />
+        </div>
       </div>
 
       {/* About Section */}
