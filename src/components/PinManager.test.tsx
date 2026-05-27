@@ -27,7 +27,15 @@ describe("<PinManager />", () => {
     invoke.mockClear();
     const changes: number[] = [];
     const root = document.createElement("div");
-    render(<PinManager hasPin={true} onChange={() => changes.push(1)} />, root);
+    render(
+      <PinManager
+        hasPin={true}
+        onChange={() => {
+          changes.push(1);
+        }}
+      />,
+      root,
+    );
 
     const remove = Array.from(root.querySelectorAll("button")).find((b) =>
       /Remove PIN|Retirer le PIN/.test(b.textContent ?? ""),

@@ -47,6 +47,8 @@ const EN = {
   err_export_failed: "Could not export the vault.",
   err_import_failed: "Could not import the vault.",
   err_rotation_failed: "Could not rotate the password.",
+  err_sites_import_failed:
+    "Could not parse the sites file. Make sure it's a JSON object mapping domains to profiles.",
 
   setup_welcome: "Set up your master password",
   setup_intro:
@@ -174,6 +176,47 @@ const EN = {
   detail_rotate_old_label: "Current password",
   detail_rotate_new_label: "New password",
   detail_rotate_confirm: "Confirm rotation",
+
+  sync_step_url: "Server",
+  sync_step_auth: "Identify",
+  sync_step_done: "Approval",
+  sync_url_label: "Server URL",
+  sync_url_placeholder: "https://keyfount.example.com",
+  sync_url_test_busy: "Testing…",
+  sync_url_test_cta: "Test & continue",
+  sync_email_placeholder: "you@example.com",
+  sync_back: "Back",
+  sync_rejected_title: "Device approval was rejected",
+  sync_rejected_default:
+    "The server administrator rejected this device. Reach out to them for the reason, then try connecting again.",
+  sync_rejected_reason: (reason: string) => `Reason from the admin: ${reason}`,
+  sync_wizard_done: "Done",
+
+  sites_section_title: "Per-site profiles",
+  sites_section_hint:
+    "Sites you've customised away from the default profile. Each entry records the generation settings for a single domain — changing them here only affects this site.",
+  sites_empty:
+    "No per-site override yet. Tweak a profile from the Generator while a site is active to create one.",
+  sites_import_cta: "Import sites",
+  sites_export_cta: "Export sites",
+  sites_export_filename: (date: string) => `keyfount-sites-${date}.json`,
+  sites_delete_aria: "Remove this per-site override",
+  sites_card_label: (domain: string) => `Settings for ${domain}`,
+
+  settings_group_generation: "Generation",
+  settings_group_generation_hint: "Default profile + per-site overrides",
+  settings_group_security: "Security",
+  settings_group_security_hint: "Auto-lock, PIN, biometric unlock",
+  settings_group_accounts: "Accounts",
+  settings_group_accounts_hint: "Remember accounts + sync session",
+  settings_group_sync: "Sync",
+  settings_group_sync_hint: "Connect to a self-hosted Keyfount server",
+  settings_group_comfort: "Comfort",
+  settings_group_comfort_hint: "Favicons, clipboard auto-clear, autofill",
+  settings_group_danger: "Danger zone",
+  settings_group_danger_hint: "Vault export, import, wipe",
+  settings_history_off_sync_hint:
+    "Sync is only useful when account history is enabled — turn it on from Accounts first.",
 
   biometric_toggle_label: "Unlock with biometrics",
   biometric_toggle_label_touchid: "Unlock with Touch ID",
@@ -353,6 +396,8 @@ const FR: Record<keyof typeof EN, Entry> = {
   err_export_failed: "Impossible d'exporter le coffre.",
   err_import_failed: "Impossible d'importer le coffre.",
   err_rotation_failed: "Impossible de faire tourner le mot de passe.",
+  err_sites_import_failed:
+    "Impossible de lire le fichier de sites. Vérifie que c'est bien un objet JSON associant des domaines à des profils.",
 
   setup_welcome: "Configurer votre mot de passe maître",
   setup_intro:
@@ -482,6 +527,47 @@ const FR: Record<keyof typeof EN, Entry> = {
   detail_rotate_old_label: "Mot de passe actuel",
   detail_rotate_new_label: "Nouveau mot de passe",
   detail_rotate_confirm: "Confirmer la rotation",
+
+  sync_step_url: "Serveur",
+  sync_step_auth: "Identité",
+  sync_step_done: "Approbation",
+  sync_url_label: "URL du serveur",
+  sync_url_placeholder: "https://keyfount.example.com",
+  sync_url_test_busy: "Test…",
+  sync_url_test_cta: "Tester & continuer",
+  sync_email_placeholder: "moi@exemple.com",
+  sync_back: "Retour",
+  sync_rejected_title: "L'approbation de l'appareil a été refusée",
+  sync_rejected_default:
+    "L'administrateur du serveur a refusé cet appareil. Contacte-le pour connaître la raison, puis réessaie.",
+  sync_rejected_reason: (reason: string) => `Raison de l'admin : ${reason}`,
+  sync_wizard_done: "Terminé",
+
+  sites_section_title: "Profils par site",
+  sites_section_hint:
+    "Les sites où tu as personnalisé le profil par défaut. Chaque entrée garde les réglages de génération pour un domaine — les modifier ici n'affecte que ce site.",
+  sites_empty:
+    "Aucune personnalisation par site pour l'instant. Modifie un profil depuis le Générateur quand un site est actif pour en créer une.",
+  sites_import_cta: "Importer des sites",
+  sites_export_cta: "Exporter les sites",
+  sites_export_filename: (date: string) => `keyfount-sites-${date}.json`,
+  sites_delete_aria: "Retirer cette personnalisation",
+  sites_card_label: (domain: string) => `Réglages pour ${domain}`,
+
+  settings_group_generation: "Génération",
+  settings_group_generation_hint: "Profil par défaut + personnalisations par site",
+  settings_group_security: "Sécurité",
+  settings_group_security_hint: "Verrouillage auto, PIN, biométrie",
+  settings_group_accounts: "Comptes",
+  settings_group_accounts_hint: "Historique des comptes + session de synchro",
+  settings_group_sync: "Synchronisation",
+  settings_group_sync_hint: "Connecter un serveur Keyfount auto-hébergé",
+  settings_group_comfort: "Confort",
+  settings_group_comfort_hint: "Favicons, effacement presse-papiers, remplissage",
+  settings_group_danger: "Zone dangereuse",
+  settings_group_danger_hint: "Export, import, effacement du coffre",
+  settings_history_off_sync_hint:
+    "La synchronisation n'a de sens qu'avec l'historique des comptes activé — active-le depuis Comptes d'abord.",
 
   biometric_toggle_label: "Déverrouiller avec la biométrie",
   biometric_toggle_label_touchid: "Déverrouiller avec Touch ID",

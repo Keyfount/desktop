@@ -21,6 +21,8 @@ vi.mock("@tauri-apps/api/core", () => ({
         clipboardClearSeconds: 30,
         historyEnabled: true,
         faviconFallbackEnabled: true,
+        sites: {},
+        hasPin: false,
       });
     }
     if (cmd === "autofill_status") {
