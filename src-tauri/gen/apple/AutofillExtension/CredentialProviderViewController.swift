@@ -95,7 +95,7 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
     /// We resolve the active vault, pull matching accounts, and render
     /// them — biometric prompt + derivation runs on selection.
     override func prepareCredentialList(for serviceIdentifiers: [ASCredentialServiceIdentifier]) {
-        requestedDomain = serviceIdentifiers.first(where: { $0.type == .domain })?.identifier ?? ""
+        requestedDomain = Self.extractDomain(from: serviceIdentifiers)
 
         switch loadVault() {
         case .unavailable(let message):
@@ -111,6 +111,34 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
                 tableView.reloadData()
             }
         }
+    }
+
+    /// iOS hands us a heterogeneous list — sometimes a `.domain`
+    /// identifier (just `apple.com`), sometimes a `.URL` identifier
+    /// (`https://idmsa.apple.com/login`). When the extension is opened
+    /// from Settings → Passwords (manual browse), the array can be
+    /// empty.
+    ///
+    /// We try `.domain` first, fall back to extracting the host from
+    /// the first `.URL`, and lowercase + strip a leading `www.` so the
+    /// `LIKE %domain%` suggestion query is stable.
+    static func extractDomain(from serviceIdentifiers: [ASCredentialServiceIdentifier]) -> String {
+        if let raw = serviceIdentifiers.first(where: { $0.type == .domain })?.identifier {
+            return normalizeHost(raw)
+        }
+        if let urlString = serviceIdentifiers.first(where: { $0.type == .URL })?.identifier,
+           let host = URL(string: urlString)?.host {
+            return normalizeHost(host)
+        }
+        return ""
+    }
+
+    private static func normalizeHost(_ raw: String) -> String {
+        var host = raw.lowercased()
+        if host.hasPrefix("www.") {
+            host.removeFirst(4)
+        }
+        return host
     }
 
     @objc private func handleCancel() {
