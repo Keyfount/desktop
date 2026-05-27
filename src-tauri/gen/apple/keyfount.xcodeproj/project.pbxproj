@@ -34,6 +34,7 @@
 		7A8CB79206FA40C835B4063E /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 428D253774B8A1F29B4A671D /* Security.framework */; };
 		A05F0087A6D8F6CAC8D687C9 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 2974C18D3E10161A03A5EC85 /* LaunchScreen.storyboard */; };
 		B10D3CB5B9C008E7CDD24AAD /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FFCE4A05C825BC885FE5BD62 /* UIKit.framework */; };
+		C0301B24420DDCD82F786DD9 /* CreateAccountViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D025D9E8512D09BC9FD641B9 /* CreateAccountViewController.swift */; };
 		C62B54F2A09C6A09F9CDB915 /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = D7BD737068E3F51BD8EA2926 /* main.mm */; };
 		C72306E5550531C1B386BDE2 /* CredentialProviderViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D406FA8D262C8014E71EBDBD /* CredentialProviderViewController.swift */; };
 		CDAB9EA2357A5F5768201160 /* libapp.a in Resources */ = {isa = PBXBuildFile; fileRef = 8731FD9F68FBE5E690B1649C /* libapp.a */; };
@@ -140,6 +141,7 @@
 		C89073F4A33B745C22B51872 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		C8B999C64515CF8826CA678D /* settings.rs */ = {isa = PBXFileReference; path = settings.rs; sourceTree = "<group>"; };
 		D00C30B9CA0907002C969086 /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
+		D025D9E8512D09BC9FD641B9 /* CreateAccountViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateAccountViewController.swift; sourceTree = "<group>"; };
 		D406FA8D262C8014E71EBDBD /* CredentialProviderViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialProviderViewController.swift; sourceTree = "<group>"; };
 		D7BD737068E3F51BD8EA2926 /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
 		D91204349CA9FC2A5FDB492F /* clipboard.rs */ = {isa = PBXFileReference; path = clipboard.rs; sourceTree = "<group>"; };
@@ -393,6 +395,7 @@
 			isa = PBXGroup;
 			children = (
 				89E1048C441172EF8160B0A6 /* AutofillExtension.entitlements */,
+				D025D9E8512D09BC9FD641B9 /* CreateAccountViewController.swift */,
 				D406FA8D262C8014E71EBDBD /* CredentialProviderViewController.swift */,
 				233EF9B945CEAC4BA7528600 /* Info.plist */,
 			);
@@ -408,7 +411,7 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		"TEMP_E1451B04-5103-4624-97D1-C56BD8C6766D" /* x86_64 */ = {
+		"TEMP_AABB0808-8E57-4D3C-A3D7-87D3AE7DEB3D" /* x86_64 */ = {
 			isa = PBXGroup;
 			children = (
 			);
@@ -542,6 +545,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C0301B24420DDCD82F786DD9 /* CreateAccountViewController.swift in Sources */,
 				C72306E5550531C1B386BDE2 /* CredentialProviderViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -677,7 +681,7 @@
 				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = io.keyfount.desktop;
-				PRODUCT_NAME = "Keyfount";
+				PRODUCT_NAME = Keyfount;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALID_ARCHS = arm64;
@@ -813,7 +817,7 @@
 				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = io.keyfount.desktop;
-				PRODUCT_NAME = "Keyfount";
+				PRODUCT_NAME = Keyfount;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALID_ARCHS = arm64;

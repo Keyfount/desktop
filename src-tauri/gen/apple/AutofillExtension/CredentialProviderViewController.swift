@@ -13,6 +13,9 @@ func rust_free_password(_ s: UnsafeMutablePointer<Int8>?)
 @_silgen_name("verify_master_ffi")
 func rust_verify_master(_ master: UnsafePointer<Int8>?, _ expected_fp_hex: UnsafePointer<Int8>?) -> Int32
 
+@_silgen_name("record_account_ffi")
+func rust_record_account(_ domain: UnsafePointer<Int8>?, _ username: UnsafePointer<Int8>?, _ profile_json: UnsafePointer<Int8>?) -> Int32
+
 class CredentialProviderViewController: ASCredentialProviderViewController, UITableViewDataSource, UITableViewDelegate {
 
     // MARK: - Configuration
@@ -99,8 +102,21 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
             target: self,
             action: #selector(handleCancel)
         )
+        item.rightBarButtonItem = createAccountButton
         bar.items = [item]
         return bar
+    }()
+
+    private lazy var createAccountButton: UIBarButtonItem = {
+        let item = UIBarButtonItem(
+            image: UIImage(systemName: "plus"),
+            style: .plain,
+            target: self,
+            action: #selector(handlePresentCreate)
+        )
+        // Visible only once we're unlocked and we know the domain.
+        item.isEnabled = false
+        return item
     }()
 
     // MARK: - Lock overlay
@@ -321,6 +337,108 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
         )
     }
 
+    // MARK: - Create-account flow
+
+    private var previewWorkItem: DispatchWorkItem?
+
+    @objc private func handlePresentCreate() {
+        guard sessionMaster != nil else { return }
+        let initialProfile = AutofillProfile.defaultRandom()
+        let vc = CreateAccountViewController(
+            initialDomain: requestedDomain,
+            defaultProfile: initialProfile
+        )
+        vc.onPreviewRequest = { [weak self, weak vc] payload in
+            self?.schedulePreview(for: payload) { password in
+                vc?.setPreviewPassword(password)
+            }
+        }
+        vc.onSave = { [weak self] payload in
+            self?.commitCreatedAccount(payload)
+        }
+        let nav = UINavigationController(rootViewController: vc)
+        // The CreateAccountVC paints its own UINavigationBar, so we
+        // hide the parent nav's bar and present as a form sheet.
+        nav.setNavigationBarHidden(true, animated: false)
+        nav.modalPresentationStyle = .formSheet
+        present(nav, animated: true)
+    }
+
+    /// Debounce derive_password by 250ms so we don't fire an Argon2id
+    /// derivation on every keystroke. Matches the main app's mobile
+    /// account detail sheet behavior.
+    private func schedulePreview(for payload: CreateAccountViewController.Result, completion: @escaping (String?) -> Void) {
+        previewWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, let master = self.sessionMaster else {
+                completion(nil)
+                return
+            }
+            let json = payload.profile.toJSON()
+            let password: String? = master.withCString { mPtr in
+                payload.domain.withCString { dPtr in
+                    payload.username.withCString { uPtr in
+                        json.withCString { pPtr in
+                            guard let raw = rust_derive_password(mPtr, dPtr, uPtr, pPtr) else { return nil as String? }
+                            let s = String(cString: raw)
+                            rust_free_password(raw)
+                            return s
+                        }
+                    }
+                }
+            }
+            DispatchQueue.main.async { completion(password) }
+        }
+        previewWorkItem = work
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 0.25, execute: work)
+    }
+
+    private func commitCreatedAccount(_ payload: CreateAccountViewController.Result) {
+        guard let master = sessionMaster else { return }
+        let profileJson = payload.profile.toJSON()
+
+        let recordResult: Int32 = payload.domain.withCString { dPtr in
+            payload.username.withCString { uPtr in
+                profileJson.withCString { pPtr in
+                    rust_record_account(dPtr, uPtr, pPtr)
+                }
+            }
+        }
+
+        guard recordResult == 1 else {
+            presentError("Échec de l'enregistrement du compte.")
+            return
+        }
+
+        // Derive the password we're about to fill into the requesting
+        // app. We deliberately use the *new* account's domain (could
+        // differ from `requestedDomain` if the user edited it in the
+        // form) so the stored entry and the filled credential agree.
+        let password: String? = master.withCString { mPtr in
+            payload.domain.withCString { dPtr in
+                payload.username.withCString { uPtr in
+                    profileJson.withCString { pPtr in
+                        guard let raw = rust_derive_password(mPtr, dPtr, uPtr, pPtr) else { return nil as String? }
+                        let s = String(cString: raw)
+                        rust_free_password(raw)
+                        return s
+                    }
+                }
+            }
+        }
+
+        guard let password else {
+            presentError("Le compte est enregistré, mais la dérivation a échoué.")
+            return
+        }
+
+        presentedViewController?.dismiss(animated: true) { [weak self] in
+            guard let self else { return }
+            let credential = ASPasswordCredential(user: payload.username, password: password)
+            self.extensionContext.completeRequest(withSelectedCredential: credential, completionHandler: nil)
+        }
+    }
+
     // MARK: - Unlock flow
 
     @objc private func masterFieldChanged() {
@@ -387,6 +505,7 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
         sessionMaster = master
         masterField.text = ""
         masterField.resignFirstResponder()
+        createAccountButton.isEnabled = !requestedDomain.isEmpty
         presentAccountList()
         UIView.animate(withDuration: 0.25) {
             self.lockOverlay.alpha = 0
