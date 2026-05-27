@@ -21,7 +21,7 @@ interface Props {
 }
 
 export function VaultSheet({ platform, vaults, onSwitch, onLock, onNew }: Props) {
-  const surfaceClass = platform === "ios" ? "glass-ios" : "surface-android";
+  const surfaceClass = "bg-(--color-surface) border-t border-(--color-line)";
   return (
     <AnimatePresence>
       {vaultSheetOpen.value ? (
@@ -30,7 +30,7 @@ export function VaultSheet({ platform, vaults, onSwitch, onLock, onNew }: Props)
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            class="fixed inset-0 z-50 bg-black/40"
+            class="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm"
             onClick={() => {
               vaultSheetOpen.value = false;
             }}
