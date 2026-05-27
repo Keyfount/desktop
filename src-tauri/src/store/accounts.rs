@@ -6,12 +6,26 @@ use rusqlite::params;
 use crate::error::AppResult;
 use crate::types::{AccountEntry, Profile};
 
+/// Returns accounts whose `last_synced_at` column is NULL — i.e. local
+/// writes the sync pipeline hasn't yet observed. The AutoFill
+/// extension inserts via `record_account_ffi` and leaves the column
+/// unset; this query is what the desktop frontend reads on startup to
+/// replay them through `syncBus`.
+pub fn list_unsynced(conn: &rusqlite::Connection) -> AppResult<Vec<AccountEntry>> {
+    list_with_clause(conn, "WHERE last_synced_at IS NULL")
+}
+
 pub fn list(conn: &rusqlite::Connection) -> AppResult<Vec<AccountEntry>> {
-    let mut stmt = conn.prepare(
+    list_with_clause(conn, "")
+}
+
+fn list_with_clause(conn: &rusqlite::Connection, clause: &str) -> AppResult<Vec<AccountEntry>> {
+    let sql = format!(
         "SELECT domain, username, profile_json, created_at, last_used_at
-         FROM accounts
-         ORDER BY last_used_at DESC",
-    )?;
+         FROM accounts {clause}
+         ORDER BY last_used_at DESC"
+    );
+    let mut stmt = conn.prepare(&sql)?;
     let rows = stmt.query_map([], |r| {
         let domain: String = r.get(0)?;
         let username: String = r.get(1)?;

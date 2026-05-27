@@ -1,0 +1,130 @@
+/**
+ * Mobile-only utilities. Imported only by src/mobile/MobileApp.tsx so
+ * the desktop bundle never pulls them in. Tailwind utilities stay the
+ * source of truth for layout; this file only provides the
+ * platform-conditional surfaces and safe-area helpers Tailwind doesn't
+ * cover idiomatically.
+ */
+
+/* Fix mobile viewport scrolling and keyboard layout push on iOS */
+html,
+body,
+#root {
+  height: 100% !important;
+  width: 100% !important;
+  overflow: hidden !important;
+}
+
+/* Prevent iOS zoom on input focus by forcing 16px minimum font size */
+input, select, textarea {
+  font-size: 16px !important;
+}
+
+.safe-top { padding-top: max(env(safe-area-inset-top), 12px); }
+.safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 12px); }
+
+/* iOS Liquid Glass surfaces — backdrop blur over scrolling content. */
+.glass-ios-top, .glass-ios-bottom {
+  backdrop-filter: blur(20px) saturate(1.9);
+  -webkit-backdrop-filter: blur(20px) saturate(1.9);
+  background: rgba(255, 255, 255, 0.45) !important;
+}
+
+.glass-ios-top {
+  border-bottom: 0.5px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+.glass-ios-bottom {
+  border-top: 0.5px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  .glass-ios-top, .glass-ios-bottom {
+    background: rgba(16, 16, 20, 0.45) !important;
+  }
+  .glass-ios-top {
+    border-bottom: 0.5px solid rgba(255, 255, 255, 0.06) !important;
+  }
+  .glass-ios-bottom {
+    border-top: 0.5px solid rgba(255, 255, 255, 0.06) !important;
+  }
+}
+
+/* Custom card and input box refinement for mobile */
+.card,
+label.rounded-2xl {
+  border: 1px solid transparent !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+  transition: border-color 150ms ease, box-shadow 150ms ease !important;
+}
+
+label.rounded-2xl:focus-within {
+  border-color: var(--color-accent-500) !important;
+  box-shadow: 0 4px 20px -2px rgba(37, 99, 235, 0.08), 0 1px 3px rgba(37, 99, 235, 0.04) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  .card,
+  label.rounded-2xl {
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    background: var(--color-surface-elev) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25) !important;
+  }
+  label.rounded-2xl:focus-within {
+    border-color: var(--color-accent-500) !important;
+  }
+}
+
+.mobile-main {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-left: 16px;
+  padding-right: 16px;
+  padding-top: calc(64px + env(safe-area-inset-top, 12px));
+  padding-bottom: calc(72px + env(safe-area-inset-bottom, 12px));
+}
+
+/* Android Material 3 — opaque surface. */
+.surface-android {
+  background: var(--color-surface-elev);
+  border-top: 1px solid var(--color-line);
+}
+
+/* Bottom-sheet snap container. */
+.mobile-sheet {
+  position: fixed;
+  inset: auto 0 0 0;
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+  z-index: 60;
+}
+
+.mobile-sheet__handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-line-strong);
+  margin: 8px auto 4px;
+}
+
+/* Pull-to-search affordance on the accounts list. */
+.pull-search-track {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 200ms var(--ease-out-quint, ease), opacity 200ms ease, visibility 200ms ease;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.pull-search-track[data-open="true"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.pull-search-track > * { min-height: 0; }

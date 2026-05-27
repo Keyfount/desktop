@@ -299,12 +299,40 @@ export function startAutoSync(): void {
   unsubscribe = syncBus.subscribe((op) => {
     void pushOpInBackground(op);
   });
-  // Initial pull so the user sees fresh data immediately on entry
-  // to the shell.
-  void pullInBackground();
+  // Initial pull, then replay anything the iOS AutoFill extension
+  // wrote directly to SQLite (those inserts never crossed the IPC
+  // mutation helpers, so `syncBus` never saw them). Order matters:
+  // pull first so a remote delete that races a local extension
+  // creation can't be silently overwritten by the replay.
+  void (async () => {
+    await pullInBackground();
+    await drainExtensionPendingAccounts();
+  })();
   pollTimer = setInterval(() => {
     void pullInBackground();
   }, POLL_INTERVAL_MS);
+}
+
+/**
+ * Replay accounts that the iOS AutoFill extension wrote with
+ * `record_account_ffi` (which inserts into SQLite without going
+ * through the IPC `record_account` command, so `syncBus.notify`
+ * never fired for them). On every auto-sync start, fetch the rows
+ * whose `last_synced_at` is still NULL and re-emit them as
+ * `upsert_account` ops — the regular push pipeline picks them up
+ * and pushes them server-side. Server-side dedup on
+ * `(domain, username)` makes replays idempotent.
+ */
+async function drainExtensionPendingAccounts(): Promise<void> {
+  if ((await approvedSession()) === null) return;
+  try {
+    const { entries } = await api.listPendingSyncAccounts();
+    for (const entry of entries) {
+      syncBus.notify({ t: "upsert_account", entry });
+    }
+  } catch (err) {
+    console.warn("[keyfount-sync] drain pending failed:", err);
+  }
 }
 
 export function stopAutoSync(): void {

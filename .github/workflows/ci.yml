@@ -1,9 +1,14 @@
 name: CI
 
+# Triggered only on release tags and manual runs. Day-to-day pushes and
+# pull requests skip CI to keep iteration fast during in-progress UX
+# work; the release tag path still runs the full lint/test/build chain
+# before the signed artefacts are published by release.yml.
 on:
   push:
-    branches: [main]
-  pull_request:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

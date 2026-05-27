@@ -22,6 +22,23 @@ pub async fn list_accounts(state: State<'_, AppState>) -> AppResult<ListAccounts
     Ok(ListAccountsResponse { entries })
 }
 
+/// Return every account whose `last_synced_at` is NULL. The AutoFill
+/// extension inserts rows directly via `record_account_ffi` without
+/// the IPC layer (which is where `syncBus.notify` normally fires), so
+/// the auto-sync loop has no way to learn about them. On every app
+/// boot / unlock the frontend calls this and re-emits an
+/// `upsert_account` op for each entry, letting the existing push
+/// pipeline carry them to the server.
+#[tauri::command]
+pub async fn list_pending_sync_accounts(
+    state: State<'_, AppState>,
+) -> AppResult<ListAccountsResponse> {
+    let store = state.store.lock().await;
+    let open = store.require()?;
+    let entries = accounts_store::list_unsynced(&open.conn)?;
+    Ok(ListAccountsResponse { entries })
+}
+
 #[derive(Debug, Serialize)]
 pub struct RecordAccountResponse {
     pub entry: AccountEntry,

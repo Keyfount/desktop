@@ -122,6 +122,13 @@ export const api = {
   wipe: () => call<void>("wipe"),
 
   listAccounts: () => call<ListAccountsResponse>("list_accounts"),
+  /**
+   * Accounts the AutoFill extension wrote directly to SQLite (without
+   * passing through the IPC mutation helpers that fire `syncBus`).
+   * `sync/auto.ts` drains this on startup so those entries get
+   * replayed through the regular push pipeline.
+   */
+  listPendingSyncAccounts: () => call<ListAccountsResponse>("list_pending_sync_accounts"),
   recordAccount: async (
     domain: string,
     username: string,

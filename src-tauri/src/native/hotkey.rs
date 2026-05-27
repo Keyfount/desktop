@@ -5,7 +5,9 @@
 //! Quick Search overlay. The actual press handler is wired up in `lib.rs`
 //! where the global-shortcut plugin is configured.
 
+#[cfg(desktop)]
 use tauri::AppHandle;
+#[cfg(desktop)]
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
 
 #[derive(Debug, Default)]
@@ -23,6 +25,7 @@ pub fn default_combo() -> &'static str {
 
 /// Register the default Quick Search combo. Soft-fails on platforms where
 /// global shortcuts are not available (sandboxed mobile, headless CI).
+#[cfg(desktop)]
 pub fn register_default(app: &AppHandle) -> tauri::Result<()> {
     let combo = default_combo();
     let parsed: Shortcut = combo
