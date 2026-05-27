@@ -171,7 +171,7 @@ export function MobileAccountDetailSheet({ platform }: Props) {
     [entry, usernameDraft],
   );
 
-  const surfaceClass = platform === "ios" ? "glass-ios-bottom" : "surface-android";
+  const surfaceClass = "bg-(--color-surface) border-t border-(--color-line)";
 
   return (
     <AnimatePresence>
@@ -182,7 +182,7 @@ export function MobileAccountDetailSheet({ platform }: Props) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            class="fixed inset-0 z-50 bg-black/40"
+            class="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm"
             onClick={() => {
               selectedAccount.value = null;
             }}
