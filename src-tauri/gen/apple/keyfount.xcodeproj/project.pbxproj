@@ -38,6 +38,7 @@
 		C62B54F2A09C6A09F9CDB915 /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = D7BD737068E3F51BD8EA2926 /* main.mm */; };
 		C72306E5550531C1B386BDE2 /* CredentialProviderViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D406FA8D262C8014E71EBDBD /* CredentialProviderViewController.swift */; };
 		CDAB9EA2357A5F5768201160 /* libapp.a in Resources */ = {isa = PBXBuildFile; fileRef = 8731FD9F68FBE5E690B1649C /* libapp.a */; };
+		D2EB78C1A8090DB4561AFBB9 /* KeyfountTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001791408AD6C5059D994316 /* KeyfountTheme.swift */; };
 		DB8EA1CDB0FB5F39BC31E9BE /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3BADF9DEC4A212A3B4952C91 /* CoreGraphics.framework */; };
 		E22A0EFBA5C64F55F4686655 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9913D13ACD60FBFDB80BB4DA /* QuartzCore.framework */; };
 		EA66768D2B40689448FD8176 /* LocalAuthentication.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E9438C1E9EF8B2C518C72B60 /* LocalAuthentication.framework */; };
@@ -86,6 +87,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		001791408AD6C5059D994316 /* KeyfountTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyfountTheme.swift; sourceTree = "<group>"; };
 		003A48EC904D51CFD9F2EE42 /* generation.rs */ = {isa = PBXFileReference; path = generation.rs; sourceTree = "<group>"; };
 		01B0D8031C2398C854191CAA /* schema.rs */ = {isa = PBXFileReference; path = schema.rs; sourceTree = "<group>"; };
 		0B796D6AF339DF4C15270179 /* settings.rs */ = {isa = PBXFileReference; path = settings.rs; sourceTree = "<group>"; };
@@ -398,6 +400,7 @@
 				D025D9E8512D09BC9FD641B9 /* CreateAccountViewController.swift */,
 				D406FA8D262C8014E71EBDBD /* CredentialProviderViewController.swift */,
 				233EF9B945CEAC4BA7528600 /* Info.plist */,
+				001791408AD6C5059D994316 /* KeyfountTheme.swift */,
 			);
 			path = AutofillExtension;
 			sourceTree = "<group>";
@@ -411,7 +414,7 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		"TEMP_217884C4-8FA3-4D64-B714-CE4294CF1E56" /* x86_64 */ = {
+		"TEMP_A3877750-3AFA-4A06-BD24-012E4FB92607" /* x86_64 */ = {
 			isa = PBXGroup;
 			children = (
 			);
@@ -547,6 +550,7 @@
 			files = (
 				C0301B24420DDCD82F786DD9 /* CreateAccountViewController.swift in Sources */,
 				C72306E5550531C1B386BDE2 /* CredentialProviderViewController.swift in Sources */,
+				D2EB78C1A8090DB4561AFBB9 /* KeyfountTheme.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -681,7 +685,7 @@
 				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = io.keyfount.desktop;
-				PRODUCT_NAME = "Keyfount";
+				PRODUCT_NAME = Keyfount;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALID_ARCHS = arm64;
@@ -817,7 +821,7 @@
 				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = io.keyfount.desktop;
-				PRODUCT_NAME = "Keyfount";
+				PRODUCT_NAME = Keyfount;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALID_ARCHS = arm64;
