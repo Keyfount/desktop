@@ -91,7 +91,12 @@ pub fn root_dir() -> PathBuf {
     PathBuf::from(".keyfount")
 }
 
-#[cfg(target_os = "macos")]
+// macOS *and* iOS share the same layout. On iOS the entry-point
+// (`Sources/keyfount/main.mm`) rewrites `HOME` to point at the shared
+// App Group container so the main app and the AutoFill extension both
+// land on the same `Library/Application Support/Keyfount` tree — see
+// docs/ios_autofill_integration.md.
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 fn dirs_appdata_keyfount() -> Option<PathBuf> {
     std::env::var_os("HOME")
         .map(PathBuf::from)
@@ -105,7 +110,7 @@ fn dirs_appdata_keyfount() -> Option<PathBuf> {
         .map(|p| p.join("Keyfount"))
 }
 
-#[cfg(all(not(target_os = "macos"), not(target_os = "windows")))]
+#[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "windows")))]
 fn dirs_appdata_keyfount() -> Option<PathBuf> {
     std::env::var_os("XDG_DATA_HOME")
         .or_else(|| {
