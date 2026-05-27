@@ -43,7 +43,8 @@ export function MobileApp() {
     if (screen.value === "shell") {
       startAutoSync();
       startSyncStatusMonitor();
-      void (async () => {
+
+      const refreshAndSync = async () => {
         try {
           const [acctResp, vaultResp] = await Promise.all([
             api.listAccounts(),
@@ -54,10 +55,26 @@ export function MobileApp() {
         } catch (err) {
           errorMessage.value = describeError(err);
         }
-      })();
+        // Force an immediate sync pull and extension pending writes drain
+        startAutoSync();
+      };
+
+      void refreshAndSync();
+
+      const handleVisibility = () => {
+        if (document.visibilityState === "visible") {
+          void refreshAndSync();
+        }
+      };
+
+      document.addEventListener("visibilitychange", handleVisibility);
+      window.addEventListener("focus", handleVisibility);
+
       return () => {
         stopAutoSync();
         stopSyncStatusMonitor();
+        document.removeEventListener("visibilitychange", handleVisibility);
+        window.removeEventListener("focus", handleVisibility);
       };
     }
     return undefined;
