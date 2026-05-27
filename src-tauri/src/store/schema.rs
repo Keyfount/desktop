@@ -80,6 +80,22 @@ const MIGRATIONS: &[(u32, &str)] = &[
         ON pending_ops(id ASC);
     "#,
     ),
+    (
+        3,
+        r#"
+    -- Tombstones for accounts the user explicitly deleted. Travels in
+    -- the SyncableState v2 snapshot so peers can converge on the
+    -- delete even when the originating delete_account event was
+    -- compacted server-side. Re-creating an account clears its
+    -- tombstone (see store::accounts::record).
+    CREATE TABLE IF NOT EXISTS deleted_accounts (
+        domain      TEXT NOT NULL,
+        username    TEXT NOT NULL,
+        deleted_at  INTEGER NOT NULL,
+        PRIMARY KEY (domain, username)
+    ) STRICT;
+    "#,
+    ),
 ];
 
 pub fn ensure_schema(conn: &Connection) -> AppResult<()> {
@@ -118,7 +134,7 @@ mod tests {
                 |r| r.get(0),
             )
             .unwrap();
-        assert_eq!(version, "2");
+        assert_eq!(version, "3");
     }
 
     #[test]
@@ -140,6 +156,20 @@ mod tests {
             )
             .unwrap();
         assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn migration_v3_creates_deleted_accounts_table() {
+        let conn = Connection::open_in_memory().unwrap();
+        ensure_schema(&conn).unwrap();
+        let count: i64 = conn
+            .query_row(
+                "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='deleted_accounts'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 1);
         let version: String = conn
             .query_row(
                 "SELECT value FROM meta WHERE key = 'schema_version'",
@@ -147,6 +177,6 @@ mod tests {
                 |r| r.get(0),
             )
             .unwrap();
-        assert_eq!(version, "2");
+        assert_eq!(version, "3");
     }
 }

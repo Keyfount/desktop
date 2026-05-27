@@ -49,8 +49,13 @@ fn list_with_clause(conn: &rusqlite::Connection, clause: &str) -> AppResult<Vec<
     Ok(out)
 }
 
+/// Upsert an account row. Also clears any tombstone with the same key
+/// in the same transaction — re-creating an account the user had
+/// previously deleted must un-do the tombstone so the next snapshot
+/// apply does not silently suppress the new row.
 pub fn record(conn: &rusqlite::Connection, entry: &AccountEntry) -> AppResult<AccountEntry> {
-    conn.execute(
+    let tx = conn.unchecked_transaction()?;
+    tx.execute(
         "INSERT INTO accounts(domain, username, profile_json, created_at, last_used_at)
          VALUES (?, ?, ?, ?, ?)
          ON CONFLICT(domain, username) DO UPDATE SET
@@ -64,14 +69,81 @@ pub fn record(conn: &rusqlite::Connection, entry: &AccountEntry) -> AppResult<Ac
             entry.last_used_at,
         ],
     )?;
+    tx.execute(
+        "DELETE FROM deleted_accounts WHERE domain = ?1 AND username = ?2",
+        params![entry.domain, entry.username],
+    )?;
+    tx.commit()?;
     Ok(entry.clone())
 }
 
+/// Delete an account row and atomically record a tombstone so peers
+/// learn about the delete on their next snapshot apply, even when the
+/// originating `delete_account` event has been compacted server-side.
 pub fn delete(conn: &rusqlite::Connection, domain: &str, username: &str) -> AppResult<()> {
-    conn.execute(
-        "DELETE FROM accounts WHERE domain = ? AND username = ?",
+    let tx = conn.unchecked_transaction()?;
+    tx.execute(
+        "DELETE FROM accounts WHERE domain = ?1 AND username = ?2",
         params![domain, username],
     )?;
+    let now = super::vaults::now_ms();
+    tx.execute(
+        "INSERT INTO deleted_accounts(domain, username, deleted_at) VALUES (?1, ?2, ?3)
+         ON CONFLICT(domain, username) DO UPDATE SET deleted_at = excluded.deleted_at",
+        params![domain, username, now],
+    )?;
+    tx.commit()?;
+    Ok(())
+}
+
+#[derive(Debug, Clone)]
+pub struct TombstoneRow {
+    pub domain: String,
+    pub username: String,
+    pub deleted_at: i64,
+}
+
+/// Return every tombstone the local user has produced. Used by the
+/// snapshot push path to populate `SyncableState.tombstones`.
+pub fn list_tombstones(conn: &rusqlite::Connection) -> AppResult<Vec<TombstoneRow>> {
+    let mut stmt = conn.prepare(
+        "SELECT domain, username, deleted_at FROM deleted_accounts ORDER BY deleted_at ASC",
+    )?;
+    let rows = stmt.query_map([], |r| {
+        Ok(TombstoneRow {
+            domain: r.get(0)?,
+            username: r.get(1)?,
+            deleted_at: r.get(2)?,
+        })
+    })?;
+    let mut out = Vec::new();
+    for row in rows {
+        out.push(row?);
+    }
+    Ok(out)
+}
+
+/// Merge a list of incoming tombstones into the local store. Used by
+/// `applyStateLocally` on snapshot pull so the receiving device
+/// carries forward every tombstone it learns about into its own
+/// future snapshots.
+pub fn merge_tombstones(
+    conn: &rusqlite::Connection,
+    incoming: &[TombstoneRow],
+) -> AppResult<()> {
+    if incoming.is_empty() {
+        return Ok(());
+    }
+    let tx = conn.unchecked_transaction()?;
+    for t in incoming {
+        tx.execute(
+            "INSERT INTO deleted_accounts(domain, username, deleted_at) VALUES (?1, ?2, ?3)
+             ON CONFLICT(domain, username) DO UPDATE SET
+                 deleted_at = MAX(deleted_accounts.deleted_at, excluded.deleted_at)",
+            params![t.domain, t.username, t.deleted_at],
+        )?;
+    }
+    tx.commit()?;
     Ok(())
 }
 
@@ -253,5 +325,108 @@ mod tests {
         stamp_synced(&conn, "missing.example", "ghost", 1_000, SyncDir::Push).expect("noop");
         let stamp = get_sync_stamp(&conn, "missing.example", "ghost").expect("query");
         assert!(stamp.is_none());
+    }
+
+    #[test]
+    fn delete_inserts_a_tombstone_in_the_same_transaction() {
+        let conn = fresh_db();
+        record(&conn, &fixture()).expect("record");
+        delete(&conn, "example.com", "alice@example.com").expect("delete");
+
+        let tombstones = list_tombstones(&conn).expect("list tombstones");
+        assert_eq!(tombstones.len(), 1);
+        assert_eq!(tombstones[0].domain, "example.com");
+        assert_eq!(tombstones[0].username, "alice@example.com");
+        assert!(tombstones[0].deleted_at > 0);
+
+        let rows = list(&conn).expect("list accounts");
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn delete_on_missing_account_still_writes_a_tombstone() {
+        let conn = fresh_db();
+        // Cross-device delete contract: peer asked to delete X but we
+        // never had it locally. A tombstone still records the intent so
+        // the next snapshot we push tells other devices about it.
+        delete(&conn, "never.here.example", "ghost").expect("delete");
+        let tombstones = list_tombstones(&conn).expect("list");
+        assert_eq!(tombstones.len(), 1);
+        assert_eq!(tombstones[0].domain, "never.here.example");
+    }
+
+    #[test]
+    fn record_clears_tombstone_for_the_recreated_pair() {
+        let conn = fresh_db();
+        record(&conn, &fixture()).expect("record");
+        delete(&conn, "example.com", "alice@example.com").expect("delete");
+        assert_eq!(list_tombstones(&conn).expect("list").len(), 1);
+
+        // Re-create the account.
+        record(&conn, &fixture()).expect("re-record");
+        assert!(
+            list_tombstones(&conn).expect("list").is_empty(),
+            "re-creating an account must clear its tombstone"
+        );
+    }
+
+    #[test]
+    fn merge_tombstones_keeps_the_max_deleted_at_on_conflict() {
+        let conn = fresh_db();
+        merge_tombstones(
+            &conn,
+            &[TombstoneRow {
+                domain: "a.com".into(),
+                username: "u".into(),
+                deleted_at: 100,
+            }],
+        )
+        .expect("merge");
+        merge_tombstones(
+            &conn,
+            &[TombstoneRow {
+                domain: "a.com".into(),
+                username: "u".into(),
+                deleted_at: 50,
+            }],
+        )
+        .expect("merge older");
+
+        let rows = list_tombstones(&conn).expect("list");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].deleted_at, 100);
+    }
+
+    #[test]
+    fn merge_tombstones_is_a_noop_on_empty_input() {
+        let conn = fresh_db();
+        merge_tombstones(&conn, &[]).expect("empty merge");
+        assert!(list_tombstones(&conn).expect("list").is_empty());
+    }
+
+    #[test]
+    fn list_tombstones_returns_oldest_first() {
+        let conn = fresh_db();
+        merge_tombstones(
+            &conn,
+            &[
+                TombstoneRow {
+                    domain: "later.com".into(),
+                    username: "u".into(),
+                    deleted_at: 200,
+                },
+                TombstoneRow {
+                    domain: "earlier.com".into(),
+                    username: "u".into(),
+                    deleted_at: 100,
+                },
+            ],
+        )
+        .expect("merge");
+
+        let rows = list_tombstones(&conn).expect("list");
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].domain, "earlier.com");
+        assert_eq!(rows[1].domain, "later.com");
     }
 }

@@ -178,3 +178,53 @@ pub async fn account_stamp_synced(
     let open = store.require()?;
     accounts_store::stamp_synced(&open.conn, &domain, &username, now_ms(), parsed)
 }
+
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
+pub struct TombstoneDto {
+    pub domain: String,
+    pub username: String,
+    #[serde(rename = "deletedAt")]
+    pub deleted_at: i64,
+}
+
+impl From<accounts_store::TombstoneRow> for TombstoneDto {
+    fn from(row: accounts_store::TombstoneRow) -> Self {
+        Self {
+            domain: row.domain,
+            username: row.username,
+            deleted_at: row.deleted_at,
+        }
+    }
+}
+
+/// Snapshot of every locally-known tombstone. Consumed by the sync
+/// push path to populate `SyncableState v2`'s `tombstones` field.
+#[tauri::command]
+pub async fn list_tombstones(state: State<'_, AppState>) -> AppResult<Vec<TombstoneDto>> {
+    let store = state.store.lock().await;
+    let open = store.require()?;
+    let rows = accounts_store::list_tombstones(&open.conn)?;
+    Ok(rows.into_iter().map(Into::into).collect())
+}
+
+/// Merge a list of incoming tombstones into the local store. Called
+/// by the sync pull path so a device that learns about a delete via
+/// `SyncableState.tombstones` carries it forward in its own future
+/// snapshots.
+#[tauri::command]
+pub async fn merge_tombstones(
+    incoming: Vec<TombstoneDto>,
+    state: State<'_, AppState>,
+) -> AppResult<()> {
+    let store = state.store.lock().await;
+    let open = store.require()?;
+    let rows: Vec<accounts_store::TombstoneRow> = incoming
+        .into_iter()
+        .map(|t| accounts_store::TombstoneRow {
+            domain: t.domain,
+            username: t.username,
+            deleted_at: t.deleted_at,
+        })
+        .collect();
+    accounts_store::merge_tombstones(&open.conn, &rows)
+}
