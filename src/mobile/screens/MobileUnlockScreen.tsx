@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from "preact/hooks";
+import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { AnimatePresence, motion } from "framer-motion";
 import { api, describeError } from "../../api.js";
 import { t } from "../../i18n.js";
 import { IconTouchId } from "../../icons.js";
-import { SOFT_SPRING, TAP_SCALE } from "../../motion.js";
+import { POP_IN, SOFT_SPRING, TAP_SCALE } from "../../motion.js";
 import { detectPlatform } from "../../platform.js";
 import {
   busy,
@@ -11,6 +11,7 @@ import {
   errorMessage,
   fingerprint,
   historyEnabled,
+  livePreview,
   screen,
   view,
 } from "../../state.js";
@@ -20,13 +21,39 @@ interface Props {
 }
 
 export function MobileUnlockScreen({ hasPin }: Props) {
-  const [mode, setMode] = useState<"master" | "pin">("master");
+  // Default to the PIN tab whenever the vault has one configured —
+  // it's the faster path, and matches the extension's UnlockScreen.
+  const [mode, setMode] = useState<"master" | "pin">(hasPin ? "pin" : "master");
   const [value, setValue] = useState("");
   const [bioAvailable, setBioAvailable] = useState(false);
+  const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Live fingerprint preview while typing the master, so a mismatch
+  // (i.e. wrong-vault master) surfaces before the user hits Unlock.
+  useEffect(() => {
+    if (previewTimer.current !== null) clearTimeout(previewTimer.current);
+    if (mode !== "master" || value.length === 0) {
+      livePreview.value = null;
+      return;
+    }
+    previewTimer.current = setTimeout(() => {
+      void api
+        .fingerprint(value)
+        .then((r) => {
+          livePreview.value = r.fingerprint;
+        })
+        .catch(() => {
+          livePreview.value = null;
+        });
+    }, 500);
+    return () => {
+      if (previewTimer.current !== null) clearTimeout(previewTimer.current);
+    };
+  }, [value, mode]);
 
   useEffect(() => {
-    if (hasPin && mode === "master") setMode("master");
-  }, [hasPin]);
+    if (mode !== "master") livePreview.value = null;
+  }, [mode]);
 
   const onBiometric = useCallback(async () => {
     errorMessage.value = null;
@@ -41,7 +68,7 @@ export function MobileUnlockScreen({ hasPin }: Props) {
       view.value = "generator";
       screen.value = "shell";
     } catch (err) {
-      errorMessage.value = describeError(err) || "biometric unlock failed";
+      errorMessage.value = describeError(err) || t("err_biometric_failed");
     } finally {
       busy.value = false;
     }
@@ -83,7 +110,7 @@ export function MobileUnlockScreen({ hasPin }: Props) {
         screen.value = "shell";
         setValue("");
       } catch (err) {
-        errorMessage.value = describeError(err) || "unlock failed";
+        errorMessage.value = describeError(err) || t("err_unlock_failed");
       } finally {
         busy.value = false;
       }
@@ -122,6 +149,27 @@ export function MobileUnlockScreen({ hasPin }: Props) {
           placeholder={mode === "master" ? t("setup_master_label") : t("settings_pin")}
           class="rounded-2xl bg-(--color-surface-elev) border border-(--color-line) px-4 py-3 text-[15px] text-(--color-ink) outline-none"
         />
+
+        <AnimatePresence>
+          {mode === "master" &&
+          livePreview.value !== null &&
+          fingerprint.value !== null &&
+          livePreview.value !== fingerprint.value ? (
+            <motion.div
+              key="mismatch"
+              class="callout flex flex-col gap-1.5 items-start border border-amber-500/40 bg-amber-500/10 p-3 rounded-2xl"
+              variants={POP_IN}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              aria-live="polite"
+            >
+              <span class="field-label text-[10px]">{t("unlock_typed_label")}</span>
+              <span class="fingerprint text-sm">{livePreview.value}</span>
+              <span class="field-hint text-[11px] leading-snug">{t("unlock_mismatch_hint")}</span>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
 
         <AnimatePresence>
           {errorMessage.value ? (

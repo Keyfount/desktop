@@ -14,6 +14,7 @@ import {
 import { POP_IN, SOFT_SPRING, TAP_SCALE } from "../motion.js";
 import { selectedAccount, allAccounts } from "../state.js";
 import { AccountAvatar } from "../components/AccountAvatar.js";
+import { ConfirmModal } from "../components/ConfirmModal.js";
 import { ProfileEditor } from "../components/ProfileEditor.js";
 import type { Profile } from "../types.js";
 
@@ -37,6 +38,7 @@ export function MobileAccountDetailSheet(_props: Props) {
   const [previewPassword, setPreviewPassword] = useState<string | null>(null);
   const [previewRevealed, setPreviewRevealed] = useState(false);
   const [previewCopied, setPreviewCopied] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   useEffect(() => {
     if (entry) {
@@ -129,13 +131,19 @@ export function MobileAccountDetailSheet(_props: Props) {
     }
   }, [password]);
 
-  const onDelete = useCallback(async () => {
+  const performDelete = useCallback(async () => {
     if (!entry) return;
-    await api.deleteAccount(entry.domain, entry.username);
-    allAccounts.value = allAccounts.value.filter(
-      (e) => !(e.domain === entry.domain && e.username === entry.username)
-    );
-    selectedAccount.value = null;
+    try {
+      await api.deleteAccount(entry.domain, entry.username);
+      allAccounts.value = allAccounts.value.filter(
+        (e) => !(e.domain === entry.domain && e.username === entry.username)
+      );
+      selectedAccount.value = null;
+    } catch {
+      /* swallow — surface via shared errorMessage later if needed */
+    } finally {
+      setConfirmingDelete(false);
+    }
   }, [entry]);
 
   const renameSubmit = useCallback(
@@ -404,13 +412,23 @@ export function MobileAccountDetailSheet(_props: Props) {
                 type="button"
                 class="btn btn-danger btn-sm w-full !h-10 rounded-xl"
                 whileTap={TAP_SCALE}
-                onClick={onDelete}
+                onClick={() => setConfirmingDelete(true)}
               >
                 <IconTrash size={14} />
                 <span class="text-sm font-semibold">{t("accounts_delete")}</span>
               </motion.button>
             </footer>
           </motion.div>
+
+          {confirmingDelete ? (
+            <ConfirmModal
+              title={t("accounts_delete_confirm_title")}
+              body={t("accounts_delete_confirm_body")}
+              confirmLabel={t("accounts_delete")}
+              onCancel={() => setConfirmingDelete(false)}
+              onConfirm={() => void performDelete()}
+            />
+          ) : null}
         </>
       ) : null}
     </AnimatePresence>
