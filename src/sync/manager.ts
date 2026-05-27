@@ -66,15 +66,36 @@ export async function connect(args: ConnectInput): Promise<SyncSession> {
   }
 }
 
-export async function pollApproval(): Promise<SyncSession | null> {
+export interface PollResult {
+  status: "pending" | "approved" | "rejected" | "no_session";
+  session: SyncSession | null;
+  /** Admin-provided rejection reason when `status === "rejected"`. */
+  reason?: string;
+}
+
+/**
+ * Probe the server for the current device's approval status.
+ *
+ * The shape mirrors the extension's `syncPollApproval` so the UI can
+ * branch on `"pending" | "approved" | "rejected" | "no_session"` and
+ * surface a rejection reason — the previous `SyncSession | null`
+ * shape forced callers to confuse "still pending" with "rejected".
+ */
+export async function pollApproval(): Promise<PollResult> {
   const session = await loadStoredSession();
-  if (!session) return null;
-  if (session.status === "approved") return session;
+  if (!session) return { status: "no_session", session: null };
+  if (session.status === "approved") return { status: "approved", session };
 
   const client = new SyncClient({ baseUrl: session.baseUrl });
   const result = await client.approvalStatus(session.userId);
-  if (result.status !== "approved") return session;
-  if (!result.sessionToken || !result.expiresAt) return session;
+  if (result.status === "rejected") {
+    const reason = result.reason;
+    return reason !== undefined
+      ? { status: "rejected", session, reason }
+      : { status: "rejected", session };
+  }
+  if (result.status !== "approved") return { status: "pending", session };
+  if (!result.sessionToken || !result.expiresAt) return { status: "pending", session };
   const upgraded: SyncSession = {
     ...session,
     status: "approved",
@@ -82,7 +103,7 @@ export async function pollApproval(): Promise<SyncSession | null> {
     expiresAt: result.expiresAt,
   };
   await saveSession(upgraded);
-  return upgraded;
+  return { status: "approved", session: upgraded };
 }
 
 export async function disconnect(): Promise<void> {
