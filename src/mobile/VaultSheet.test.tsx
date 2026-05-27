@@ -7,7 +7,16 @@ describe("<VaultSheet />", () => {
   it("renders nothing when closed", () => {
     vaultSheetOpen.value = false;
     const root = document.createElement("div");
-    render(<VaultSheet platform="ios" vaults={[]} onSwitch={() => {}} onLock={() => {}} onNew={() => {}} />, root);
+    render(
+      <VaultSheet
+        platform="ios"
+        vaults={[]}
+        onSwitch={() => {}}
+        onLock={() => {}}
+        onNew={() => {}}
+      />,
+      root,
+    );
     expect(root.textContent?.trim()).toBe("");
   });
 

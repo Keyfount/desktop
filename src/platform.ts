@@ -17,7 +17,10 @@ export function detectPlatform(): Platform {
   const ua = navigator.userAgent;
   if (/Android/.test(ua)) return "android";
   // iPadOS 13+ Safari pretends to be Macintosh; touch support is the giveaway.
-  if (/iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && typeof document !== "undefined" && "ontouchend" in document)) {
+  if (
+    /iPhone|iPod/.test(ua) ||
+    (/Macintosh/.test(ua) && typeof document !== "undefined" && "ontouchend" in document)
+  ) {
     return "ios";
   }
   if (/Macintosh|Mac OS X/.test(ua)) return "macos";

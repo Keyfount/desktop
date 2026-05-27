@@ -68,8 +68,6 @@ export function MobileGeneratorScreen() {
     }
   }, [profile]);
 
-
-
   const updateProfile = useCallback(async (next: Profile) => {
     setProfile(next);
     generated.value = null;
@@ -289,9 +287,7 @@ export function MobileGeneratorScreen() {
             </div>
           </motion.div>
         ) : !canGenerate.value ? (
-          <p class="text-xs text-(--color-ink-subtle) leading-snug px-1">
-            {t("main_no_email")}
-          </p>
+          <p class="text-xs text-(--color-ink-subtle) leading-snug px-1">{t("main_no_email")}</p>
         ) : null}
       </AnimatePresence>
 

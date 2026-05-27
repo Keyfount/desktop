@@ -95,7 +95,7 @@ So:
    instantly, and iOS dismisses the chooser.
 3. **Main app drains on unlock.** A new IPC command
    `list_pending_sync_accounts` returns rows with `last_synced_at
-   IS NULL`. `sync/auto.ts` (or whatever starts auto-sync) iterates
+IS NULL`. `sync/auto.ts` (or whatever starts auto-sync) iterates
    them and re-emits `syncBus.notify({ t: "upsert_account", entry })`
    for each. The existing push pipeline handles the rest, and the
    server side is already idempotent on (domain, username) so replays

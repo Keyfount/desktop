@@ -220,17 +220,17 @@ Every visible string the mobile UI shows MUST go through `t(...)` from [`src/i18
 
 The bottom nav labels and most form/setup/unlock copy already exist:
 
-| Mobile surface | Existing key |
-| --- | --- |
-| Bottom nav · Comptes | `sidebar_accounts` |
-| Bottom nav · Générateur | `sidebar_generator` |
-| Bottom nav · Paramètres | `sidebar_settings` |
-| Lock affordance (Settings + vault sheet) | `sidebar_lock` |
-| Setup screen | `setup_welcome`, `setup_intro`, `setup_master_label`, `setup_confirm_label`, `setup_create_button`, `setup_fingerprint_hint`, `setup_min_length`, `setup_min_length_error`, `setup_mismatch_error`, `setup_creating` |
-| Unlock screen | `unlock_*` (whole namespace) |
-| Generator screen | `main_*` (whole namespace), `common_copy`, `common_generate` |
-| Settings rows (auto-lock, PIN, biometric, history, favicon, clipboard timeout, sync, export, import, wipe) | the existing `settings_*` and `sync_*` namespaces |
-| Empty states / loading | `common_loading`, `common_no_matches` |
+| Mobile surface                                                                                             | Existing key                                                                                                                                                                                                         |
+| ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Bottom nav · Comptes                                                                                       | `sidebar_accounts`                                                                                                                                                                                                   |
+| Bottom nav · Générateur                                                                                    | `sidebar_generator`                                                                                                                                                                                                  |
+| Bottom nav · Paramètres                                                                                    | `sidebar_settings`                                                                                                                                                                                                   |
+| Lock affordance (Settings + vault sheet)                                                                   | `sidebar_lock`                                                                                                                                                                                                       |
+| Setup screen                                                                                               | `setup_welcome`, `setup_intro`, `setup_master_label`, `setup_confirm_label`, `setup_create_button`, `setup_fingerprint_hint`, `setup_min_length`, `setup_min_length_error`, `setup_mismatch_error`, `setup_creating` |
+| Unlock screen                                                                                              | `unlock_*` (whole namespace)                                                                                                                                                                                         |
+| Generator screen                                                                                           | `main_*` (whole namespace), `common_copy`, `common_generate`                                                                                                                                                         |
+| Settings rows (auto-lock, PIN, biometric, history, favicon, clipboard timeout, sync, export, import, wipe) | the existing `settings_*` and `sync_*` namespaces                                                                                                                                                                    |
+| Empty states / loading                                                                                     | `common_loading`, `common_no_matches`                                                                                                                                                                                |
 
 ### 6.2 Keys to add
 

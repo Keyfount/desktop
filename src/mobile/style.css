@@ -16,15 +16,22 @@ body,
 }
 
 /* Prevent iOS zoom on input focus by forcing 16px minimum font size */
-input, select, textarea {
+input,
+select,
+textarea {
   font-size: 16px !important;
 }
 
-.safe-top { padding-top: max(env(safe-area-inset-top), 12px); }
-.safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 12px); }
+.safe-top {
+  padding-top: max(env(safe-area-inset-top), 12px);
+}
+.safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 12px);
+}
 
 /* iOS Liquid Glass surfaces — backdrop blur over scrolling content. */
-.glass-ios-top, .glass-ios-bottom {
+.glass-ios-top,
+.glass-ios-bottom {
   backdrop-filter: blur(20px) saturate(1.9);
   -webkit-backdrop-filter: blur(20px) saturate(1.9);
   background: rgba(255, 255, 255, 0.45) !important;
@@ -39,7 +46,8 @@ input, select, textarea {
 }
 
 @media (prefers-color-scheme: dark) {
-  .glass-ios-top, .glass-ios-bottom {
+  .glass-ios-top,
+  .glass-ios-bottom {
     background: rgba(16, 16, 20, 0.45) !important;
   }
   .glass-ios-top {
@@ -54,13 +62,19 @@ input, select, textarea {
 .card,
 label.rounded-2xl {
   border: 1px solid transparent !important;
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02) !important;
-  transition: border-color 150ms ease, box-shadow 150ms ease !important;
+  box-shadow:
+    0 4px 20px -2px rgba(0, 0, 0, 0.04),
+    0 1px 3px rgba(0, 0, 0, 0.02) !important;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease !important;
 }
 
 label.rounded-2xl:focus-within {
   border-color: var(--color-accent-500) !important;
-  box-shadow: 0 4px 20px -2px rgba(37, 99, 235, 0.08), 0 1px 3px rgba(37, 99, 235, 0.04) !important;
+  box-shadow:
+    0 4px 20px -2px rgba(37, 99, 235, 0.08),
+    0 1px 3px rgba(37, 99, 235, 0.04) !important;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -113,7 +127,10 @@ label.rounded-2xl:focus-within {
 .pull-search-track {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows 200ms var(--ease-out-quint, ease), opacity 200ms ease, visibility 200ms ease;
+  transition:
+    grid-template-rows 200ms var(--ease-out-quint, ease),
+    opacity 200ms ease,
+    visibility 200ms ease;
   overflow: hidden;
   opacity: 0;
   visibility: hidden;
@@ -127,4 +144,6 @@ label.rounded-2xl:focus-within {
   pointer-events: auto;
 }
 
-.pull-search-track > * { min-height: 0; }
+.pull-search-track > * {
+  min-height: 0;
+}

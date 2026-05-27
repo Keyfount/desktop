@@ -14,8 +14,36 @@ describe("<MobileAccountsScreen />", () => {
 
   it("filters accounts when searchQuery is set", () => {
     allAccounts.value = [
-      { domain: "github.com", username: "u", lastUsedAt: 0, createdAt: 0, profile: { mode: "random", counter: 1, length: 16, lower: true, upper: true, digits: true, symbols: true } },
-      { domain: "twitter.com", username: "v", lastUsedAt: 0, createdAt: 0, profile: { mode: "random", counter: 1, length: 16, lower: true, upper: true, digits: true, symbols: true } },
+      {
+        domain: "github.com",
+        username: "u",
+        lastUsedAt: 0,
+        createdAt: 0,
+        profile: {
+          mode: "random",
+          counter: 1,
+          length: 16,
+          lower: true,
+          upper: true,
+          digits: true,
+          symbols: true,
+        },
+      },
+      {
+        domain: "twitter.com",
+        username: "v",
+        lastUsedAt: 0,
+        createdAt: 0,
+        profile: {
+          mode: "random",
+          counter: 1,
+          length: 16,
+          lower: true,
+          upper: true,
+          digits: true,
+          symbols: true,
+        },
+      },
     ];
     const root = document.createElement("div");
     searchQuery.value = "github";

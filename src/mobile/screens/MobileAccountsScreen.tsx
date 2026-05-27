@@ -30,20 +30,24 @@ export function MobileAccountsScreen() {
   return (
     <section
       class="flex flex-col gap-2 pt-2 select-none pb-6"
-      onTouchStart={(e) => { startY.current = e.touches[0]?.clientY ?? null; }}
+      onTouchStart={(e) => {
+        startY.current = e.touches[0]?.clientY ?? null;
+      }}
       onTouchMove={(e) => {
         if (startY.current === null) return;
         const dy = (e.touches[0]?.clientY ?? 0) - startY.current;
-        
+
         // Only trigger pull-to-search if the container is at the absolute top of its scroll range
         const mainEl = document.querySelector(".mobile-main");
         const scrollTop = mainEl ? mainEl.scrollTop : 0;
-        
+
         if (scrollTop <= 2 && dy > PULL_OPEN_THRESHOLD && !pullOpen) {
           setPullOpen(true);
         }
       }}
-      onTouchEnd={() => { startY.current = null; }}
+      onTouchEnd={() => {
+        startY.current = null;
+      }}
     >
       <div class="flex items-center justify-between px-1 mb-2">
         <h2 class="text-[10px] uppercase tracking-[0.22em] text-(--color-ink-subtle) font-mono">
@@ -75,8 +79,12 @@ export function MobileAccountsScreen() {
             inputMode="search"
             placeholder={t("mobile_accounts_search_placeholder")}
             value={searchQuery.value}
-            onInput={(e) => { searchQuery.value = (e.target as HTMLInputElement).value; }}
-            onBlur={() => { if (!searchQuery.value) setPullOpen(false); }}
+            onInput={(e) => {
+              searchQuery.value = (e.target as HTMLInputElement).value;
+            }}
+            onBlur={() => {
+              if (!searchQuery.value) setPullOpen(false);
+            }}
             class="w-full pl-10 pr-4 py-3 rounded-2xl bg-(--color-surface-elev) border border-(--color-line) text-[16px] text-(--color-ink) outline-none focus:border-(--color-accent-500) transition-colors"
           />
         </div>

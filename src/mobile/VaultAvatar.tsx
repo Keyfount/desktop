@@ -26,7 +26,9 @@ export function VaultAvatar({ fingerprint }: Props) {
       }}
       aria-label={t("mobile_vault_sheet_title")}
     >
-      <span class="vault-avatar__emoji" aria-hidden="true">{firstEmoji(fingerprint)}</span>
+      <span class="vault-avatar__emoji" aria-hidden="true">
+        {firstEmoji(fingerprint)}
+      </span>
     </motion.button>
   );
 }

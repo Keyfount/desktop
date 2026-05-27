@@ -287,8 +287,7 @@ const FR: Record<keyof typeof EN, Entry> = {
   common_close: "Fermer",
   common_unlock: "Déverrouiller",
 
-  err_init_failed:
-    "Impossible d'initialiser le coffre. Réessayez ou relancez l'application.",
+  err_init_failed: "Impossible d'initialiser le coffre. Réessayez ou relancez l'application.",
   err_unlock_failed: "Impossible de déverrouiller le coffre.",
   err_biometric_failed: "Le déverrouillage biométrique a échoué.",
   err_setup_failed: "Impossible de finaliser la création du coffre.",

@@ -120,7 +120,9 @@ export function MobileUnlockScreen({ hasPin }: Props) {
 
   const platform = detectPlatform();
   const isApple = platform === "ios" || platform === "macos";
-  const biometricLabel = isApple ? (t("unlock_use_touchid") + " / Face ID") : t("unlock_use_biometric");
+  const biometricLabel = isApple
+    ? t("unlock_use_touchid") + " / Face ID"
+    : t("unlock_use_biometric");
 
   return (
     <motion.section
@@ -219,12 +221,9 @@ export function MobileUnlockScreen({ hasPin }: Props) {
           >
             <IconTouchId size={28} />
           </motion.button>
-          <span class="text-xs text-(--color-ink-muted)">
-            {biometricLabel}
-          </span>
+          <span class="text-xs text-(--color-ink-muted)">{biometricLabel}</span>
         </div>
       ) : null}
     </motion.section>
   );
 }
-

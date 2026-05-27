@@ -56,7 +56,9 @@ export function MobileAccountDetailSheet(_props: Props) {
     }
   }, [entry]);
 
-  const usernameDirty = entry ? usernameDraft.trim() !== entry.username && usernameDraft.trim().length > 0 : false;
+  const usernameDirty = entry
+    ? usernameDraft.trim() !== entry.username && usernameDraft.trim().length > 0
+    : false;
 
   // Preview password debounce
   useEffect(() => {
@@ -93,7 +95,7 @@ export function MobileAccountDetailSheet(_props: Props) {
         setPassword(r.password);
         setRevealed(false);
         setCopied(false);
-      } catch (err) {
+      } catch {
         /* swallow */
       } finally {
         setBusy(false);
@@ -109,7 +111,7 @@ export function MobileAccountDetailSheet(_props: Props) {
       try {
         await api.updateAccountProfile(entry.domain, entry.username, next);
         allAccounts.value = allAccounts.value.map((e) =>
-          e.domain === entry.domain && e.username === entry.username ? { ...e, profile: next } : e
+          e.domain === entry.domain && e.username === entry.username ? { ...e, profile: next } : e,
         );
         selectedAccount.value = { ...entry, profile: next };
       } catch {
@@ -136,7 +138,7 @@ export function MobileAccountDetailSheet(_props: Props) {
     try {
       await api.deleteAccount(entry.domain, entry.username);
       allAccounts.value = allAccounts.value.filter(
-        (e) => !(e.domain === entry.domain && e.username === entry.username)
+        (e) => !(e.domain === entry.domain && e.username === entry.username),
       );
       selectedAccount.value = null;
     } catch {
@@ -158,7 +160,7 @@ export function MobileAccountDetailSheet(_props: Props) {
         const r = await api.renameAccount(entry.domain, entry.username, next);
         const updated = r.entry;
         allAccounts.value = allAccounts.value.map((e) =>
-          e.domain === entry.domain && e.username === entry.username ? updated : e
+          e.domain === entry.domain && e.username === entry.username ? updated : e,
         );
         selectedAccount.value = updated;
         try {
@@ -204,7 +206,7 @@ export function MobileAccountDetailSheet(_props: Props) {
             class={`mobile-sheet ${surfaceClass} safe-bottom max-h-[85vh] overflow-y-auto px-4 pb-6 flex flex-col gap-4`}
           >
             <div class="mobile-sheet__handle shrink-0" />
-            
+
             {/* Header */}
             <header class="flex items-center justify-between gap-3 pt-2">
               <div class="flex items-center gap-3">
@@ -221,7 +223,9 @@ export function MobileAccountDetailSheet(_props: Props) {
               <motion.button
                 type="button"
                 whileTap={TAP_SCALE}
-                onClick={() => { selectedAccount.value = null; }}
+                onClick={() => {
+                  selectedAccount.value = null;
+                }}
                 class="w-8 h-8 rounded-full bg-(--color-surface-sunken) grid place-items-center text-(--color-ink-muted) cursor-pointer hover:bg-(--color-line) border-0"
                 aria-label={t("common_close")}
               >
@@ -230,7 +234,10 @@ export function MobileAccountDetailSheet(_props: Props) {
             </header>
 
             {/* Rename form */}
-            <form onSubmit={renameSubmit} class="flex flex-col gap-2 rounded-2xl bg-(--color-surface-elev) border border-(--color-line) p-3">
+            <form
+              onSubmit={renameSubmit}
+              class="flex flex-col gap-2 rounded-2xl bg-(--color-surface-elev) border border-(--color-line) p-3"
+            >
               <div class="flex items-center justify-between gap-2">
                 <span class="text-[10px] font-mono uppercase tracking-[0.22em] text-(--color-ink-subtle)">
                   {t("main_username_label")}
@@ -276,13 +283,17 @@ export function MobileAccountDetailSheet(_props: Props) {
                   animate="animate"
                   exit="exit"
                 >
-                  <strong class="text-xs text-(--color-ink) font-semibold">{t("detail_rename_warning_title")}</strong>
+                  <strong class="text-xs text-(--color-ink) font-semibold">
+                    {t("detail_rename_warning_title")}
+                  </strong>
                   <span class="text-[11px] text-(--color-ink-muted) leading-relaxed">
                     {t("detail_rename_warning_body")}
                   </span>
                   {previewPassword !== null ? (
                     <div class="flex flex-col gap-1.5 pt-1.5 border-t border-amber-300/20 mt-1">
-                      <span class="text-[9px] uppercase tracking-wider text-(--color-ink-subtle)">{t("detail_rename_preview_label")}</span>
+                      <span class="text-[9px] uppercase tracking-wider text-(--color-ink-subtle)">
+                        {t("detail_rename_preview_label")}
+                      </span>
                       <code
                         class={
                           previewRevealed
@@ -290,7 +301,9 @@ export function MobileAccountDetailSheet(_props: Props) {
                             : "font-mono text-sm break-all text-(--color-ink-muted) tracking-[0.15em] select-all"
                         }
                       >
-                        {previewRevealed ? previewPassword : "•".repeat(Math.min(previewPassword.length, 16))}
+                        {previewRevealed
+                          ? previewPassword
+                          : "•".repeat(Math.min(previewPassword.length, 16))}
                       </code>
                       <div class="flex gap-2 mt-1">
                         <motion.button
@@ -300,7 +313,9 @@ export function MobileAccountDetailSheet(_props: Props) {
                           onClick={() => setPreviewRevealed((v) => !v)}
                         >
                           {previewRevealed ? <IconEyeOff size={12} /> : <IconEye size={12} />}
-                          <span class="text-xs">{previewRevealed ? t("common_hide") : t("common_reveal")}</span>
+                          <span class="text-xs">
+                            {previewRevealed ? t("common_hide") : t("common_reveal")}
+                          </span>
                         </motion.button>
                         <motion.button
                           type="button"
@@ -309,7 +324,9 @@ export function MobileAccountDetailSheet(_props: Props) {
                           onClick={copyPreview}
                         >
                           {previewCopied ? <IconCheck size={12} /> : <IconCopy size={12} />}
-                          <span class="text-xs">{previewCopied ? t("common_copied") : t("common_copy")}</span>
+                          <span class="text-xs">
+                            {previewCopied ? t("common_copied") : t("common_copy")}
+                          </span>
                         </motion.button>
                       </div>
                     </div>
@@ -329,8 +346,12 @@ export function MobileAccountDetailSheet(_props: Props) {
                   animate="animate"
                   exit="exit"
                 >
-                  <span class="text-xs font-medium text-(--color-ink)">{t("detail_rename_password_changed")}</span>
-                  <code class="font-mono text-xs break-all text-(--color-ink) select-all">{renameToast}</code>
+                  <span class="text-xs font-medium text-(--color-ink)">
+                    {t("detail_rename_password_changed")}
+                  </span>
+                  <code class="font-mono text-xs break-all text-(--color-ink) select-all">
+                    {renameToast}
+                  </code>
                 </motion.div>
               ) : null}
             </AnimatePresence>

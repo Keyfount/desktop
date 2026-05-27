@@ -12,27 +12,27 @@
 
 ## File Structure
 
-| Path | Status | Responsibility |
-| --- | --- | --- |
-| `src/main.tsx` | **modify** | Replace the single `render(<App/>)` line with an `isMobile()` switch that dynamic-imports `MobileApp` on Android/iOS. |
-| `src/platform.ts` | **modify** | Add `"android"` and `"ios"` to the `Platform` union; add `isMobile()` helper. |
-| `src/platform.test.ts` | **create** | Unit tests for UA parsing on the new branches. |
-| `src/i18n.ts` | **modify** | Add the `mobile_*` namespace (17 keys × 2 locales) listed in spec §6.2. |
-| `src/i18n.test.ts` | **create** | Parity check between the EN and FR blocks. |
-| `src/mobile/MobileApp.tsx` | **create** | Mobile root; mirrors `App.tsx`: bootstrap, hashchange routing, auto-sync lifecycle, top-level screen switch. |
-| `src/mobile/MobileShell.tsx` | **create** | Bottom-nav layout (`TopBar` + content + `BottomNav`). |
-| `src/mobile/TopBar.tsx` | **create** | Logo · name · fingerprint chip · `VaultAvatar`. Hidden on Setup/Unlock. |
-| `src/mobile/BottomNav.tsx` | **create** | 3-tab nav, iOS Liquid Glass vs Android opaque variants. |
-| `src/mobile/VaultAvatar.tsx` | **create** | Round button showing the first emoji of `fingerprint.value`; tap opens `VaultSheet`. |
-| `src/mobile/VaultSheet.tsx` | **create** | Bottom sheet listing vaults + `Nouveau coffre` + `Verrouiller maintenant`. |
-| `src/mobile/screens/MobileGeneratorScreen.tsx` | **create** | Mobile generator layout (site card + identifiant card + password card + copy CTA). |
-| `src/mobile/screens/MobileAccountsScreen.tsx` | **create** | Accounts list + pull-to-search gesture. |
-| `src/mobile/screens/MobileSettingsScreen.tsx` | **create** | Grouped-list settings (Lock now → Account → Sync → Data → About). |
-| `src/mobile/screens/MobileSetupScreen.tsx` | **create** | Master password creation (first-run + additional-vault). |
-| `src/mobile/screens/MobileUnlockScreen.tsx` | **create** | Unlock flow (master / PIN / biometric). |
-| `src/mobile/state.ts` | **create** | Mobile-only signals: `vaultSheetOpen`, `searchQuery`, `additionalVaultMode`. |
-| `src/mobile/motion.ts` | **create** | Sheet snap thresholds + pull-to-search animation tokens. |
-| `src/mobile/style.css` | **create** | `.glass-ios`, `.surface-android`, safe-area helpers, sheet animation utilities. |
+| Path                                           | Status     | Responsibility                                                                                                        |
+| ---------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------- |
+| `src/main.tsx`                                 | **modify** | Replace the single `render(<App/>)` line with an `isMobile()` switch that dynamic-imports `MobileApp` on Android/iOS. |
+| `src/platform.ts`                              | **modify** | Add `"android"` and `"ios"` to the `Platform` union; add `isMobile()` helper.                                         |
+| `src/platform.test.ts`                         | **create** | Unit tests for UA parsing on the new branches.                                                                        |
+| `src/i18n.ts`                                  | **modify** | Add the `mobile_*` namespace (17 keys × 2 locales) listed in spec §6.2.                                               |
+| `src/i18n.test.ts`                             | **create** | Parity check between the EN and FR blocks.                                                                            |
+| `src/mobile/MobileApp.tsx`                     | **create** | Mobile root; mirrors `App.tsx`: bootstrap, hashchange routing, auto-sync lifecycle, top-level screen switch.          |
+| `src/mobile/MobileShell.tsx`                   | **create** | Bottom-nav layout (`TopBar` + content + `BottomNav`).                                                                 |
+| `src/mobile/TopBar.tsx`                        | **create** | Logo · name · fingerprint chip · `VaultAvatar`. Hidden on Setup/Unlock.                                               |
+| `src/mobile/BottomNav.tsx`                     | **create** | 3-tab nav, iOS Liquid Glass vs Android opaque variants.                                                               |
+| `src/mobile/VaultAvatar.tsx`                   | **create** | Round button showing the first emoji of `fingerprint.value`; tap opens `VaultSheet`.                                  |
+| `src/mobile/VaultSheet.tsx`                    | **create** | Bottom sheet listing vaults + `Nouveau coffre` + `Verrouiller maintenant`.                                            |
+| `src/mobile/screens/MobileGeneratorScreen.tsx` | **create** | Mobile generator layout (site card + identifiant card + password card + copy CTA).                                    |
+| `src/mobile/screens/MobileAccountsScreen.tsx`  | **create** | Accounts list + pull-to-search gesture.                                                                               |
+| `src/mobile/screens/MobileSettingsScreen.tsx`  | **create** | Grouped-list settings (Lock now → Account → Sync → Data → About).                                                     |
+| `src/mobile/screens/MobileSetupScreen.tsx`     | **create** | Master password creation (first-run + additional-vault).                                                              |
+| `src/mobile/screens/MobileUnlockScreen.tsx`    | **create** | Unlock flow (master / PIN / biometric).                                                                               |
+| `src/mobile/state.ts`                          | **create** | Mobile-only signals: `vaultSheetOpen`, `searchQuery`, `additionalVaultMode`.                                          |
+| `src/mobile/motion.ts`                         | **create** | Sheet snap thresholds + pull-to-search animation tokens.                                                              |
+| `src/mobile/style.css`                         | **create** | `.glass-ios`, `.surface-android`, safe-area helpers, sheet animation utilities.                                       |
 
 Plus `*.test.tsx` next to each component / screen, in the same folder. Tests live alongside the code they cover (matches the project's existing `vitest.config.ts` glob).
 
@@ -41,6 +41,7 @@ Plus `*.test.tsx` next to each component / screen, in the same folder. Tests liv
 ## Task 1 — Platform detection on Android and iOS
 
 **Files:**
+
 - Modify: `src/platform.ts`
 - Test: `src/platform.test.ts`
 
@@ -129,7 +130,10 @@ export function detectPlatform(): Platform {
   const ua = navigator.userAgent;
   if (/Android/.test(ua)) return "android";
   // iPadOS 13+ Safari pretends to be Macintosh; touch support is the giveaway.
-  if (/iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && typeof document !== "undefined" && "ontouchend" in document)) {
+  if (
+    /iPhone|iPod/.test(ua) ||
+    (/Macintosh/.test(ua) && typeof document !== "undefined" && "ontouchend" in document)
+  ) {
     return "ios";
   }
   if (/Macintosh|Mac OS X/.test(ua)) return "macos";
@@ -161,6 +165,7 @@ git commit -m "feat(mobile): detect Android and iOS hosts in platform.ts"
 ## Task 2 — i18n: add the `mobile_*` namespace
 
 **Files:**
+
 - Modify: `src/i18n.ts`
 - Test: `src/i18n.test.ts`
 
@@ -281,6 +286,7 @@ git commit -m "i18n(mobile): add mobile_* keys in EN and FR"
 ## Task 3 — Mobile-only style utilities
 
 **Files:**
+
 - Create: `src/mobile/style.css`
 
 This task only adds CSS. No tests; visual validation happens in later screen tasks.
@@ -298,8 +304,12 @@ Create `src/mobile/style.css`:
  * cover idiomatically.
  */
 
-.safe-top { padding-top: max(env(safe-area-inset-top), 12px); }
-.safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 12px); }
+.safe-top {
+  padding-top: max(env(safe-area-inset-top), 12px);
+}
+.safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 12px);
+}
 
 /* iOS Liquid Glass surface — backdrop blur over scrolling content. */
 .glass-ios {
@@ -351,7 +361,9 @@ Create `src/mobile/style.css`:
   grid-template-rows: 1fr;
 }
 
-.pull-search-track > * { min-height: 0; }
+.pull-search-track > * {
+  min-height: 0;
+}
 ```
 
 - [ ] **Step 2: Run the existing test suite to make sure CSS doesn't break it**
@@ -371,6 +383,7 @@ git commit -m "feat(mobile): add mobile-only CSS utilities (glass, safe-area, sh
 ## Task 4 — Mobile signals
 
 **Files:**
+
 - Create: `src/mobile/state.ts`
 - Test: `src/mobile/state.test.ts`
 
@@ -438,6 +451,7 @@ git commit -m "feat(mobile): add mobile-only signals (vault sheet, search, setup
 ## Task 5 — `VaultAvatar` component
 
 **Files:**
+
 - Create: `src/mobile/VaultAvatar.tsx`
 - Test: `src/mobile/VaultAvatar.test.tsx`
 
@@ -528,6 +542,7 @@ git commit -m "feat(mobile): add VaultAvatar — tap opens vault sheet"
 ## Task 6 — `TopBar` component
 
 **Files:**
+
 - Create: `src/mobile/TopBar.tsx`
 - Test: `src/mobile/TopBar.test.tsx`
 
@@ -617,6 +632,7 @@ git commit -m "feat(mobile): add TopBar — logo, name, fingerprint chip, vault 
 ## Task 7 — `BottomNav` component
 
 **Files:**
+
 - Create: `src/mobile/BottomNav.tsx`
 - Test: `src/mobile/BottomNav.test.tsx`
 
@@ -689,7 +705,11 @@ interface Props {
   onChange: (tab: MobileTab) => void;
 }
 
-const TABS: Array<{ id: MobileTab; labelKey: "sidebar_accounts" | "sidebar_generator" | "sidebar_settings"; icon: (size: number) => preact.ComponentChild }> = [
+const TABS: Array<{
+  id: MobileTab;
+  labelKey: "sidebar_accounts" | "sidebar_generator" | "sidebar_settings";
+  icon: (size: number) => preact.ComponentChild;
+}> = [
   { id: "accounts", labelKey: "sidebar_accounts", icon: (s) => <IconUnlock size={s} /> },
   { id: "generator", labelKey: "sidebar_generator", icon: (s) => <IconKey size={s} /> },
   { id: "settings", labelKey: "sidebar_settings", icon: (s) => <IconSettings size={s} /> },
@@ -748,6 +768,7 @@ git commit -m "feat(mobile): add BottomNav with iOS Liquid Glass / Android opaqu
 ## Task 8 — `MobileShell` layout
 
 **Files:**
+
 - Create: `src/mobile/MobileShell.tsx`
 - Test: `src/mobile/MobileShell.test.tsx`
 
@@ -828,6 +849,7 @@ git commit -m "feat(mobile): add MobileShell — TopBar + scrollable content + B
 ## Task 9 — `MobileGeneratorScreen`
 
 **Files:**
+
 - Create: `src/mobile/screens/MobileGeneratorScreen.tsx`
 - Test: `src/mobile/screens/MobileGeneratorScreen.test.tsx`
 
@@ -866,13 +888,7 @@ import { api, describeError } from "../../api.js";
 import { t } from "../../i18n.js";
 import { SOFT_SPRING, TAP_SCALE } from "../../motion.js";
 import { copyWithAutoClear } from "../../api.js";
-import {
-  domain,
-  identifier,
-  generated,
-  errorMessage,
-  defaultProfile,
-} from "../../state.js";
+import { domain, identifier, generated, errorMessage, defaultProfile } from "../../state.js";
 
 export function MobileGeneratorScreen() {
   const onGenerate = useCallback(async () => {
@@ -915,7 +931,10 @@ export function MobileGeneratorScreen() {
           spellcheck={false}
           placeholder={t("main_domain_placeholder")}
           value={domain.value}
-          onInput={(e) => { domain.value = (e.target as HTMLInputElement).value; void onGenerate(); }}
+          onInput={(e) => {
+            domain.value = (e.target as HTMLInputElement).value;
+            void onGenerate();
+          }}
           class="bg-transparent outline-none text-[15px] text-(--color-ink)"
         />
       </label>
@@ -930,7 +949,10 @@ export function MobileGeneratorScreen() {
           autocomplete="off"
           spellcheck={false}
           value={identifier.value}
-          onInput={(e) => { identifier.value = (e.target as HTMLInputElement).value; void onGenerate(); }}
+          onInput={(e) => {
+            identifier.value = (e.target as HTMLInputElement).value;
+            void onGenerate();
+          }}
           class="bg-transparent outline-none text-[15px] text-(--color-ink)"
         />
       </label>
@@ -981,6 +1003,7 @@ git commit -m "feat(mobile): add MobileGeneratorScreen — domain/identifier/pas
 ## Task 10 — `MobileAccountsScreen` with pull-to-search
 
 **Files:**
+
 - Create: `src/mobile/screens/MobileAccountsScreen.tsx`
 - Test: `src/mobile/screens/MobileAccountsScreen.test.tsx`
 
@@ -1068,13 +1091,17 @@ export function MobileAccountsScreen({ accounts }: Props) {
   return (
     <section
       class="flex flex-col gap-2 pt-2 select-none"
-      onTouchStart={(e) => { startY.current = e.touches[0]?.clientY ?? null; }}
+      onTouchStart={(e) => {
+        startY.current = e.touches[0]?.clientY ?? null;
+      }}
       onTouchMove={(e) => {
         if (startY.current === null) return;
         const dy = (e.touches[0]?.clientY ?? 0) - startY.current;
         if (dy > PULL_OPEN_THRESHOLD && !pullOpen) setPullOpen(true);
       }}
-      onTouchEnd={() => { startY.current = null; }}
+      onTouchEnd={() => {
+        startY.current = null;
+      }}
     >
       <div class="pull-search-track" data-open={pullOpen}>
         <input
@@ -1083,8 +1110,12 @@ export function MobileAccountsScreen({ accounts }: Props) {
           inputMode="search"
           placeholder={t("mobile_accounts_search_placeholder")}
           value={searchQuery.value}
-          onInput={(e) => { searchQuery.value = (e.target as HTMLInputElement).value; }}
-          onBlur={() => { if (!searchQuery.value) setPullOpen(false); }}
+          onInput={(e) => {
+            searchQuery.value = (e.target as HTMLInputElement).value;
+          }}
+          onBlur={() => {
+            if (!searchQuery.value) setPullOpen(false);
+          }}
           class="w-full mb-3 px-4 py-3 rounded-2xl bg-(--color-surface-elev) border border-(--color-line) text-[15px] text-(--color-ink) outline-none"
         />
       </div>
@@ -1148,6 +1179,7 @@ git commit -m "feat(mobile): add MobileAccountsScreen with pull-to-search"
 ## Task 11 — `MobileSettingsScreen`
 
 **Files:**
+
 - Create: `src/mobile/screens/MobileSettingsScreen.tsx`
 - Test: `src/mobile/screens/MobileSettingsScreen.test.tsx`
 
@@ -1204,8 +1236,10 @@ interface Props {
   onLock?: () => void;
 }
 
-const SECTION_CLASSES = "rounded-2xl bg-(--color-surface-elev) border border-(--color-line) overflow-hidden";
-const ROW_CLASSES = "w-full flex items-center gap-3 px-4 py-3 text-left bg-transparent border-0 cursor-pointer text-[15px] text-(--color-ink)";
+const SECTION_CLASSES =
+  "rounded-2xl bg-(--color-surface-elev) border border-(--color-line) overflow-hidden";
+const ROW_CLASSES =
+  "w-full flex items-center gap-3 px-4 py-3 text-left bg-transparent border-0 cursor-pointer text-[15px] text-(--color-ink)";
 
 function SectionHeader({ children }: { children: preact.ComponentChildren }) {
   return (
@@ -1225,12 +1259,7 @@ export function MobileSettingsScreen({ onLock }: Props) {
     >
       <SectionHeader>{t("mobile_settings_section_lock")}</SectionHeader>
       <div class={SECTION_CLASSES}>
-        <button
-          type="button"
-          data-action="lock"
-          class={ROW_CLASSES}
-          onClick={() => onLock?.()}
-        >
+        <button type="button" data-action="lock" class={ROW_CLASSES} onClick={() => onLock?.()}>
           <IconLock size={18} />
           <span>{t("sidebar_lock")}</span>
         </button>
@@ -1238,9 +1267,7 @@ export function MobileSettingsScreen({ onLock }: Props) {
 
       <SectionHeader>{t("mobile_settings_section_account")}</SectionHeader>
       <div class={SECTION_CLASSES}>
-        <p class="px-4 py-3 text-[13px] text-(--color-ink-muted)">
-          {t("settings_intro") ?? ""}
-        </p>
+        <p class="px-4 py-3 text-[13px] text-(--color-ink-muted)">{t("settings_intro") ?? ""}</p>
       </div>
 
       <SectionHeader>{t("mobile_settings_section_sync")}</SectionHeader>
@@ -1249,9 +1276,11 @@ export function MobileSettingsScreen({ onLock }: Props) {
           <span
             class={
               "inline-block h-2 w-2 rounded-full " +
-              (syncServerStatus.value === "online" ? "bg-emerald-500"
-                : syncServerStatus.value === "offline" ? "bg-red-500"
-                : "bg-amber-400")
+              (syncServerStatus.value === "online"
+                ? "bg-emerald-500"
+                : syncServerStatus.value === "offline"
+                  ? "bg-red-500"
+                  : "bg-amber-400")
             }
           />
           <span class="text-(--color-ink-muted)">{syncServerStatus.value}</span>
@@ -1289,6 +1318,7 @@ git commit -m "feat(mobile): add MobileSettingsScreen scaffold with Lock row and
 ## Task 12 — `VaultSheet`
 
 **Files:**
+
 - Create: `src/mobile/VaultSheet.tsx`
 - Test: `src/mobile/VaultSheet.test.tsx`
 
@@ -1306,7 +1336,16 @@ describe("<VaultSheet />", () => {
   it("renders nothing when closed", () => {
     vaultSheetOpen.value = false;
     const root = document.createElement("div");
-    render(<VaultSheet platform="ios" vaults={[]} onSwitch={() => {}} onLock={() => {}} onNew={() => {}} />, root);
+    render(
+      <VaultSheet
+        platform="ios"
+        vaults={[]}
+        onSwitch={() => {}}
+        onLock={() => {}}
+        onNew={() => {}}
+      />,
+      root,
+    );
     expect(root.textContent?.trim()).toBe("");
   });
 
@@ -1374,7 +1413,9 @@ export function VaultSheet({ platform, vaults, onSwitch, onLock, onNew }: Props)
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             class="fixed inset-0 z-50 bg-black/40"
-            onClick={() => { vaultSheetOpen.value = false; }}
+            onClick={() => {
+              vaultSheetOpen.value = false;
+            }}
           />
           <motion.div
             initial={{ y: "100%" }}
@@ -1393,7 +1434,10 @@ export function VaultSheet({ platform, vaults, onSwitch, onLock, onNew }: Props)
                   <button
                     type="button"
                     class="w-full flex items-center gap-3 px-3 py-3 rounded-2xl bg-transparent border-0 cursor-pointer text-left"
-                    onClick={() => { onSwitch(vault.id); vaultSheetOpen.value = false; }}
+                    onClick={() => {
+                      onSwitch(vault.id);
+                      vaultSheetOpen.value = false;
+                    }}
                   >
                     <span class="w-9 h-9 rounded-full bg-(--color-surface-sunken) grid place-items-center text-[16px]">
                       {firstEmoji(vault.fingerprint)}
@@ -1414,9 +1458,14 @@ export function VaultSheet({ platform, vaults, onSwitch, onLock, onNew }: Props)
                 <button
                   type="button"
                   class="w-full flex items-center gap-3 px-3 py-3 rounded-2xl bg-transparent border-0 cursor-pointer text-[15px] text-(--color-ink)"
-                  onClick={() => { onNew(); vaultSheetOpen.value = false; }}
+                  onClick={() => {
+                    onNew();
+                    vaultSheetOpen.value = false;
+                  }}
                 >
-                  <span class="w-9 h-9 rounded-full bg-(--color-surface-sunken) grid place-items-center text-[18px]">＋</span>
+                  <span class="w-9 h-9 rounded-full bg-(--color-surface-sunken) grid place-items-center text-[18px]">
+                    ＋
+                  </span>
                   {t("mobile_vault_sheet_new")}
                 </button>
               </li>
@@ -1424,7 +1473,10 @@ export function VaultSheet({ platform, vaults, onSwitch, onLock, onNew }: Props)
                 <button
                   type="button"
                   class="w-full flex items-center gap-3 px-3 py-3 rounded-2xl bg-transparent border-0 cursor-pointer text-[15px] text-(--color-ink)"
-                  onClick={() => { onLock(); vaultSheetOpen.value = false; }}
+                  onClick={() => {
+                    onLock();
+                    vaultSheetOpen.value = false;
+                  }}
                 >
                   <span class="w-9 h-9 rounded-full bg-(--color-surface-sunken) grid place-items-center">
                     <IconLock size={16} />
@@ -1458,6 +1510,7 @@ git commit -m "feat(mobile): add VaultSheet — switch vault, new vault, lock no
 ## Task 13 — `MobileSetupScreen` and `MobileUnlockScreen`
 
 **Files:**
+
 - Create: `src/mobile/screens/MobileSetupScreen.tsx`
 - Create: `src/mobile/screens/MobileUnlockScreen.tsx`
 - Test: `src/mobile/screens/MobileSetupScreen.test.tsx`
@@ -1543,9 +1596,10 @@ export function MobileSetupScreen({ mode, onCancel }: Props) {
     }
     setBusy(true);
     try {
-      const res = mode === "first-run"
-        ? await api.setup({ masterPassword: master })
-        : await api.startNewVault({ masterPassword: master });
+      const res =
+        mode === "first-run"
+          ? await api.setup({ masterPassword: master })
+          : await api.startNewVault({ masterPassword: master });
       fingerprint.value = res.fingerprint;
     } catch (err) {
       errorMessage.value = describeError(err);
@@ -1576,9 +1630,7 @@ export function MobileSetupScreen({ mode, onCancel }: Props) {
         ) : null}
       </header>
 
-      <p class="text-[14px] leading-relaxed text-(--color-ink-muted)">
-        {t("setup_intro")}
-      </p>
+      <p class="text-[14px] leading-relaxed text-(--color-ink-muted)">{t("setup_intro")}</p>
 
       <form class="flex flex-col gap-4" onSubmit={onSubmit}>
         <label class="flex flex-col gap-1.5">
@@ -1720,6 +1772,7 @@ git commit -m "feat(mobile): add MobileSetupScreen and MobileUnlockScreen"
 ## Task 14 — `MobileApp` root + main.tsx switch
 
 **Files:**
+
 - Create: `src/mobile/MobileApp.tsx`
 - Modify: `src/main.tsx`
 - Test: `src/mobile/MobileApp.test.tsx`
@@ -1775,10 +1828,16 @@ import "./style.css";
 
 export function MobileApp() {
   const platform = detectPlatform() === "android" ? "android" : "ios";
-  const [accounts, setAccounts] = useState<Array<{ id: string; domain: string; identifier: string; lastUsed: number }>>([]);
-  const [vaults, setVaults] = useState<Array<{ id: string; name: string; fingerprint: string; active: boolean }>>([]);
+  const [accounts, setAccounts] = useState<
+    Array<{ id: string; domain: string; identifier: string; lastUsed: number }>
+  >([]);
+  const [vaults, setVaults] = useState<
+    Array<{ id: string; name: string; fingerprint: string; active: boolean }>
+  >([]);
 
-  useEffect(() => { void bootstrap(); }, []);
+  useEffect(() => {
+    void bootstrap();
+  }, []);
 
   useEffect(() => {
     if (screen.value === "shell") {
@@ -1792,7 +1851,10 @@ export function MobileApp() {
           errorMessage.value = describeError(err);
         }
       })();
-      return () => { stopAutoSync(); stopSyncStatusMonitor(); };
+      return () => {
+        stopAutoSync();
+        stopSyncStatusMonitor();
+      };
     }
     return undefined;
   }, [screen.value]);
@@ -1814,18 +1876,36 @@ export function MobileApp() {
   return (
     <AnimatePresence mode="wait" initial={false}>
       {screen.value === "setup" ? (
-        <motion.div key="setup" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+        <motion.div
+          key="setup"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
           <MobileSetupScreen
             mode={additionalVaultMode.value ? "additional" : "first-run"}
-            onCancel={() => { additionalVaultMode.value = false; screen.value = "shell"; }}
+            onCancel={() => {
+              additionalVaultMode.value = false;
+              screen.value = "shell";
+            }}
           />
         </motion.div>
       ) : screen.value === "unlock" ? (
-        <motion.div key="unlock" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+        <motion.div
+          key="unlock"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
           <MobileUnlockScreen hasPin={hasPin.value} />
         </motion.div>
       ) : screen.value === "shell" ? (
-        <motion.div key="shell" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+        <motion.div
+          key="shell"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
           <MobileShell
             active={activeTab}
             platform={platform}
@@ -1839,13 +1919,23 @@ export function MobileApp() {
           <VaultSheet
             platform={platform}
             vaults={vaults}
-            onSwitch={async (id) => { await api.switchVault(id); }}
+            onSwitch={async (id) => {
+              await api.switchVault(id);
+            }}
             onLock={onLock}
-            onNew={() => { additionalVaultMode.value = true; screen.value = "setup"; }}
+            onNew={() => {
+              additionalVaultMode.value = true;
+              screen.value = "setup";
+            }}
           />
         </motion.div>
       ) : (
-        <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+        <motion.div
+          key="loading"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
           <p class="p-6 text-(--color-ink-muted)">…</p>
         </motion.div>
       )}
@@ -1858,8 +1948,14 @@ async function bootstrap() {
     const status = await api.status();
     fingerprint.value = status.fingerprint;
     hasPin.value = status.hasPin;
-    if (status.isFirstRun) { screen.value = "setup"; return; }
-    if (status.locked) { screen.value = "unlock"; return; }
+    if (status.isFirstRun) {
+      screen.value = "setup";
+      return;
+    }
+    if (status.locked) {
+      screen.value = "unlock";
+      return;
+    }
     const state = await api.getState();
     historyEnabled.value = state.historyEnabled;
     faviconFallbackEnabled.value = state.faviconFallbackEnabled;
