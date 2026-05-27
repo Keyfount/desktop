@@ -52,29 +52,6 @@ final class CreateAccountViewController: UITableViewController, UITextFieldDeleg
 
     // MARK: - UI components
 
-    private lazy var navigationBar: UINavigationBar = {
-        let bar = UINavigationBar()
-        bar.translatesAutoresizingMaskIntoConstraints = false
-        let appearance = UINavigationBarAppearance()
-        appearance.configureWithDefaultBackground()
-        appearance.backgroundColor = KeyfountTheme.surface.withAlphaComponent(0.85)
-        appearance.shadowColor = KeyfountTheme.line
-        appearance.titleTextAttributes = [
-            .foregroundColor: KeyfountTheme.ink,
-            .font: KeyfountTheme.Font.title(),
-        ]
-        bar.standardAppearance = appearance
-        bar.scrollEdgeAppearance = appearance
-        bar.tintColor = KeyfountTheme.accent
-
-        let item = UINavigationItem(title: "Nouveau compte")
-        let leftBtn = createCircularButton(systemName: "xmark", action: #selector(handleCancel))
-        item.leftBarButtonItem = UIBarButtonItem(customView: leftBtn)
-        item.rightBarButtonItem = UIBarButtonItem(customView: saveButton)
-        bar.items = [item]
-        return bar
-    }()
-
     private lazy var saveButton: UIButton = {
         let btn = createCircularButton(systemName: "checkmark", action: #selector(handleSave))
         btn.isEnabled = false
@@ -174,17 +151,25 @@ final class CreateAccountViewController: UITableViewController, UITextFieldDeleg
         KeyfountTheme.registerBundledFonts()
         view.backgroundColor = KeyfountTheme.surface
 
-        // The table is the root view of UITableViewController, but we
-        // still need our own nav bar (no parent UINavigationController
-        // when presented from the credential extension).
-        let nav = navigationBar
-        view.addSubview(nav)
-        NSLayoutConstraint.activate([
-            nav.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            nav.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            nav.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-        ])
-        tableView.contentInset.top = nav.intrinsicContentSize.height
+        if let navBar = navigationController?.navigationBar {
+            let appearance = UINavigationBarAppearance()
+            appearance.configureWithDefaultBackground()
+            appearance.backgroundColor = KeyfountTheme.surface.withAlphaComponent(0.85)
+            appearance.shadowColor = KeyfountTheme.line
+            appearance.titleTextAttributes = [
+                .foregroundColor: KeyfountTheme.ink,
+                .font: KeyfountTheme.Font.title(),
+            ]
+            navBar.standardAppearance = appearance
+            navBar.scrollEdgeAppearance = appearance
+            navBar.tintColor = KeyfountTheme.accent
+        }
+
+        title = "Nouveau compte"
+        let leftBtn = createCircularButton(systemName: "xmark", action: #selector(handleCancel))
+        navigationItem.leftBarButtonItem = UIBarButtonItem(customView: leftBtn)
+        navigationItem.rightBarButtonItem = UIBarButtonItem(customView: saveButton)
+
         tableView.backgroundColor = KeyfountTheme.surface
         tableView.separatorColor = KeyfountTheme.line
 

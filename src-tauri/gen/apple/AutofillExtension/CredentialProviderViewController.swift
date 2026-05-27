@@ -458,9 +458,6 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
             self?.commitCreatedAccount(payload)
         }
         let nav = UINavigationController(rootViewController: vc)
-        // The CreateAccountVC paints its own UINavigationBar, so we
-        // hide the parent nav's bar and present as a form sheet.
-        nav.setNavigationBarHidden(true, animated: false)
         nav.modalPresentationStyle = .formSheet
         present(nav, animated: true)
     }
