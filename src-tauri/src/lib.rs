@@ -44,10 +44,10 @@ impl AppState {
     }
 }
 
-/// Reopen whichever vault `vaults.json` lists as active. Called once at
-/// boot so subsequent `status()` calls reflect "locked, existing vault"
-/// instead of "first run", which prevents the setup screen from creating
-/// a duplicate entry over the one already on disk.
+/// Mark whichever vault `vaults.json` lists as active so subsequent
+/// `status()` calls reflect "locked, existing vault" instead of "first
+/// run". With SQLCipher we can't open the DB here — the master isn't
+/// available yet — so we only record the active-vault identity.
 async fn restore_active_vault(
     store: &Arc<Mutex<store::StoreHandle>>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -60,9 +60,8 @@ async fn restore_active_vault(
         return Ok(());
     }
     let dir = store::vaults::vault_dir(&active_id);
-    let handle = store::StoreHandle::open(active_id, &dir)?;
     let mut guard = store.lock().await;
-    *guard = handle;
+    guard.set_active(active_id, &dir)?;
     Ok(())
 }
 
@@ -279,20 +278,69 @@ pub fn run() {
 use std::os::raw::c_char;
 use std::ffi::{CStr, CString};
 
+// ===========================================================================
+// iOS AutoFill FFI surface.
+//
+// The AutoFill extension lives in a separate process and cannot use the
+// Tauri IPC. Instead it links `libapp.a` and calls the C ABI surface
+// declared here. Every entry point that touches the vault DB now takes
+// the master password so we can derive the SQLCipher page key on the
+// fly — there's no shared in-memory session between the extension and
+// the main app. The master only lives in extension memory for the
+// duration of the autofill presentation (the Swift caller zeros it on
+// dismiss).
+//
+// Safety contract (shared by every `unsafe extern "C" fn` below):
+// - Pointers must either be null OR point to NUL-terminated valid
+//   UTF-8 strings with the standard C-string lifetime.
+// - `*mut c_char` returns are heap-allocated by Rust (`CString::into_raw`)
+//   and MUST be released via `free_password_ffi` to avoid leaks.
+// - Calls are NOT thread-safe with respect to each other on the same
+//   vault directory — the Swift caller serialises them inside the
+//   extension presentation lifecycle.
+//
+// clippy::missing_safety_doc fires per-function and demands a # Safety
+// section on each — but the contract is identical across the surface
+// and documented once above. Suppress globally for the FFI block.
+// ===========================================================================
+
+/// Helper: read a C string from a pointer or return `None` on null.
+unsafe fn c_str_to_string(ptr: *const c_char) -> Option<String> {
+    if ptr.is_null() {
+        return None;
+    }
+    Some(unsafe { CStr::from_ptr(ptr) }.to_string_lossy().into_owned())
+}
+
+/// Convert a Rust string into a `CString` raw pointer or null on error.
+/// Caller MUST release with `free_password_ffi`.
+fn rust_string_to_c(s: String) -> *mut c_char {
+    match CString::new(s) {
+        Ok(c) => c.into_raw(),
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
 #[unsafe(no_mangle)]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn derive_password_ffi(
     master: *const c_char,
     domain: *const c_char,
     email: *const c_char,
     profile_json: *const c_char,
 ) -> *mut c_char {
-    if master.is_null() || domain.is_null() || email.is_null() || profile_json.is_null() {
+    let Some(master) = (unsafe { c_str_to_string(master) }) else {
         return std::ptr::null_mut();
-    }
-    let master = unsafe { CStr::from_ptr(master) }.to_string_lossy().into_owned();
-    let domain = unsafe { CStr::from_ptr(domain) }.to_string_lossy().into_owned();
-    let email = unsafe { CStr::from_ptr(email) }.to_string_lossy().into_owned();
-    let profile_json = unsafe { CStr::from_ptr(profile_json) }.to_string_lossy().into_owned();
+    };
+    let Some(domain) = (unsafe { c_str_to_string(domain) }) else {
+        return std::ptr::null_mut();
+    };
+    let Some(email) = (unsafe { c_str_to_string(email) }) else {
+        return std::ptr::null_mut();
+    };
+    let Some(profile_json) = (unsafe { c_str_to_string(profile_json) }) else {
+        return std::ptr::null_mut();
+    };
 
     let resolved_profile: types::Profile = match serde_json::from_str(&profile_json) {
         Ok(p) => p,
@@ -311,76 +359,60 @@ pub unsafe extern "C" fn derive_password_ffi(
         Err(_) => return std::ptr::null_mut(),
     };
 
-    let c_str = match CString::new(password) {
-        Ok(s) => s,
-        Err(_) => return std::ptr::null_mut(),
-    };
-    c_str.into_raw()
+    rust_string_to_c(password)
 }
 
-/// Verify a candidate master against the fingerprint stored in the
-/// vault's `settings` row. The extension reads `expected_fp_hex` from
-/// SQLite directly and passes both strings here so we can run the same
-/// Argon2id derivation as the IPC `unlock` command without exposing
-/// the full session state across the C boundary.
+/// Verify a candidate master by attempting to open the active vault's
+/// SQLCipher database with it. With the SQLite-3 plaintext format
+/// retired we can no longer pre-read the fingerprint from disk — the
+/// canonical "did this master decrypt the DB" check is now the open
+/// itself.
 ///
-/// Returns 1 on match, 0 on mismatch, -1 on argument/derivation error.
+/// Returns 1 if the master decrypted the DB, 0 if it didn't, -1 on
+/// argument / IO error (no active vault, missing salt file, etc.).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn verify_master_ffi(
-    master: *const c_char,
-    expected_fp_hex: *const c_char,
-) -> i32 {
-    if master.is_null() || expected_fp_hex.is_null() {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn verify_master_ffi(master: *const c_char) -> i32 {
+    let Some(master) = (unsafe { c_str_to_string(master) }) else {
         return -1;
+    };
+    match open_active_vault_db(&master) {
+        Ok(_) => 1,
+        Err(error::AppError::Locked) => 0,
+        Err(e) => {
+            tracing::warn!(?e, "Autofill FFI: verify_master_ffi error");
+            -1
+        }
     }
-    let master = unsafe { CStr::from_ptr(master) }.to_string_lossy().into_owned();
-    let expected_hex = unsafe { CStr::from_ptr(expected_fp_hex) }
-        .to_string_lossy()
-        .into_owned();
-
-    let computed = match crypto::fingerprint_master(&master) {
-        Ok(fp) => fp,
-        Err(_) => return -1,
-    };
-
-    let expected = match hex::decode(expected_hex.trim()) {
-        Ok(bytes) if bytes.len() == 3 => bytes,
-        _ => return -1,
-    };
-
-    let eq: bool = subtle::ConstantTimeEq::ct_eq(&expected[..], &computed[..]).into();
-    if eq { 1 } else { 0 }
 }
 
 /// Persist a new (or existing) account in the active vault from the
-/// AutoFill extension. The extension cannot call the regular Tauri IPC
-/// `record_account` command — it runs in a separate process with no
-/// app handle — so we resolve the vault path ourselves and reuse the
-/// same SQL upsert as `store::accounts::record`.
+/// AutoFill extension. Reuses the same SQL upsert as
+/// `store::accounts::record`.
 ///
-/// `last_synced_at` is left NULL so `try_push_pending_ffi` (and the
-/// app's post-unlock drain) can find the entry and push it later.
-///
-/// Returns 1 on success, 0 on bad input / JSON, -1 on storage error.
+/// Returns 1 on success, 0 on bad input / JSON, -1 on storage error
+/// (including wrong master, which surfaces as a SQLCipher open error).
 #[unsafe(no_mangle)]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn record_account_ffi(
+    master: *const c_char,
     domain: *const c_char,
     username: *const c_char,
     profile_json: *const c_char,
 ) -> i32 {
-    if domain.is_null() || username.is_null() || profile_json.is_null() {
+    let Some(master) = (unsafe { c_str_to_string(master) }) else {
         return 0;
-    }
-    let domain = unsafe { CStr::from_ptr(domain) }
-        .to_string_lossy()
-        .trim()
-        .to_lowercase();
-    let username = unsafe { CStr::from_ptr(username) }
-        .to_string_lossy()
-        .into_owned();
-    let profile_json = unsafe { CStr::from_ptr(profile_json) }
-        .to_string_lossy()
-        .into_owned();
+    };
+    let Some(domain_raw) = (unsafe { c_str_to_string(domain) }) else {
+        return 0;
+    };
+    let Some(username) = (unsafe { c_str_to_string(username) }) else {
+        return 0;
+    };
+    let Some(profile_json) = (unsafe { c_str_to_string(profile_json) }) else {
+        return 0;
+    };
+    let domain = domain_raw.trim().to_lowercase();
 
     if domain.is_empty() || username.trim().is_empty() {
         return 0;
@@ -393,7 +425,7 @@ pub unsafe extern "C" fn record_account_ffi(
         }
     };
 
-    match open_active_vault_db() {
+    match open_active_vault_db(&master) {
         Ok(conn) => {
             let now = store::vaults::now_ms();
             let entry = types::AccountEntry {
@@ -404,10 +436,7 @@ pub unsafe extern "C" fn record_account_ffi(
                 last_used_at: now,
             };
             match store::accounts::record(&conn, &entry) {
-                Ok(_) => {
-                    eprintln!("Autofill FFI: successfully recorded account");
-                    1
-                }
+                Ok(_) => 1,
                 Err(e) => {
                     eprintln!("Autofill FFI: failed to record account in DB: {:?}", e);
                     -1
@@ -421,51 +450,188 @@ pub unsafe extern "C" fn record_account_ffi(
     }
 }
 
-/// Resolve the active vault's SQLite file and return an open
-/// connection with the schema migrations applied. Shared by every FFI
-/// entrypoint that needs to read or write account data.
-fn open_active_vault_db() -> Result<rusqlite::Connection, error::AppError> {
-    let reg_path = store::vaults::registry_path();
-    eprintln!("Autofill FFI: registry path resolved to {:?}", reg_path);
-    let registry = match store::vaults::VaultRegistry::load(&reg_path) {
-        Ok(r) => r,
-        Err(e) => {
-            eprintln!("Autofill FFI: failed to load vault registry: {:?}", e);
-            return Err(e);
-        }
+/// Read the master fingerprint hex from `settings.fingerprint`. The
+/// Swift caller used to read this directly from SQLite; now it has to
+/// go through the SQLCipher-aware code path. Returns the fingerprint
+/// as a 6-character hex string (caller must `free_password_ffi`), or
+/// null on any error.
+#[unsafe(no_mangle)]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn vault_load_fingerprint_ffi(master: *const c_char) -> *mut c_char {
+    let Some(master) = (unsafe { c_str_to_string(master) }) else {
+        return std::ptr::null_mut();
     };
+    let conn = match open_active_vault_db(&master) {
+        Ok(c) => c,
+        Err(_) => return std::ptr::null_mut(),
+    };
+    let row: Result<Option<String>, _> = conn.query_row(
+        "SELECT fingerprint FROM settings WHERE id = 1",
+        [],
+        |r| r.get(0),
+    );
+    match row {
+        Ok(Some(hex)) => rust_string_to_c(hex),
+        _ => std::ptr::null_mut(),
+    }
+}
+
+/// Read the `favicon_fallback_enabled` boolean from settings. Defaults
+/// to 1 (enabled) when the column is missing or the DB read fails.
+/// Returns 1 / 0; -1 on master/IO error.
+#[unsafe(no_mangle)]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn vault_load_favicon_fallback_ffi(master: *const c_char) -> i32 {
+    let Some(master) = (unsafe { c_str_to_string(master) }) else {
+        return -1;
+    };
+    let conn = match open_active_vault_db(&master) {
+        Ok(c) => c,
+        Err(_) => return -1,
+    };
+    let row: Result<Option<i64>, _> = conn.query_row(
+        "SELECT favicon_fallback_enabled FROM settings WHERE id = 1",
+        [],
+        |r| r.get(0),
+    );
+    match row {
+        Ok(Some(v)) => {
+            if v != 0 {
+                1
+            } else {
+                0
+            }
+        }
+        _ => 1,
+    }
+}
+
+/// Read the vault's default-profile JSON. Returns the JSON string the
+/// app stored at last save (caller must free) or null on error / when
+/// the row is missing.
+#[unsafe(no_mangle)]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn vault_load_default_profile_ffi(master: *const c_char) -> *mut c_char {
+    let Some(master) = (unsafe { c_str_to_string(master) }) else {
+        return std::ptr::null_mut();
+    };
+    let conn = match open_active_vault_db(&master) {
+        Ok(c) => c,
+        Err(_) => return std::ptr::null_mut(),
+    };
+    let row: Result<Option<String>, _> = conn.query_row(
+        "SELECT default_profile_json FROM settings WHERE id = 1",
+        [],
+        |r| r.get(0),
+    );
+    match row {
+        Ok(Some(json)) => rust_string_to_c(json),
+        _ => std::ptr::null_mut(),
+    }
+}
+
+/// List every account in the vault as a JSON array of
+/// `{domain, username, profile_json}` objects, ordered by
+/// `last_used_at DESC`. Returns a freshly-allocated C string the
+/// caller must free, or null on error.
+#[unsafe(no_mangle)]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn vault_load_accounts_ffi(master: *const c_char) -> *mut c_char {
+    let Some(master) = (unsafe { c_str_to_string(master) }) else {
+        return std::ptr::null_mut();
+    };
+    let conn = match open_active_vault_db(&master) {
+        Ok(c) => c,
+        Err(_) => return std::ptr::null_mut(),
+    };
+    let mut stmt = match conn.prepare(
+        "SELECT domain, username, profile_json
+         FROM accounts
+         ORDER BY last_used_at DESC",
+    ) {
+        Ok(s) => s,
+        Err(_) => return std::ptr::null_mut(),
+    };
+    let rows = match stmt.query_map([], |r| {
+        Ok((
+            r.get::<_, String>(0)?,
+            r.get::<_, String>(1)?,
+            r.get::<_, String>(2)?,
+        ))
+    }) {
+        Ok(it) => it,
+        Err(_) => return std::ptr::null_mut(),
+    };
+    let mut out: Vec<serde_json::Value> = Vec::new();
+    for row in rows {
+        let Ok((domain, username, profile_json)) = row else {
+            continue;
+        };
+        out.push(serde_json::json!({
+            "domain": domain,
+            "username": username,
+            "profile_json": profile_json,
+        }));
+    }
+    match serde_json::to_string(&out) {
+        Ok(json) => rust_string_to_c(json),
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
+/// Resolve the active vault's SQLite file and return an open SQLCipher
+/// connection with the per-vault page key set and the schema applied.
+/// Shared by every FFI entry point that needs to read or write account
+/// data. Returns `AppError::Locked` on wrong-master / encrypted-without-key.
+fn open_active_vault_db(master: &str) -> Result<rusqlite::Connection, error::AppError> {
+    let reg_path = store::vaults::registry_path();
+    let registry = store::vaults::VaultRegistry::load(&reg_path)?;
     let active_id = match registry.active_id.clone() {
         Some(id) => id,
-        None => {
-            eprintln!("Autofill FFI: no active vault ID found in registry");
-            return Err(error::AppError::invalid("no active vault"));
-        }
+        None => return Err(error::AppError::invalid("no active vault")),
     };
-    let db_path = store::vaults::vault_dir(&active_id).join("vault.db");
-    eprintln!("Autofill FFI: database path resolved to {:?}", db_path);
-    
-    // Ensure the parent directory exists
-    if let Some(parent) = db_path.parent() {
-        if let Err(e) = std::fs::create_dir_all(parent) {
-            eprintln!("Autofill FFI: failed to create vault dir: {:?}", e);
-        }
+    let dir = store::vaults::vault_dir(&active_id);
+    let db_path = dir.join("vault.db");
+
+    // Ensure the parent directory exists.
+    std::fs::create_dir_all(&dir)?;
+
+    // If the file is a plaintext v1 SQLite DB on disk, migrate it in
+    // place using the supplied master. This makes the FFI tolerant of
+    // installs that upgraded from a pre-encryption build but never
+    // opened the main app afterwards.
+    if db_path.exists() && store::handle::is_plaintext_sqlite(&db_path)? {
+        tracing::info!(?db_path, "Autofill FFI: migrating plaintext vault.db");
+        store::handle::migrate_plaintext_v1_to_encrypted(&db_path, &dir, master)?;
     }
 
-    let conn = match rusqlite::Connection::open(&db_path) {
-        Ok(c) => c,
-        Err(e) => {
-            eprintln!("Autofill FFI: failed to open SQLite connection: {:?}", e);
-            return Err(e.into());
+    let salt = store::db_key::ensure_salt(&dir)?;
+    let key = store::db_key::derive_key(master, &salt)?;
+    let conn = rusqlite::Connection::open(&db_path)?;
+    let literal = store::db_key::pragma_key_literal(&key);
+    conn.execute_batch(&format!("PRAGMA key = \"{literal}\";"))
+        .map_err(|e| error::AppError::Storage(format!("PRAGMA key: {e}")))?;
+    // Touch page 1 — wrong key surfaces here as SQLITE_NOTADB.
+    match conn.query_row("SELECT count(*) FROM sqlite_master", [], |r| r.get::<_, i64>(0)) {
+        Ok(_) => {}
+        Err(rusqlite::Error::SqliteFailure(e, _))
+            if matches!(
+                e.code,
+                rusqlite::ffi::ErrorCode::NotADatabase | rusqlite::ffi::ErrorCode::DatabaseCorrupt
+            ) =>
+        {
+            return Err(error::AppError::Locked);
         }
-    };
-    if let Err(e) = store::schema::ensure_schema(&conn) {
-        eprintln!("Autofill FFI: failed to ensure schema: {:?}", e);
-        return Err(e);
+        Err(e) => return Err(e.into()),
     }
+    conn.pragma_update(None, "journal_mode", "WAL").ok();
+    conn.pragma_update(None, "synchronous", "NORMAL").ok();
+    store::schema::ensure_schema(&conn)?;
     Ok(conn)
 }
 
 #[unsafe(no_mangle)]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn free_password_ffi(s: *mut c_char) {
     if !s.is_null() {
         unsafe {

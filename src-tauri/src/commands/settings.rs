@@ -114,11 +114,15 @@ pub async fn wipe(state: State<'_, AppState>) -> AppResult<()> {
     let mut session = state.session.lock().await;
     session.lock();
     let mut store = state.store.lock().await;
-    if let Ok(open) = store.require() {
-        let path = open.path.clone();
-        let vault_id = open.vault_id.clone();
-        store.close();
-        let _ = std::fs::remove_file(&path);
+    // Wipe should work whether the vault is currently open or just
+    // registered-but-locked. Pull the identity from whichever state
+    // we're in, then nuke the whole vault directory (DB + WAL/SHM +
+    // db-salt sidecar + sync-session file) in one go.
+    let vault_id = store.active_id().map(str::to_string);
+    let dir = store.active_dir();
+    store.clear();
+    if let (Some(vault_id), Some(dir)) = (vault_id, dir) {
+        let _ = std::fs::remove_dir_all(&dir);
         let mut registry =
             crate::store::vaults::VaultRegistry::load(crate::store::vaults::registry_path())?;
         registry.remove(&vault_id);

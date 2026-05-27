@@ -39,6 +39,25 @@ Keyfount Desktop inherits the threat model of the deterministic password manager
 
 If you find a deviation from any of these, please report it.
 
+## At-rest encryption boundary
+
+The vault SQLite database (`vault.db`, plus its `vault.db-wal` and `vault.db-shm` sidecars) is encrypted at rest with **SQLCipher AES-256** at the page level. The page key is derived from the master password and a per-vault random salt via Argon2id (same parameters as #2 above). The salt sidecar (`db-salt`) is not a secret — it exists only to make every vault's page key independent.
+
+**Inside the boundary (master-encrypted on disk):**
+
+- Every saved account: domain, username, generation profile, created/last-used/last-synced timestamps.
+- Every per-site override profile.
+- The vault's default profile and user preferences (auto-lock timeout, clipboard timer, history toggle, favicon-fallback toggle).
+- The 3-byte master fingerprint stored in the `settings` row (a duplicate of the registry-level copy used for the quick wrong-password pre-check).
+
+**Outside the boundary (intentionally plaintext):**
+
+- `vaults.json` — the registry of vault IDs and 3-byte public fingerprints. Contains no domains, usernames, or profile parameters. The fingerprint is one-way and is meant to be visible (the user displays it to confirm they typed the right master).
+- `db-salt` — per-vault random salt for the page-key KDF. Not secret.
+- `sync-session.json` — already encrypted under its own master-derived envelope (AES-256-GCM, see `crypto::master_kek`).
+
+An attacker who exfiltrates the entire per-vault directory still needs to crack the master at the Argon2id work factor to learn anything beyond the vault ID and the 3-byte fingerprint.
+
 ## Disclosure
 
 We aim for a 90-day coordinated disclosure window from the date of first contact. We will credit reporters in release notes unless they prefer to remain anonymous.

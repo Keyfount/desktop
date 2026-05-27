@@ -1,9 +1,11 @@
 import AuthenticationServices
 import LocalAuthentication
 import UIKit
-import SQLite3
 
 // Bridge to the Rust core compiled into libapp.a — see src-tauri/src/lib.rs.
+// The vault DB is encrypted with SQLCipher; every entry point that
+// reads vault data takes the master so the Rust side can derive the
+// page key and apply `PRAGMA key` before opening the SQLite handle.
 @_silgen_name("derive_password_ffi")
 func rust_derive_password(_ master: UnsafePointer<Int8>?, _ domain: UnsafePointer<Int8>?, _ email: UnsafePointer<Int8>?, _ profile_json: UnsafePointer<Int8>?) -> UnsafeMutablePointer<Int8>?
 
@@ -11,10 +13,22 @@ func rust_derive_password(_ master: UnsafePointer<Int8>?, _ domain: UnsafePointe
 func rust_free_password(_ s: UnsafeMutablePointer<Int8>?)
 
 @_silgen_name("verify_master_ffi")
-func rust_verify_master(_ master: UnsafePointer<Int8>?, _ expected_fp_hex: UnsafePointer<Int8>?) -> Int32
+func rust_verify_master(_ master: UnsafePointer<Int8>?) -> Int32
 
 @_silgen_name("record_account_ffi")
-func rust_record_account(_ domain: UnsafePointer<Int8>?, _ username: UnsafePointer<Int8>?, _ profile_json: UnsafePointer<Int8>?) -> Int32
+func rust_record_account(_ master: UnsafePointer<Int8>?, _ domain: UnsafePointer<Int8>?, _ username: UnsafePointer<Int8>?, _ profile_json: UnsafePointer<Int8>?) -> Int32
+
+@_silgen_name("vault_load_fingerprint_ffi")
+func rust_vault_load_fingerprint(_ master: UnsafePointer<Int8>?) -> UnsafeMutablePointer<Int8>?
+
+@_silgen_name("vault_load_favicon_fallback_ffi")
+func rust_vault_load_favicon_fallback(_ master: UnsafePointer<Int8>?) -> Int32
+
+@_silgen_name("vault_load_default_profile_ffi")
+func rust_vault_load_default_profile(_ master: UnsafePointer<Int8>?) -> UnsafeMutablePointer<Int8>?
+
+@_silgen_name("vault_load_accounts_ffi")
+func rust_vault_load_accounts(_ master: UnsafePointer<Int8>?) -> UnsafeMutablePointer<Int8>?
 
 class CredentialProviderViewController: ASCredentialProviderViewController, UITableViewDataSource, UITableViewDelegate {
 
@@ -462,10 +476,10 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
     private var previewWorkItem: DispatchWorkItem?
 
     @objc private func handlePresentCreate() {
-        guard sessionMaster != nil else { return }
+        guard let master = sessionMaster else { return }
         var initialProfile = AutofillProfile.defaultRandom()
-        if let context = vaultContext {
-            initialProfile = readDefaultProfile(dbPath: context.dbPath)
+        if vaultContext != nil {
+            initialProfile = readDefaultProfile(master: master)
         }
         let vc = CreateAccountViewController(
             initialDomain: requestedDomain,
@@ -517,10 +531,12 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
         guard let master = sessionMaster else { return }
         let profileJson = payload.profile.toJSON()
 
-        let recordResult: Int32 = payload.domain.withCString { dPtr in
-            payload.username.withCString { uPtr in
-                profileJson.withCString { pPtr in
-                    rust_record_account(dPtr, uPtr, pPtr)
+        let recordResult: Int32 = master.withCString { mPtr in
+            payload.domain.withCString { dPtr in
+                payload.username.withCString { uPtr in
+                    profileJson.withCString { pPtr in
+                        rust_record_account(mPtr, dPtr, uPtr, pPtr)
+                    }
                 }
             }
         }
@@ -571,20 +587,17 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
     }
 
     private func attemptMasterUnlock(master: String) {
-        guard let context = vaultContext else { return }
-        guard let fingerprintHex = readFingerprintHex(dbPath: context.dbPath) else {
-            showLockError("Aucune empreinte de mot de passe trouvée — ouvre Keyfount d'abord.")
-            return
-        }
+        guard vaultContext != nil else { return }
 
         setUnlockingState(true)
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             // Argon2id is intentionally slow — run off the main thread
-            // so the spinner stays responsive.
+            // so the spinner stays responsive. The Rust FFI opens the
+            // SQLCipher DB to verify the master; a wrong master shows
+            // up as `0` (SQLite NotADatabase from the failed PRAGMA
+            // key) which we surface as "wrong password".
             let result: Int32 = master.withCString { masterPtr in
-                fingerprintHex.withCString { fpPtr in
-                    rust_verify_master(masterPtr, fpPtr)
-                }
+                rust_verify_master(masterPtr)
             }
             DispatchQueue.main.async {
                 self?.setUnlockingState(false)
@@ -674,9 +687,9 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
     // MARK: - Account list
 
     private func presentAccountList() {
-        guard let context = vaultContext else { return }
-        faviconFallbackEnabled = readFaviconFallbackEnabled(dbPath: context.dbPath)
-        allAccounts = queryAllAccounts(dbPath: context.dbPath)
+        guard vaultContext != nil, let master = sessionMaster else { return }
+        faviconFallbackEnabled = readFaviconFallbackEnabled(master: master)
+        allAccounts = queryAllAccounts(master: master)
         rebuildSections()
 
         if allAccounts.isEmpty {
@@ -688,38 +701,20 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
         }
     }
 
-    private func readFaviconFallbackEnabled(dbPath: String) -> Bool {
-        var db: OpaquePointer?
-        guard sqlite3_open(dbPath, &db) == SQLITE_OK else { return true }
-        defer { sqlite3_close(db) }
-
-        var statement: OpaquePointer?
-        guard sqlite3_prepare_v2(db, "SELECT favicon_fallback_enabled FROM settings WHERE id = 1;", -1, &statement, nil) == SQLITE_OK else {
-            return true
-        }
-        defer { sqlite3_finalize(statement) }
-
-        guard sqlite3_step(statement) == SQLITE_ROW else { return true }
-        let val = sqlite3_column_int(statement, 0)
-        return val != 0
+    private func readFaviconFallbackEnabled(master: String) -> Bool {
+        let result: Int32 = master.withCString { rust_vault_load_favicon_fallback($0) }
+        // -1 → error; default to "enabled" so we degrade gracefully.
+        // 0 → disabled, 1 → enabled.
+        return result != 0
     }
 
-    private func readDefaultProfile(dbPath: String) -> AutofillProfile {
-        var db: OpaquePointer?
-        guard sqlite3_open(dbPath, &db) == SQLITE_OK else { return .defaultRandom() }
-        defer { sqlite3_close(db) }
-
-        var statement: OpaquePointer?
-        guard sqlite3_prepare_v2(db, "SELECT default_profile_json FROM settings WHERE id = 1;", -1, &statement, nil) == SQLITE_OK else {
+    private func readDefaultProfile(master: String) -> AutofillProfile {
+        guard let raw = master.withCString({ rust_vault_load_default_profile($0) }) else {
             return .defaultRandom()
         }
-        defer { sqlite3_finalize(statement) }
-
-        guard sqlite3_step(statement) == SQLITE_ROW else { return .defaultRandom() }
-        guard let cString = sqlite3_column_text(statement, 0) else { return .defaultRandom() }
-        let jsonStr = String(cString: cString)
-        
-        return AutofillProfile.fromJSON(jsonStr) ?? .defaultRandom()
+        let json = String(cString: raw)
+        rust_free_password(raw)
+        return AutofillProfile.fromJSON(json) ?? .defaultRandom()
     }
 
     /// Refilter `allAccounts` into the two visible sections after a
@@ -892,45 +887,30 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
 
     /// Load every account in the vault. Filtering into suggestions vs
     /// "Tous" + the search query is done in `rebuildSections()` because
-    /// reapplying SQL on every keystroke would be wasteful for a vault
-    /// of dozens-to-hundreds of entries.
-    private func queryAllAccounts(dbPath: String) -> [AccountEntry] {
-        var db: OpaquePointer?
-        guard sqlite3_open(dbPath, &db) == SQLITE_OK else { return [] }
-        defer { sqlite3_close(db) }
-
-        let query = "SELECT domain, username, profile_json FROM accounts ORDER BY last_used_at DESC;"
-        var statement: OpaquePointer?
-        guard sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK else { return [] }
-        defer { sqlite3_finalize(statement) }
-
-        var results: [AccountEntry] = []
-        while sqlite3_step(statement) == SQLITE_ROW {
-            let dom = String(cString: sqlite3_column_text(statement, 0))
-            let user = String(cString: sqlite3_column_text(statement, 1))
-            let prof = String(cString: sqlite3_column_text(statement, 2))
-            results.append(AccountEntry(domain: dom, username: user, profileJson: prof))
+    /// reapplying the FFI call on every keystroke would re-derive the
+    /// SQLCipher page key (Argon2id, ~200 ms) for nothing.
+    ///
+    /// The Rust FFI returns a JSON array of
+    /// `{domain, username, profile_json}` objects so we don't have to
+    /// link SQLCipher into the extension target.
+    private func queryAllAccounts(master: String) -> [AccountEntry] {
+        guard let raw = master.withCString({ rust_vault_load_accounts($0) }) else {
+            return []
         }
-        return results
-    }
-
-    /// Read the master-password fingerprint stored in `settings.fingerprint`
-    /// (3 raw bytes hex-encoded). Used by the master-password unlock path
-    /// to validate the user's input via `verify_master_ffi`.
-    private func readFingerprintHex(dbPath: String) -> String? {
-        var db: OpaquePointer?
-        guard sqlite3_open(dbPath, &db) == SQLITE_OK else { return nil }
-        defer { sqlite3_close(db) }
-
-        var statement: OpaquePointer?
-        guard sqlite3_prepare_v2(db, "SELECT fingerprint FROM settings WHERE id = 1;", -1, &statement, nil) == SQLITE_OK else {
-            return nil
+        let json = String(cString: raw)
+        rust_free_password(raw)
+        guard let data = json.data(using: .utf8),
+              let array = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] else {
+            return []
         }
-        defer { sqlite3_finalize(statement) }
-
-        guard sqlite3_step(statement) == SQLITE_ROW else { return nil }
-        guard let cString = sqlite3_column_text(statement, 0) else { return nil }
-        return String(cString: cString)
+        return array.compactMap { dict in
+            guard let domain = dict["domain"] as? String,
+                  let username = dict["username"] as? String,
+                  let profileJson = dict["profile_json"] as? String else {
+                return nil
+            }
+            return AccountEntry(domain: domain, username: username, profileJson: profileJson)
+        }
     }
 
     // MARK: - Keychain

@@ -6,6 +6,7 @@
 //! accounts).
 
 pub mod accounts;
+pub mod db_key;
 pub mod handle;
 pub mod schema;
 pub mod settings;

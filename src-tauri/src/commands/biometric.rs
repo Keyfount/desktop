@@ -13,7 +13,6 @@ use crate::AppState;
 use crate::crypto::{fingerprint_master, format_fingerprint};
 use crate::error::{AppError, AppResult};
 use crate::native::biometric::{Availability, Backend, keychain_entry};
-use crate::store::settings as settings_store;
 
 #[derive(Debug, Serialize)]
 pub struct BiometricAvailableResponse {
@@ -60,12 +59,16 @@ pub async fn unlock_biometric(
     // fingerprint. If not, the keychain blob is stale (e.g. the user
     // changed their master after enrolling) and we treat it as a hard
     // failure rather than silently unlocking with a wrong password.
-    {
-        let store = state.store.lock().await;
-        let open = store.require()?;
-        let st = settings_store::load(&open.conn)?;
-        if let Some(expected) = st.fingerprint {
-            let expected_bytes = hex_to_3(&expected)?;
+    //
+    // We read the fingerprint from the registry (available pre-unlock)
+    // rather than from the DB; the DB now requires the SQLCipher key
+    // before any read, which is exactly what we're about to do.
+    let registry = crate::store::vaults::VaultRegistry::load(
+        crate::store::vaults::registry_path(),
+    )?;
+    if let Some(meta) = registry.vaults.iter().find(|v| v.id == vault_id) {
+        if !meta.fingerprint.is_empty() {
+            let expected_bytes = hex_to_3(&meta.fingerprint)?;
             let eq: bool = subtle::ConstantTimeEq::ct_eq(&expected_bytes[..], &fp[..]).into();
             if !eq {
                 return Err(AppError::invalid(
@@ -74,6 +77,15 @@ pub async fn unlock_biometric(
             }
         }
     }
+
+    // Open the encrypted DB with the unsealed master. If somehow the
+    // page key doesn't decrypt, we surface as Locked (the canonical
+    // wrong-master signal).
+    {
+        let mut store = state.store.lock().await;
+        store.open_encrypted(&master)?;
+    }
+
     let mut session = state.session.lock().await;
     session.unlock(master, fp);
     Ok(crate::commands::session::UnlockResponse {
@@ -113,8 +125,16 @@ pub async fn disable_biometric(state: State<'_, AppState>) -> AppResult<()> {
 
 async fn active_vault_id(state: &State<'_, AppState>) -> AppResult<String> {
     let store = state.store.lock().await;
-    let open = store.require()?;
-    Ok(open.vault_id.clone())
+    // Biometric flows run BOTH pre- and post-unlock:
+    //  - `biometric_available` and `unlock_biometric` run on the lock
+    //    screen (vault is locked → DB is not open).
+    //  - `enable_biometric` and `disable_biometric` run from settings
+    //    while the vault is unlocked.
+    // We only need the active-vault identity, available in both states.
+    store
+        .active_id()
+        .map(|s| s.to_string())
+        .ok_or(AppError::NoActiveVault)
 }
 
 fn hex_to_3(s: &str) -> AppResult<[u8; 3]> {
