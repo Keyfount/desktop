@@ -8,6 +8,7 @@ import {
   busy,
   errorMessage,
   fingerprint as fingerprintSignal,
+  hasPin as hasPinSignal,
   historyEnabled,
   livePreview,
   screen,
@@ -21,7 +22,44 @@ export function SetupScreen() {
   const [master, setMaster] = useState("");
   const [confirm, setConfirm] = useState("");
   const [step, setStep] = useState<"master" | "history">("master");
+  // Only offer the "cancel — use existing" affordance if there's at
+  // least one other profile to fall back to. Matches the extension's
+  // SetupScreen.tsx pattern.
+  const [hasOtherVaults, setHasOtherVaults] = useState(false);
   const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void api
+      .listVaults()
+      .then((r) => {
+        if (!cancelled) setHasOtherVaults(r.vaults.length > 0);
+      })
+      .catch(() => {
+        /* swallow — no fallback offered if we can't list */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const cancelToExisting = useCallback(async () => {
+    try {
+      const r = await api.listVaults();
+      const fallback = [...r.vaults].sort((a, b) => b.lastUsedAt - a.lastUsedAt)[0];
+      if (fallback === undefined) {
+        errorMessage.value = t("err_no_other_vault");
+        return;
+      }
+      await api.switchVault(fallback.id);
+      const status = await api.status();
+      fingerprintSignal.value = status.fingerprint;
+      hasPinSignal.value = status.hasPin;
+      screen.value = status.isFirstRun ? "setup" : "unlock";
+    } catch (err) {
+      errorMessage.value = describeError(err) || t("err_switch_failed");
+    }
+  }, []);
 
   useEffect(() => {
     if (previewTimer.current !== null) clearTimeout(previewTimer.current);
@@ -62,7 +100,7 @@ export function SetupScreen() {
         fingerprintSignal.value = r.fingerprint;
         setStep("history");
       } catch (err) {
-        errorMessage.value = describeError(err) || "setup failed";
+        errorMessage.value = describeError(err) || t("err_setup_failed");
       } finally {
         busy.value = false;
       }
@@ -180,6 +218,18 @@ export function SetupScreen() {
       <motion.button type="submit" class="btn" whileTap={TAP_SCALE} disabled={busy.value}>
         {busy.value ? t("setup_creating") : t("setup_create_button")}
       </motion.button>
+
+      {hasOtherVaults ? (
+        <motion.button
+          type="button"
+          class="btn btn-ghost"
+          whileTap={TAP_SCALE}
+          onClick={() => void cancelToExisting()}
+          disabled={busy.value}
+        >
+          {t("setup_cancel_existing")}
+        </motion.button>
+      ) : null}
     </motion.form>
   );
 }

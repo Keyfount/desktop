@@ -7,6 +7,7 @@ import { IconPlus } from "../icons.js";
 import { TAP_SCALE } from "../motion.js";
 import { errorMessage, fingerprint, screen } from "../state.js";
 import type { ListVaultsResponse } from "../types.js";
+import { ConfirmModal } from "./ConfirmModal.js";
 import { PageHeader } from "./PageHeader.js";
 
 interface Props {
@@ -15,6 +16,7 @@ interface Props {
 
 export function VaultsScreen({ onBack }: Props) {
   const [data, setData] = useState<ListVaultsResponse | null>(null);
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     void api.listVaults().then(setData);
@@ -25,17 +27,19 @@ export function VaultsScreen({ onBack }: Props) {
       await api.switchVault(id);
       screen.value = "unlock";
     } catch (err) {
-      errorMessage.value = describeError(err) || "switch failed";
+      errorMessage.value = describeError(err) || t("err_switch_failed");
     }
   }, []);
 
-  const onDelete = useCallback(async (id: string) => {
+  const performDelete = useCallback(async (id: string) => {
     try {
       await api.deleteVault(id);
       const refreshed = await api.listVaults();
       setData(refreshed);
     } catch (err) {
-      errorMessage.value = describeError(err) || "delete failed";
+      errorMessage.value = describeError(err) || t("err_delete_failed");
+    } finally {
+      setConfirmingDeleteId(null);
     }
   }, []);
 
@@ -104,7 +108,8 @@ export function VaultsScreen({ onBack }: Props) {
                         type="button"
                         class="btn btn-danger btn-sm"
                         whileTap={TAP_SCALE}
-                        onClick={() => onDelete(v.id)}
+                        onClick={() => setConfirmingDeleteId(v.id)}
+                        aria-label={t("vaults_delete_aria")}
                       >
                         {t("vaults_delete")}
                       </motion.button>
@@ -122,6 +127,16 @@ export function VaultsScreen({ onBack }: Props) {
           ) : null}
         </div>
       </div>
+
+      {confirmingDeleteId !== null ? (
+        <ConfirmModal
+          title={t("vaults_delete_confirm_title")}
+          body={t("vaults_delete_confirm_body")}
+          confirmLabel={t("vaults_delete")}
+          onCancel={() => setConfirmingDeleteId(null)}
+          onConfirm={() => void performDelete(confirmingDeleteId)}
+        />
+      ) : null}
     </div>
   );
 }

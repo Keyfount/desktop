@@ -26,6 +26,7 @@ import { pullInBackground } from "../sync/auto.js";
 import { syncServerStatus } from "../sync/status.js";
 import type { AccountEntry, Profile } from "../types.js";
 import { AccountAvatar } from "./AccountAvatar.js";
+import { ConfirmModal } from "./ConfirmModal.js";
 import { PageHeader } from "./PageHeader.js";
 import { ProfileEditor } from "./ProfileEditor.js";
 
@@ -225,6 +226,7 @@ function AccountDetail({ entry }: { entry: AccountEntry }) {
   const [password, setPassword] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile>(entry.profile);
   const [busy, setBusy] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   // Username editing mirrors the extension's AccountDetailScreen: a
   // pre-submit callout previews the about-to-change derived password
   // so the user understands renaming is a destructive op (the
@@ -285,7 +287,7 @@ function AccountDetail({ entry }: { entry: AccountEntry }) {
         setRevealed(false);
         setCopied(false);
       } catch (err) {
-        errorMessage.value = describeError(err) || "generation failed";
+        errorMessage.value = describeError(err) || t("err_generation_failed");
       } finally {
         setBusy(false);
       }
@@ -326,12 +328,18 @@ function AccountDetail({ entry }: { entry: AccountEntry }) {
     }
   }, [password]);
 
-  const onDelete = useCallback(async () => {
-    await api.deleteAccount(entry.domain, entry.username);
-    allAccounts.value = allAccounts.value.filter(
-      (e) => !(e.domain === entry.domain && e.username === entry.username),
-    );
-    selectedAccount.value = allAccounts.value[0] ?? null;
+  const performDelete = useCallback(async () => {
+    try {
+      await api.deleteAccount(entry.domain, entry.username);
+      allAccounts.value = allAccounts.value.filter(
+        (e) => !(e.domain === entry.domain && e.username === entry.username),
+      );
+      selectedAccount.value = allAccounts.value[0] ?? null;
+    } catch (err) {
+      errorMessage.value = describeError(err) || t("err_delete_failed");
+    } finally {
+      setConfirmingDelete(false);
+    }
   }, [entry.domain, entry.username]);
 
   const renameSubmit = useCallback(
@@ -569,12 +577,22 @@ function AccountDetail({ entry }: { entry: AccountEntry }) {
           type="button"
           class="btn btn-danger btn-sm"
           whileTap={TAP_SCALE}
-          onClick={onDelete}
+          onClick={() => setConfirmingDelete(true)}
         >
           <IconTrash size={14} />
           {t("accounts_delete")}
         </motion.button>
       </footer>
+
+      {confirmingDelete ? (
+        <ConfirmModal
+          title={t("accounts_delete_confirm_title")}
+          body={t("accounts_delete_confirm_body")}
+          confirmLabel={t("accounts_delete")}
+          onCancel={() => setConfirmingDelete(false)}
+          onConfirm={() => void performDelete()}
+        />
+      ) : null}
     </motion.div>
   );
 }
