@@ -192,6 +192,17 @@ export const api = {
     call<void>("account_stamp_synced", { domain, username, dir }),
 
   /**
+   * Tombstones for accounts the user has explicitly deleted. Travels
+   * in the encrypted SyncableState v2 snapshot so peers can converge
+   * on the delete even when the originating delete_account event was
+   * compacted server-side.
+   */
+  listTombstones: () =>
+    call<{ domain: string; username: string; deletedAt: number }[]>("list_tombstones"),
+  mergeTombstones: (incoming: { domain: string; username: string; deletedAt: number }[]) =>
+    call<void>("merge_tombstones", { incoming }),
+
+  /**
    * Persistent retry queue for sync ops. Mutations that can't reach
    * the server right now (vault locked, session pending, offline) are
    * enqueued here and drained by `sync/pending.ts` on every push path

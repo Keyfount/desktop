@@ -17,7 +17,13 @@ import { allAccounts, historyEnabled } from "../state.js";
 import type { AccountEntry, Profile } from "../types.js";
 import { deriveEncryptionKey, syncLogin, syncRegister, type SyncSession } from "./auth.js";
 import { SyncApiError, SyncClient } from "./client.js";
-import { EMPTY_STATE, type SyncableState, type SyncOp } from "./payload.js";
+import {
+  EMPTY_STATE,
+  SYNCABLE_STATE_VERSION,
+  type SyncableState,
+  type Tombstone,
+  type SyncOp,
+} from "./payload.js";
 
 let cachedSession: SyncSession | null = null;
 
@@ -214,15 +220,20 @@ export async function push(master: string): Promise<SyncStats> {
 
   const localAccounts = await api.listAccounts();
   const localState = await api.getState();
+  const tombstones = await api.listTombstones();
+  const tombstoneKeys = new Set(tombstones.map((t) => entryKey(t.domain, t.username)));
 
-  // Phase 1: push one event per account so the log grows server-side.
-  // Lamport timestamps need to be monotonic per-device; ms-since-epoch
-  // is plenty unique within a single push and matches the extension's
+  // Phase 1: push one event per LIVE local account so the log grows
+  // server-side. Tombstoned (domain, username) pairs are skipped here —
+  // they ride the snapshot's `tombstones` field instead. Lamport
+  // timestamps need to be monotonic per-device; ms-since-epoch is
+  // plenty unique within a single push and matches the extension's
   // bumpLamport behaviour at the granularity we care about.
   let lamport = Date.now();
   let lastSeq = 0;
   let pushedCount = 0;
   for (const entry of localAccounts.entries) {
+    if (tombstoneKeys.has(entryKey(entry.domain, entry.username))) continue;
     const op: SyncOp = { t: "upsert_account", entry };
     const { ciphertext, nonce } = await encryptOp(key, op);
     const ack = await client.pushEvent({
@@ -237,25 +248,61 @@ export async function push(master: string): Promise<SyncStats> {
 
   // Phase 2: snapshot for fast subsequent pulls. `upToSeq` is the
   // highest seq the server just acknowledged — never ahead of the log.
-  // For an empty account list we skip the snapshot entirely.
-  if (lastSeq > 0) {
+  // The snapshot carries the live account list AND the tombstone log
+  // so receiving devices can converge on the deletes even when the
+  // originating delete_account events have been compacted away.
+  //
+  // Push the snapshot even on an empty live account list when we
+  // have tombstones to broadcast — without it, peers that pulled the
+  // server's last (pre-deletion) snapshot would never learn about
+  // those deletes.
+  if (lastSeq > 0 || tombstones.length > 0) {
     const state: SyncableState = {
       ...EMPTY_STATE,
       defaultProfile: localState.defaultProfile,
       sites: localState.sites,
       historyEnabled: localState.historyEnabled,
       faviconFallbackEnabled: localState.faviconFallbackEnabled,
-      accounts: localAccounts.entries,
+      accounts: localAccounts.entries.filter(
+        (e) => !tombstoneKeys.has(entryKey(e.domain, e.username)),
+      ),
+      tombstones,
     };
     const { ciphertext, nonce } = await encryptState(key, state);
-    await client.putSnapshot({
-      upToSeq: lastSeq,
-      ciphertext: Array.from(ciphertext),
-      nonce: Array.from(nonce),
-    });
+    // `upToSeq` must never exceed the server's log. When we only
+    // have tombstones to flush (no upserts), pull the server's
+    // latest seq via a no-op events page so the snapshot stays in
+    // the safe range.
+    const upToSeq = lastSeq > 0 ? lastSeq : await highestServerSeq(client);
+    if (upToSeq > 0) {
+      await client.putSnapshot({
+        upToSeq,
+        ciphertext: Array.from(ciphertext),
+        nonce: Array.from(nonce),
+      });
+    }
   }
 
   return { pulled: 0, pushed: pushedCount, cursor: lastSeq };
+}
+
+/**
+ * Best-effort lookup of the server's highest event seq. Used by
+ * `push()` when the only thing to ship is a tombstone-only snapshot:
+ * `putSnapshot` requires `upToSeq <= server_seq`, so we ask the
+ * server for the current tip. A failure returns 0 — the caller skips
+ * the snapshot push and waits for the next opportunity.
+ */
+async function highestServerSeq(client: SyncClient): Promise<number> {
+  try {
+    const page = await client.pullEvents(0, 1);
+    if (page.events.length > 0) {
+      return page.events[page.events.length - 1]!.serverSeq;
+    }
+    return page.nextCursor;
+  } catch {
+    return 0;
+  }
 }
 
 async function requireApprovedSession(): Promise<Extract<SyncSession, { status: "approved" }>> {
@@ -279,6 +326,14 @@ async function encryptState(
   return { ciphertext: new Uint8Array(ct), nonce };
 }
 
+/**
+ * Decrypt a sync snapshot payload to a fully-populated `SyncableState`.
+ *
+ * Accepts both v1 (no `tombstones` field) and v2 envelopes — a v1
+ * payload from a peer that has not yet upgraded simply yields
+ * `tombstones: []`. The returned shape is always v2 so callers don't
+ * need to branch on the version.
+ */
 export async function decryptState(
   key: CryptoKey,
   ciphertext: number[],
@@ -290,7 +345,35 @@ export async function decryptState(
     new Uint8Array(ciphertext) as BufferSource,
   );
   const text = new TextDecoder().decode(plain);
-  return JSON.parse(text) as SyncableState;
+  return normaliseDecodedState(JSON.parse(text));
+}
+
+function normaliseDecodedState(raw: unknown): SyncableState {
+  const parsed = (raw ?? {}) as Partial<SyncableState> & Record<string, unknown>;
+  const tombstonesRaw = (parsed as { tombstones?: unknown }).tombstones;
+  const tombstones: Tombstone[] = Array.isArray(tombstonesRaw)
+    ? (tombstonesRaw.filter(
+        (t): t is Tombstone =>
+          t !== null &&
+          typeof t === "object" &&
+          typeof (t as Tombstone).domain === "string" &&
+          typeof (t as Tombstone).username === "string" &&
+          typeof (t as Tombstone).deletedAt === "number",
+      ) as Tombstone[])
+    : [];
+  return {
+    v: SYNCABLE_STATE_VERSION,
+    defaultProfile: parsed.defaultProfile as SyncableState["defaultProfile"],
+    sites:
+      typeof parsed.sites === "object" && parsed.sites !== null
+        ? (parsed.sites as Record<string, SyncableState["defaultProfile"]>)
+        : {},
+    ...(typeof parsed.fingerprint === "string" ? { fingerprint: parsed.fingerprint } : {}),
+    historyEnabled: Boolean(parsed.historyEnabled),
+    faviconFallbackEnabled: parsed.faviconFallbackEnabled !== false,
+    accounts: Array.isArray(parsed.accounts) ? (parsed.accounts as AccountEntry[]) : [],
+    tombstones,
+  };
 }
 
 async function encryptOp(
@@ -374,27 +457,55 @@ async function applyOpLocally(op: SyncOp): Promise<void> {
   }
 }
 
+/**
+ * Apply a decrypted snapshot to the local stores. With `SyncableState`
+ * v2 this is authoritative for deletes: any local account named in
+ * `state.tombstones` is removed, and the incoming tombstones are
+ * merged into the local store so this device carries them forward
+ * into its own future snapshots.
+ *
+ * Add semantics for new accounts stay the same — accounts the
+ * snapshot's originating device never saw (typically a row created
+ * on another device that has not yet pushed) are NOT removed.
+ *
+ * `skipBus: true` discipline is preserved on every mutation: applying
+ * a remote snapshot must not re-emit any of its rows as local push
+ * events.
+ */
 export async function applyStateLocally(state: SyncableState): Promise<void> {
-  // Same `skipBus` discipline as `applyOpLocally`: replaying a remote
-  // snapshot must not re-push every applied entry as a local event.
   const silent = { skipBus: true } as const;
 
-  // Default profile and sites
+  // 1) Default profile, sites, and prefs.
   await api.setDefaultProfile(state.defaultProfile, silent);
   for (const [domain, profile] of Object.entries(state.sites)) {
     await api.setProfile(domain, profile as Profile, silent);
   }
-  // History toggle (push it down — needed for AccountList to surface)
   await api.setHistoryEnabled(state.historyEnabled, silent);
   historyEnabled.value = state.historyEnabled;
 
-  // Replace local accounts with the snapshot contents. We do not
-  // delete accounts the server hasn't heard about — the user can
-  // explicitly delete them locally.
-  const existing = await api.listAccounts();
-  const existingKeys = new Set(existing.entries.map((e) => key(e)));
+  // 2) Apply tombstones BEFORE accounts so a delete here can never be
+  //    silently undone by a later upsert in the same snapshot.
+  const tombstoneKeys = new Set(state.tombstones.map((t) => entryKey(t.domain, t.username)));
+  if (state.tombstones.length > 0) {
+    const existing = await api.listAccounts();
+    for (const entry of existing.entries) {
+      if (tombstoneKeys.has(entryKey(entry.domain, entry.username))) {
+        await api.deleteAccount(entry.domain, entry.username, silent);
+      }
+    }
+    await api.mergeTombstones(state.tombstones);
+  }
+
+  // 3) Add accounts present in the snapshot that the local device
+  //    doesn't have yet. Skip any pair the snapshot itself tombstoned
+  //    (defence in depth — the snapshot's originating device should
+  //    have filtered those before encoding, but ignore them here too).
+  const existingAfter = await api.listAccounts();
+  const existingKeys = new Set(existingAfter.entries.map((e) => key(e)));
   for (const entry of state.accounts) {
-    if (!existingKeys.has(key(entry))) {
+    const k = entryKey(entry.domain, entry.username);
+    if (tombstoneKeys.has(k)) continue;
+    if (!existingKeys.has(k)) {
       await api.recordAccount(entry.domain, entry.username, entry.profile, silent);
     }
     // Stamp every entry the snapshot covered, whether we just
@@ -402,13 +513,18 @@ export async function applyStateLocally(state: SyncableState): Promise<void> {
     // the server holds the row at this moment.
     await stampOrSwallow(entry.domain, entry.username, "pull");
   }
+
   // Refresh the signal-backed list so the UI updates.
   const refreshed = await api.listAccounts();
   allAccounts.value = refreshed.entries;
 }
 
+function entryKey(domain: string, username: string): string {
+  return `${domain}|${username}`;
+}
+
 function key(entry: AccountEntry): string {
-  return `${entry.domain}|${entry.username}`;
+  return entryKey(entry.domain, entry.username);
 }
 
 /**
