@@ -56,8 +56,8 @@ export async function drainPendingOps(
   try {
     while (true) {
       const rows = await api.pendingOpsList();
-      if (rows.length === 0) return;
       const row = rows[0];
+      if (row === undefined) return;
 
       let op: SyncOp;
       try {

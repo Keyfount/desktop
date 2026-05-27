@@ -63,7 +63,7 @@ describe("pending queue", () => {
   it("enqueueOp persists the serialized op in the store", async () => {
     await enqueueOp(DEL_OP);
     expect(store.rows).toHaveLength(1);
-    expect(JSON.parse(store.rows[0].opJson)).toEqual(DEL_OP);
+    expect(JSON.parse(store.rows[0]!.opJson)).toEqual(DEL_OP);
   });
 
   it("drainPendingOps consumes every queued op via pushSingle in FIFO order", async () => {
@@ -88,11 +88,11 @@ describe("pending queue", () => {
     });
 
     expect(store.rows).toHaveLength(2);
-    expect(store.rows[0].attempts).toBe(1);
-    expect(store.rows[0].lastError).toBe("network down");
+    expect(store.rows[0]!.attempts).toBe(1);
+    expect(store.rows[0]!.lastError).toBe("network down");
     // The second row was never tried, must stay pristine.
-    expect(store.rows[1].attempts).toBe(0);
-    expect(store.rows[1].lastError).toBeNull();
+    expect(store.rows[1]!.attempts).toBe(0);
+    expect(store.rows[1]!.lastError).toBeNull();
   });
 
   it("a transient failure followed by a successful drain leaves attempts > 0 only on the in-flight row", async () => {
@@ -103,7 +103,7 @@ describe("pending queue", () => {
       attempt += 1;
       throw new Error("transient");
     });
-    expect(store.rows[0].attempts).toBe(1);
+    expect(store.rows[0]!.attempts).toBe(1);
 
     // Recover and re-drain.
     await drainPendingOps(async () => {
