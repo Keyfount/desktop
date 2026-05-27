@@ -2,7 +2,11 @@ name: keyfount
 options:
   bundleIdPrefix: io.keyfount.desktop
   deploymentTarget:
-    iOS: 14.0
+    # iOS 15 unlocks `UIButton.Configuration`, `UIAction` everywhere
+    # (already needed for our AutoFill extension), and the inset-grouped
+    # search-bar treatment. iOS 15 is from 2021 — every supported iPhone
+    # is on >= iOS 15.
+    iOS: "15.0"
 fileGroups: [../../src]
 configs:
   debug: debug

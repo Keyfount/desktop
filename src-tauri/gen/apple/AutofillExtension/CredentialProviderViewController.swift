@@ -163,10 +163,11 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
     private lazy var unlockButton: UIButton = {
         let b = UIButton(type: .system)
         b.translatesAutoresizingMaskIntoConstraints = false
-        var config = UIButton.Configuration.filled()
-        config.title = "Déverrouiller"
-        config.cornerStyle = .large
-        b.configuration = config
+        b.setTitle("Déverrouiller", for: .normal)
+        b.setTitleColor(.white, for: .normal)
+        b.titleLabel?.font = .preferredFont(forTextStyle: .body).withWeight(.semibold)
+        b.backgroundColor = .tintColor
+        b.layer.cornerRadius = 12
         b.isEnabled = false
         b.addTarget(self, action: #selector(handleUnlockTap), for: .touchUpInside)
         return b
@@ -175,12 +176,12 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
     private lazy var biometricButton: UIButton = {
         let b = UIButton(type: .system)
         b.translatesAutoresizingMaskIntoConstraints = false
-        var config = UIButton.Configuration.tinted()
-        config.title = "Utiliser Face ID"
-        config.image = UIImage(systemName: "faceid")
-        config.imagePadding = 8
-        config.cornerStyle = .large
-        b.configuration = config
+        b.setTitle("  Utiliser Face ID", for: .normal)
+        b.setImage(UIImage(systemName: "faceid"), for: .normal)
+        b.tintColor = .tintColor
+        b.titleLabel?.font = .preferredFont(forTextStyle: .body).withWeight(.semibold)
+        b.backgroundColor = .tintColor.withAlphaComponent(0.12)
+        b.layer.cornerRadius = 12
         b.isHidden = true
         b.addTarget(self, action: #selector(handleBiometricTap), for: .touchUpInside)
         return b
@@ -516,7 +517,7 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
     }
 
     private func setUnlockingState(_ unlocking: Bool) {
-        unlockButton.configuration?.title = unlocking ? "" : "Déverrouiller"
+        unlockButton.setTitle(unlocking ? "" : "Déverrouiller", for: .normal)
         unlockButton.isEnabled = !unlocking && !(masterField.text ?? "").isEmpty
         biometricButton.isEnabled = !unlocking
         masterField.isEnabled = !unlocking
