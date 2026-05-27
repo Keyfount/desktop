@@ -22,6 +22,7 @@ import { DangerZone } from "./DangerZone.js";
 import { PageHeader } from "./PageHeader.js";
 import { PinManager } from "./PinManager.js";
 import { ProfileEditor } from "./ProfileEditor.js";
+import { SitesSection } from "./SitesSection.js";
 import { VaultExportImport } from "./VaultExportImport.js";
 
 export function SettingsScreen() {
@@ -163,6 +164,10 @@ export function SettingsScreen() {
             <div class="card !p-5">
               <ProfileEditor profile={state.defaultProfile} onChange={setDefault} />
             </div>
+          </Section>
+
+          <Section title={t("sites_section_title")}>
+            <SitesSection sites={state.sites} onChange={refreshState} />
           </Section>
 
           <div class="grid grid-cols-2 gap-4">

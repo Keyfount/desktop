@@ -19,6 +19,7 @@ import type { GetStateResponse, Profile } from "../../types.js";
 import { DangerZone } from "../../components/DangerZone.js";
 import { PinManager } from "../../components/PinManager.js";
 import { ProfileEditor } from "../../components/ProfileEditor.js";
+import { SitesSection } from "../../components/SitesSection.js";
 import { VaultExportImport } from "../../components/VaultExportImport.js";
 
 interface Props {
@@ -174,6 +175,21 @@ export function MobileSettingsScreen({ onLock }: Props) {
             </motion.div>
           ) : null}
         </AnimatePresence>
+      </div>
+
+      {/* Per-site profiles */}
+      <h2 class="text-[10px] uppercase tracking-[0.22em] text-(--color-ink-subtle) px-2 pt-6 pb-2 font-mono">
+        {t("sites_section_title")}
+      </h2>
+      <div class={SECTION_CLASSES}>
+        <div class="p-4">
+          <SitesSection
+            sites={state.sites}
+            onChange={() => {
+              void api.getState().then(setState);
+            }}
+          />
+        </div>
       </div>
 
       {/* 2. Security Section */}
