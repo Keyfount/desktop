@@ -23,7 +23,49 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
     private static let AppGroup = "group.io.keyfount.app"
     private static let VaultRootRelativePath = "Library/Application Support/Keyfount"
     private static let KeychainService = "io.keyfount.desktop.biometric"
-    private static let KeychainAccessGroup = "io.keyfount.shared"
+    private static var KeychainAccessGroup: String {
+        let prefix = getTeamIDPrefix() ?? "FAKETEAMID"
+        return "\(prefix).io.keyfount.shared"
+    }
+
+    private static func getTeamIDPrefix() -> String? {
+        let service = "io.keyfount.teamid.probe"
+        let account = "probe"
+        
+        let deleteQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account
+        ]
+        SecItemDelete(deleteQuery as CFDictionary)
+        
+        let addQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecValueData as String: "probe".data(using: .utf8)!
+        ]
+        SecItemAdd(addQuery as CFDictionary, nil)
+        
+        let getQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecReturnAttributes as String: true
+        ]
+        
+        var item: CFTypeRef?
+        let status = SecItemCopyMatching(getQuery as CFDictionary, &item)
+        SecItemDelete(deleteQuery as CFDictionary)
+        
+        guard status == errSecSuccess,
+              let dict = item as? [String: Any],
+              let accessGroup = dict[kSecAttrAccessGroup as String] as? String else {
+            return nil
+        }
+        
+        return accessGroup.components(separatedBy: ".").first
+    }
 
     // MARK: - State
 
