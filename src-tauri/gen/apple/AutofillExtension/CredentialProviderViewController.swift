@@ -24,7 +24,18 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
 
     // MARK: - State
 
-    private var matches: [AccountEntry] = []
+    /// All accounts in the active vault, freshly loaded on unlock.
+    private var allAccounts: [AccountEntry] = []
+    /// Subset of `allAccounts` whose domain matches `requestedDomain`
+    /// (substring match, case-insensitive). Shown in the "Suggestions"
+    /// section when non-empty.
+    private var suggestions: [AccountEntry] = []
+    /// Accounts that don't match `requestedDomain`. Shown in "Tous les
+    /// comptes". Also filtered by the search bar.
+    private var others: [AccountEntry] = []
+    /// Live filter text from the search bar (lowercased). Empty means
+    /// "no filter".
+    private var searchQuery: String = ""
     private var activeVaultId: String = ""
     private var requestedDomain: String = ""
     /// Cached vault context so we don't re-resolve the path between
@@ -47,8 +58,22 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
         table.dataSource = self
         table.delegate = self
         table.register(UITableViewCell.self, forCellReuseIdentifier: "AccountCell")
+        table.tableHeaderView = self.searchBar
         table.isHidden = true
         return table
+    }()
+
+    private lazy var searchBar: UISearchBar = {
+        let s = UISearchBar()
+        s.placeholder = "Rechercher (compte, site)"
+        s.searchBarStyle = .minimal
+        s.autocapitalizationType = .none
+        s.autocorrectionType = .no
+        s.delegate = self
+        // Fit the header to its intrinsic size — without this the bar
+        // collapses to zero height inside a `tableHeaderView`.
+        s.sizeToFit()
+        return s
     }()
 
     private lazy var emptyLabel: UILabel = {
@@ -408,12 +433,11 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
 
     private func presentAccountList() {
         guard let context = vaultContext else { return }
-        matches = queryAccounts(dbPath: context.dbPath, domain: requestedDomain)
-        if matches.isEmpty {
-            let label = requestedDomain.isEmpty
-                ? "Aucun compte enregistré."
-                : "Aucun compte enregistré pour \(requestedDomain)."
-            showEmptyState(label)
+        allAccounts = queryAllAccounts(dbPath: context.dbPath)
+        rebuildSections()
+
+        if allAccounts.isEmpty {
+            showEmptyState("Aucun compte enregistré. Ouvre Keyfount pour en créer.")
         } else {
             emptyLabel.isHidden = true
             tableView.isHidden = false
@@ -421,15 +445,58 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
         }
     }
 
+    /// Refilter `allAccounts` into the two visible sections after a
+    /// data load OR a search-bar change. Suggestions only exist when
+    /// we have a `requestedDomain` from iOS.
+    private func rebuildSections() {
+        let domain = requestedDomain
+        let filter = searchQuery
+
+        let matchesFilter: (AccountEntry) -> Bool = { entry in
+            guard !filter.isEmpty else { return true }
+            return entry.username.lowercased().contains(filter)
+                || entry.domain.lowercased().contains(filter)
+        }
+
+        if domain.isEmpty {
+            suggestions = []
+            others = allAccounts.filter(matchesFilter)
+        } else {
+            suggestions = allAccounts.filter { $0.domain.lowercased().contains(domain) && matchesFilter($0) }
+            let suggestionKeys = Set(suggestions.map { "\($0.domain)\u{1F}\($0.username)" })
+            others = allAccounts.filter { entry in
+                matchesFilter(entry) && !suggestionKeys.contains("\(entry.domain)\u{1F}\(entry.username)")
+            }
+        }
+    }
+
     // MARK: - UITableViewDataSource / Delegate
 
+    private enum Section: Int, CaseIterable {
+        case suggestions = 0
+        case others = 1
+    }
+
+    private func entries(in section: Section) -> [AccountEntry] {
+        switch section {
+        case .suggestions: return suggestions
+        case .others: return others
+        }
+    }
+
+    func numberOfSections(in tableView: UITableView) -> Int {
+        Section.allCases.count
+    }
+
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        matches.count
+        guard let s = Section(rawValue: section) else { return 0 }
+        return entries(in: s).count
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "AccountCell", for: indexPath)
-        let account = matches[indexPath.row]
+        guard let s = Section(rawValue: indexPath.section) else { return cell }
+        let account = entries(in: s)[indexPath.row]
         var config = cell.defaultContentConfiguration()
         config.text = account.username
         config.secondaryText = account.domain
@@ -439,12 +506,20 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
     }
 
     func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        requestedDomain.isEmpty ? "Comptes" : "Comptes pour \(requestedDomain)"
+        guard let s = Section(rawValue: section) else { return nil }
+        switch s {
+        case .suggestions:
+            return suggestions.isEmpty ? nil : "Suggestions pour \(requestedDomain)"
+        case .others:
+            if others.isEmpty { return nil }
+            return suggestions.isEmpty ? "Tous les comptes" : "Autres comptes"
+        }
     }
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
-        let account = matches[indexPath.row]
+        guard let s = Section(rawValue: indexPath.section) else { return }
+        let account = entries(in: s)[indexPath.row]
         autofill(account: account)
     }
 
@@ -481,7 +556,9 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
     }
 
     private func showEmptyState(_ message: String) {
-        matches = []
+        allAccounts = []
+        suggestions = []
+        others = []
         tableView.isHidden = true
         emptyLabel.text = message
         emptyLabel.isHidden = false
@@ -527,23 +604,19 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
         let profileJson: String
     }
 
-    private func queryAccounts(dbPath: String, domain: String) -> [AccountEntry] {
+    /// Load every account in the vault. Filtering into suggestions vs
+    /// "Tous" + the search query is done in `rebuildSections()` because
+    /// reapplying SQL on every keystroke would be wasteful for a vault
+    /// of dozens-to-hundreds of entries.
+    private func queryAllAccounts(dbPath: String) -> [AccountEntry] {
         var db: OpaquePointer?
-        guard sqlite3_open(dbPath, &db) == SQLITE_OK else {
-            return []
-        }
+        guard sqlite3_open(dbPath, &db) == SQLITE_OK else { return [] }
         defer { sqlite3_close(db) }
 
-        let query = "SELECT domain, username, profile_json FROM accounts WHERE domain LIKE ?;"
+        let query = "SELECT domain, username, profile_json FROM accounts ORDER BY last_used_at DESC;"
         var statement: OpaquePointer?
-
-        guard sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK else {
-            return []
-        }
+        guard sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK else { return [] }
         defer { sqlite3_finalize(statement) }
-
-        let boundDomain = "%\(domain)%"
-        sqlite3_bind_text(statement, 1, boundDomain.cString(using: .utf8), -1, nil)
 
         var results: [AccountEntry] = []
         while sqlite3_step(statement) == SQLITE_ROW {
@@ -552,7 +625,6 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
             let prof = String(cString: sqlite3_column_text(statement, 2))
             results.append(AccountEntry(domain: dom, username: user, profileJson: prof))
         }
-
         return results
     }
 
@@ -608,6 +680,28 @@ extension CredentialProviderViewController: UITextFieldDelegate {
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
         handleUnlockTap()
         return true
+    }
+}
+
+// MARK: - UISearchBarDelegate
+
+extension CredentialProviderViewController: UISearchBarDelegate {
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        searchQuery = searchText.lowercased()
+        rebuildSections()
+        tableView.reloadData()
+    }
+
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        searchBar.resignFirstResponder()
+    }
+
+    func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
+        searchBar.text = ""
+        searchQuery = ""
+        rebuildSections()
+        tableView.reloadData()
+        searchBar.resignFirstResponder()
     }
 }
 
