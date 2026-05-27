@@ -119,24 +119,30 @@ class CredentialProviderViewController: ASCredentialProviderViewController {
         return results
     }
     
-    // Keychain helper
+    // Keychain helper. The main app stores the sealed master under the
+    // shared access group; without `kSecAttrAccessGroup` here the
+    // lookup is scoped to the extension's own keychain partition (which
+    // is always empty) and we'd silently fail with errSecItemNotFound.
+    private static let KeychainService = "io.keyfount.desktop.biometric"
+    private static let KeychainAccessGroup = "io.keyfount.shared"
+
     private func readKeychain(account: String) -> String? {
-        let service = "io.keyfount.desktop.biometric"
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
+            kSecAttrService as String: Self.KeychainService,
             kSecAttrAccount as String: account,
+            kSecAttrAccessGroup as String: Self.KeychainAccessGroup,
             kSecReturnData as String: kCFBooleanTrue!,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
-        
+
         var dataTypeRef: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &dataTypeRef)
-        
+
         guard status == errSecSuccess, let data = dataTypeRef as? Data else {
             return nil
         }
-        
+
         return String(data: data, encoding: .utf8)
     }
 }
