@@ -89,9 +89,7 @@ export function VaultExportImport({ onImported }: Props) {
     <div class="flex flex-col gap-6">
       {/* --- Export ---------------------------------------------------- */}
       <form class="flex flex-col gap-3" onSubmit={onExport}>
-        <p class="text-xs text-(--color-ink-muted) leading-relaxed">
-          {t("export_section_hint")}
-        </p>
+        <p class="text-xs text-(--color-ink-muted) leading-relaxed">{t("export_section_hint")}</p>
         <label class="flex flex-col gap-2">
           <span class="field-label">{t("export_passphrase_label")}</span>
           <input
@@ -124,9 +122,7 @@ export function VaultExportImport({ onImported }: Props) {
 
       {/* --- Import ---------------------------------------------------- */}
       <form class="flex flex-col gap-3" onSubmit={onImport}>
-        <p class="text-xs text-(--color-ink-muted) leading-relaxed">
-          {t("import_section_hint")}
-        </p>
+        <p class="text-xs text-(--color-ink-muted) leading-relaxed">{t("import_section_hint")}</p>
         <label class="flex flex-col gap-2">
           <span class="field-label">{t("import_choose_file")}</span>
           <input

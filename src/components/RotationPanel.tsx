@@ -28,9 +28,7 @@ interface Props {
  * surfaces line up.
  */
 export function RotationPanel({ entry, onUpdated, compact }: Props) {
-  const [preview, setPreview] = useState<{ oldPassword: string; newPassword: string } | null>(
-    null,
-  );
+  const [preview, setPreview] = useState<{ oldPassword: string; newPassword: string } | null>(null);
   const [oldRevealed, setOldRevealed] = useState(false);
   const [newRevealed, setNewRevealed] = useState(false);
   const [copied, setCopied] = useState<"old" | "new" | null>(null);

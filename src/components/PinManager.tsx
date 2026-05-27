@@ -100,9 +100,7 @@ export function PinManager({ hasPin, onChange }: Props) {
                 maxLength={6}
                 autoFocus
                 value={pin}
-                onInput={(e) =>
-                  setPin((e.target as HTMLInputElement).value.replace(/\D/g, ""))
-                }
+                onInput={(e) => setPin((e.target as HTMLInputElement).value.replace(/\D/g, ""))}
               />
             </label>
             <div class="flex gap-2">
