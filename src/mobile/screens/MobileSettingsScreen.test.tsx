@@ -36,7 +36,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 
 describe("<MobileSettingsScreen />", () => {
-  it("renders all five section headers", async () => {
+  it("renders the six category menu rows", async () => {
     historyEnabled.value = true;
     const root = document.createElement("div");
     render(<MobileSettingsScreen />, root);
@@ -44,14 +44,12 @@ describe("<MobileSettingsScreen />", () => {
     // Allow the promise to resolve so settings layout mounts
     await new Promise((resolve) => setTimeout(resolve, 50));
 
+    // The 6 Bitwarden-style category headings
+    expect(root.textContent).toMatch(/Génération|Generation/);
     expect(root.textContent).toMatch(/Sécurité|Security/);
+    expect(root.textContent).toMatch(/Comptes|Accounts/);
     expect(root.textContent).toMatch(/Synchronisation|Sync/);
-    expect(root.textContent).toMatch(/Données|Data/);
-    expect(root.textContent).toMatch(/À propos|About/);
-    expect(root.textContent).toMatch(/Profil par défaut|Default profile/);
-    // Chantier 2 additions
-    expect(root.textContent).toMatch(/PIN rapide|Quick PIN/);
-    expect(root.textContent).toMatch(/Exporter ce coffre|Export this vault/);
+    expect(root.textContent).toMatch(/Confort|Comfort/);
     expect(root.textContent).toMatch(/Zone dangereuse|Danger zone/);
   });
 
@@ -67,5 +65,19 @@ describe("<MobileSettingsScreen />", () => {
     expect(lockButton).not.toBeNull();
     lockButton!.click();
     expect(calls).toEqual(["lock"]);
+  });
+
+  it("renders the Lock row on the top-level menu and not inside a sub-page", async () => {
+    // Sanity: the lock CTA lives outside the 6 category rows so a user
+    // looking to lock the vault doesn't have to drill into a sub-page.
+    const root = document.createElement("div");
+    render(<MobileSettingsScreen onLock={() => undefined} />, root);
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    const lockButton = root.querySelector("[data-action='lock']") as HTMLButtonElement | null;
+    expect(lockButton).not.toBeNull();
+    // The lock button text is wrapped in a <span>; just confirm it's present.
+    expect(lockButton!.textContent).toMatch(/Verrouiller|Lock/);
   });
 });
