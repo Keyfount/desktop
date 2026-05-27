@@ -463,7 +463,10 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
 
     @objc private func handlePresentCreate() {
         guard sessionMaster != nil else { return }
-        let initialProfile = AutofillProfile.defaultRandom()
+        var initialProfile = AutofillProfile.defaultRandom()
+        if let context = vaultContext {
+            initialProfile = readDefaultProfile(dbPath: context.dbPath)
+        }
         let vc = CreateAccountViewController(
             initialDomain: requestedDomain,
             defaultProfile: initialProfile
@@ -699,6 +702,24 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
         guard sqlite3_step(statement) == SQLITE_ROW else { return true }
         let val = sqlite3_column_int(statement, 0)
         return val != 0
+    }
+
+    private func readDefaultProfile(dbPath: String) -> AutofillProfile {
+        var db: OpaquePointer?
+        guard sqlite3_open(dbPath, &db) == SQLITE_OK else { return .defaultRandom() }
+        defer { sqlite3_close(db) }
+
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, "SELECT default_profile_json FROM settings WHERE id = 1;", -1, &statement, nil) == SQLITE_OK else {
+            return .defaultRandom()
+        }
+        defer { sqlite3_finalize(statement) }
+
+        guard sqlite3_step(statement) == SQLITE_ROW else { return .defaultRandom() }
+        guard let cString = sqlite3_column_text(statement, 0) else { return .defaultRandom() }
+        let jsonStr = String(cString: cString)
+        
+        return AutofillProfile.fromJSON(jsonStr) ?? .defaultRandom()
     }
 
     /// Refilter `allAccounts` into the two visible sections after a

@@ -551,6 +551,33 @@ enum AutofillProfile {
         .memorable(MemorableParams(wordCount: 6, separator: .dot, capitalise: true, suffix: true, counter: 1))
     }
 
+    static func fromJSON(_ jsonStr: String) -> AutofillProfile? {
+        guard let data = jsonStr.data(using: .utf8),
+              let dict = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let mode = dict["mode"] as? String else {
+            return nil
+        }
+        
+        if mode == "random" {
+            let length = UInt32((dict["length"] as? Int) ?? 16)
+            let lower = (dict["lower"] as? Bool) ?? true
+            let upper = (dict["upper"] as? Bool) ?? true
+            let digits = (dict["digits"] as? Bool) ?? true
+            let symbols = (dict["symbols"] as? Bool) ?? true
+            let counter = UInt32((dict["counter"] as? Int) ?? 1)
+            return .random(RandomParams(length: length, lower: lower, upper: upper, digits: digits, symbols: symbols, counter: counter))
+        } else if mode == "memorable" {
+            let wordCount = UInt32((dict["wordCount"] as? Int) ?? 6)
+            let sepStr = (dict["separator"] as? String) ?? "."
+            let separator = MemorableSeparator(rawValue: sepStr) ?? .dot
+            let capitalise = (dict["capitalise"] as? Bool) ?? true
+            let suffix = (dict["suffix"] as? Bool) ?? true
+            let counter = UInt32((dict["counter"] as? Int) ?? 1)
+            return .memorable(MemorableParams(wordCount: wordCount, separator: separator, capitalise: capitalise, suffix: suffix, counter: counter))
+        }
+        return nil
+    }
+
     func toJSON() -> String {
         let dict: [String: Any]
         switch self {
