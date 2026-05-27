@@ -349,6 +349,77 @@ pub unsafe extern "C" fn verify_master_ffi(
     if eq { 1 } else { 0 }
 }
 
+/// Persist a new (or existing) account in the active vault from the
+/// AutoFill extension. The extension cannot call the regular Tauri IPC
+/// `record_account` command — it runs in a separate process with no
+/// app handle — so we resolve the vault path ourselves and reuse the
+/// same SQL upsert as `store::accounts::record`.
+///
+/// `last_synced_at` is left NULL so `try_push_pending_ffi` (and the
+/// app's post-unlock drain) can find the entry and push it later.
+///
+/// Returns 1 on success, 0 on bad input / JSON, -1 on storage error.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn record_account_ffi(
+    domain: *const c_char,
+    username: *const c_char,
+    profile_json: *const c_char,
+) -> i32 {
+    if domain.is_null() || username.is_null() || profile_json.is_null() {
+        return 0;
+    }
+    let domain = unsafe { CStr::from_ptr(domain) }
+        .to_string_lossy()
+        .trim()
+        .to_lowercase();
+    let username = unsafe { CStr::from_ptr(username) }
+        .to_string_lossy()
+        .into_owned();
+    let profile_json = unsafe { CStr::from_ptr(profile_json) }
+        .to_string_lossy()
+        .into_owned();
+
+    if domain.is_empty() || username.trim().is_empty() {
+        return 0;
+    }
+    let profile: types::Profile = match serde_json::from_str(&profile_json) {
+        Ok(p) => p,
+        Err(_) => return 0,
+    };
+
+    match open_active_vault_db() {
+        Ok(conn) => {
+            let now = store::vaults::now_ms();
+            let entry = types::AccountEntry {
+                domain,
+                username,
+                profile,
+                created_at: now,
+                last_used_at: now,
+            };
+            match store::accounts::record(&conn, &entry) {
+                Ok(_) => 1,
+                Err(_) => -1,
+            }
+        }
+        Err(_) => -1,
+    }
+}
+
+/// Resolve the active vault's SQLite file and return an open
+/// connection with the schema migrations applied. Shared by every FFI
+/// entrypoint that needs to read or write account data.
+fn open_active_vault_db() -> Result<rusqlite::Connection, error::AppError> {
+    let registry = store::vaults::VaultRegistry::load(store::vaults::registry_path())?;
+    let active_id = registry
+        .active_id
+        .ok_or_else(|| error::AppError::invalid("no active vault"))?;
+    let db_path = store::vaults::vault_dir(&active_id).join("vault.db");
+    let conn = rusqlite::Connection::open(&db_path)?;
+    store::schema::ensure_schema(&conn)?;
+    Ok(conn)
+}
+
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn free_password_ffi(s: *mut c_char) {
     if !s.is_null() {
