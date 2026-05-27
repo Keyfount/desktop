@@ -94,6 +94,7 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
     /// `viewDidAppear` can fire multiple times if the user backgrounds
     /// then resumes the extension, and we don't want to re-trigger.
     private var biometricAttempted = false
+    private var faviconFallbackEnabled = true
 
     // MARK: - UI
 
@@ -158,27 +159,41 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
         bar.tintColor = KeyfountTheme.accent
 
         let item = UINavigationItem(title: "Keyfount")
-        item.leftBarButtonItem = UIBarButtonItem(
-            barButtonSystemItem: .cancel,
-            target: self,
-            action: #selector(handleCancel)
-        )
-        item.rightBarButtonItem = createAccountButton
+        let leftBtn = createCircularButton(systemName: "xmark", action: #selector(handleCancel))
+        item.leftBarButtonItem = UIBarButtonItem(customView: leftBtn)
+        item.rightBarButtonItem = UIBarButtonItem(customView: createAccountButton)
         bar.items = [item]
         return bar
     }()
 
-    private lazy var createAccountButton: UIBarButtonItem = {
-        let item = UIBarButtonItem(
-            image: UIImage(systemName: "plus"),
-            style: .plain,
-            target: self,
-            action: #selector(handlePresentCreate)
-        )
-        // Visible only once we're unlocked and we know the domain.
-        item.isEnabled = false
-        return item
+    private lazy var createAccountButton: UIButton = {
+        let btn = createCircularButton(systemName: "plus", action: #selector(handlePresentCreate))
+        btn.isEnabled = false
+        btn.alpha = 0.5
+        return btn
     }()
+
+    private func createCircularButton(systemName: String, action: Selector) -> UIButton {
+        let btn = UIButton(type: .system)
+        btn.translatesAutoresizingMaskIntoConstraints = false
+        
+        let config = UIImage.SymbolConfiguration(pointSize: 14, weight: .semibold)
+        let image = UIImage(systemName: systemName, withConfiguration: config)
+        btn.setImage(image, for: .normal)
+        
+        btn.tintColor = KeyfountTheme.ink
+        btn.backgroundColor = KeyfountTheme.surfaceSunken
+        btn.layer.cornerRadius = 18
+        btn.layer.masksToBounds = true
+        
+        NSLayoutConstraint.activate([
+            btn.widthAnchor.constraint(equalToConstant: 36),
+            btn.heightAnchor.constraint(equalToConstant: 36)
+        ])
+        
+        btn.addTarget(self, action: action, for: .touchUpInside)
+        return btn
+    }
 
     // MARK: - Lock overlay
 
@@ -284,8 +299,13 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        if let sharedURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: Self.AppGroup) {
+            setenv("HOME", sharedURL.path, 1)
+        }
+        
         KeyfountTheme.registerBundledFonts()
         view.backgroundColor = KeyfountTheme.surface
+        searchBar.searchTextField.backgroundColor = KeyfountTheme.surfaceSunken
 
         view.addSubview(navigationBar)
         view.addSubview(tableView)
@@ -365,6 +385,10 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
     // MARK: - ASCredentialProviderViewController hooks
 
     override func prepareCredentialList(for serviceIdentifiers: [ASCredentialServiceIdentifier]) {
+        if let sharedURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: Self.AppGroup) {
+            setenv("HOME", sharedURL.path, 1)
+        }
+        
         requestedDomain = Self.extractDomain(from: serviceIdentifiers)
 
         switch loadVault() {
@@ -578,6 +602,7 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
         masterField.text = ""
         masterField.resignFirstResponder()
         createAccountButton.isEnabled = !requestedDomain.isEmpty
+        createAccountButton.alpha = createAccountButton.isEnabled ? 1.0 : 0.5
         presentAccountList()
         UIView.animate(withDuration: 0.25) {
             self.lockOverlay.alpha = 0
@@ -631,6 +656,7 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
 
     private func presentAccountList() {
         guard let context = vaultContext else { return }
+        faviconFallbackEnabled = readFaviconFallbackEnabled(dbPath: context.dbPath)
         allAccounts = queryAllAccounts(dbPath: context.dbPath)
         rebuildSections()
 
@@ -641,6 +667,22 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
             tableView.isHidden = false
             tableView.reloadData()
         }
+    }
+
+    private func readFaviconFallbackEnabled(dbPath: String) -> Bool {
+        var db: OpaquePointer?
+        guard sqlite3_open(dbPath, &db) == SQLITE_OK else { return true }
+        defer { sqlite3_close(db) }
+
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, "SELECT favicon_fallback_enabled FROM settings WHERE id = 1;", -1, &statement, nil) == SQLITE_OK else {
+            return true
+        }
+        defer { sqlite3_finalize(statement) }
+
+        guard sqlite3_step(statement) == SQLITE_ROW else { return true }
+        let val = sqlite3_column_int(statement, 0)
+        return val != 0
     }
 
     /// Refilter `allAccounts` into the two visible sections after a
@@ -695,7 +737,7 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
         let cell = tableView.dequeueReusableCell(withIdentifier: "AccountCell", for: indexPath) as! KeyfountAccountCell
         guard let s = Section(rawValue: indexPath.section) else { return cell }
         let account = entries(in: s)[indexPath.row]
-        cell.configure(username: account.username, domain: account.domain)
+        cell.configure(username: account.username, domain: account.domain, allowFavicon: faviconFallbackEnabled)
         return cell
     }
 
@@ -717,6 +759,10 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
         header.textLabel?.font = KeyfountTheme.Font.fieldLabel()
         header.textLabel?.textColor = KeyfountTheme.inkSubtle
         header.textLabel?.text = header.textLabel?.text  // re-trigger casing
+    }
+
+    func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
+        cell.backgroundColor = KeyfountTheme.surfaceElev
     }
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
@@ -925,9 +971,7 @@ final class PaddedTextField: UITextField {
     override func editingRect(forBounds bounds: CGRect) -> CGRect {
         bounds.inset(by: inset)
     }
-}
-
-// MARK: - KeyfountAccountCell
+}// MARK: - KeyfountAccountCell
 
 /// Account row used in the credential list. Mirrors `.account-row` /
 /// `.account-row__favicon` from `theme.css`: a rounded surface-elev
@@ -938,13 +982,13 @@ final class KeyfountAccountCell: UITableViewCell {
     private let domainLabel = UILabel()
     private let initialBadge = UILabel()
     private let badgeContainer = UIView()
+    private let faviconView = UIImageView()
+    private var imageLoadTask: URLSessionDataTask?
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         backgroundColor = .clear
         contentView.backgroundColor = .clear
-        // The cell already lives inside a grouped section, so we keep
-        // the background to the row level and just style the labels.
         accessoryType = .disclosureIndicator
         tintColor = KeyfountTheme.lineStrong
 
@@ -952,7 +996,7 @@ final class KeyfountAccountCell: UITableViewCell {
         badgeContainer.backgroundColor = KeyfountTheme.surfaceSunken
         badgeContainer.layer.borderColor = KeyfountTheme.line.cgColor
         badgeContainer.layer.borderWidth = 0.5
-        badgeContainer.layer.cornerRadius = KeyfountTheme.Radius.small
+        badgeContainer.layer.cornerRadius = 8
         badgeContainer.layer.masksToBounds = true
 
         initialBadge.translatesAutoresizingMaskIntoConstraints = false
@@ -961,10 +1005,15 @@ final class KeyfountAccountCell: UITableViewCell {
         initialBadge.textAlignment = .center
         badgeContainer.addSubview(initialBadge)
 
+        faviconView.translatesAutoresizingMaskIntoConstraints = false
+        faviconView.contentMode = .scaleAspectFit
+        faviconView.layer.cornerRadius = 6
+        faviconView.layer.masksToBounds = true
+        badgeContainer.addSubview(faviconView)
+
         usernameLabel.translatesAutoresizingMaskIntoConstraints = false
         usernameLabel.font = KeyfountTheme.Font.bodyLarge(.medium)
         usernameLabel.textColor = KeyfountTheme.ink
-        usernameLabel.lineBreakMode = .byTruncatingTail
 
         domainLabel.translatesAutoresizingMaskIntoConstraints = false
         domainLabel.font = KeyfountTheme.Font.caption()
@@ -984,6 +1033,11 @@ final class KeyfountAccountCell: UITableViewCell {
             initialBadge.centerXAnchor.constraint(equalTo: badgeContainer.centerXAnchor),
             initialBadge.centerYAnchor.constraint(equalTo: badgeContainer.centerYAnchor),
 
+            faviconView.leadingAnchor.constraint(equalTo: badgeContainer.leadingAnchor),
+            faviconView.trailingAnchor.constraint(equalTo: badgeContainer.trailingAnchor),
+            faviconView.topAnchor.constraint(equalTo: badgeContainer.topAnchor),
+            faviconView.bottomAnchor.constraint(equalTo: badgeContainer.bottomAnchor),
+
             usernameLabel.leadingAnchor.constraint(equalTo: badgeContainer.trailingAnchor, constant: 12),
             usernameLabel.trailingAnchor.constraint(lessThanOrEqualTo: contentView.layoutMarginsGuide.trailingAnchor),
             usernameLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 10),
@@ -997,9 +1051,70 @@ final class KeyfountAccountCell: UITableViewCell {
 
     required init?(coder: NSCoder) { fatalError("init(coder:) not implemented") }
 
-    func configure(username: String, domain: String) {
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        imageLoadTask?.cancel()
+        imageLoadTask = nil
+        faviconView.image = nil
+        faviconView.isHidden = true
+        initialBadge.isHidden = false
+    }
+
+    func configure(username: String, domain: String, allowFavicon: Bool) {
         usernameLabel.text = username
         domainLabel.text = domain
         initialBadge.text = String(domain.prefix(1)).uppercased()
+
+        let (bg, fg) = Self.getMonogramColors(domain: domain)
+        badgeContainer.backgroundColor = bg
+        initialBadge.textColor = fg
+        badgeContainer.layer.borderColor = KeyfountTheme.line.cgColor
+
+        imageLoadTask?.cancel()
+        faviconView.image = nil
+        faviconView.isHidden = true
+        initialBadge.isHidden = false
+
+        if allowFavicon {
+            let trimmed = domain.replacingOccurrences(of: "^www\\.", with: "", options: .regularExpression).lowercased()
+            if let url = URL(string: "https://www.google.com/s2/favicons?sz=64&domain=\(trimmed)") {
+                imageLoadTask = URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
+                    guard let self = self else { return }
+                    if error != nil { return }
+                    if let data = data, let img = UIImage(data: data), img.size.width > 0 {
+                        DispatchQueue.main.async {
+                            self.faviconView.image = img
+                            self.faviconView.isHidden = false
+                            self.initialBadge.isHidden = true
+                            self.badgeContainer.backgroundColor = KeyfountTheme.surfaceElev
+                            self.badgeContainer.layer.borderColor = KeyfountTheme.line.withAlphaComponent(0.6).cgColor
+                        }
+                    }
+                }
+                imageLoadTask?.resume()
+            }
+        }
+    }
+
+    private static func getMonogramColors(domain: String) -> (UIColor, UIColor) {
+        let palette: [(UInt32, UInt32)] = [
+            (0xE3EBF6, 0x2C5282),
+            (0xDFEFE6, 0x276749),
+            (0xF5EFE3, 0x744210),
+            (0xF0E4F2, 0x553C9A),
+            (0xF5E3E3, 0x742A2A),
+            (0xDFEFF5, 0x2B6CB0),
+            (0xECE3F5, 0x4A128C),
+            (0xEDF5E3, 0x4A5D2E)
+        ]
+        let trimmed = domain.replacingOccurrences(of: "^www\\.", with: "", options: .regularExpression).lowercased()
+        var hash: UInt32 = 2166136261
+        for byte in trimmed.utf8 {
+            hash ^= UInt32(byte)
+            hash = hash.multipliedReportingOverflow(by: 16777619).partialValue
+        }
+        let index = Int(hash % UInt32(palette.count))
+        let colors = palette[index]
+        return (UIColor(rgb: colors.0), UIColor(rgb: colors.1))
     }
 }

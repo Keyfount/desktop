@@ -385,7 +385,10 @@ pub unsafe extern "C" fn record_account_ffi(
     }
     let profile: types::Profile = match serde_json::from_str(&profile_json) {
         Ok(p) => p,
-        Err(_) => return 0,
+        Err(e) => {
+            eprintln!("Autofill FFI: failed to parse profile JSON: {:?}", e);
+            return 0;
+        }
     };
 
     match open_active_vault_db() {
@@ -399,11 +402,20 @@ pub unsafe extern "C" fn record_account_ffi(
                 last_used_at: now,
             };
             match store::accounts::record(&conn, &entry) {
-                Ok(_) => 1,
-                Err(_) => -1,
+                Ok(_) => {
+                    eprintln!("Autofill FFI: successfully recorded account");
+                    1
+                }
+                Err(e) => {
+                    eprintln!("Autofill FFI: failed to record account in DB: {:?}", e);
+                    -1
+                }
             }
         }
-        Err(_) => -1,
+        Err(e) => {
+            eprintln!("Autofill FFI: failed to open vault DB: {:?}", e);
+            -1
+        }
     }
 }
 
@@ -411,13 +423,43 @@ pub unsafe extern "C" fn record_account_ffi(
 /// connection with the schema migrations applied. Shared by every FFI
 /// entrypoint that needs to read or write account data.
 fn open_active_vault_db() -> Result<rusqlite::Connection, error::AppError> {
-    let registry = store::vaults::VaultRegistry::load(store::vaults::registry_path())?;
-    let active_id = registry
-        .active_id
-        .ok_or_else(|| error::AppError::invalid("no active vault"))?;
+    let reg_path = store::vaults::registry_path();
+    eprintln!("Autofill FFI: registry path resolved to {:?}", reg_path);
+    let registry = match store::vaults::VaultRegistry::load(&reg_path) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("Autofill FFI: failed to load vault registry: {:?}", e);
+            return Err(e);
+        }
+    };
+    let active_id = match registry.active_id.clone() {
+        Some(id) => id,
+        None => {
+            eprintln!("Autofill FFI: no active vault ID found in registry");
+            return Err(error::AppError::invalid("no active vault"));
+        }
+    };
     let db_path = store::vaults::vault_dir(&active_id).join("vault.db");
-    let conn = rusqlite::Connection::open(&db_path)?;
-    store::schema::ensure_schema(&conn)?;
+    eprintln!("Autofill FFI: database path resolved to {:?}", db_path);
+    
+    // Ensure the parent directory exists
+    if let Some(parent) = db_path.parent() {
+        if let Err(e) = std::fs::create_dir_all(parent) {
+            eprintln!("Autofill FFI: failed to create vault dir: {:?}", e);
+        }
+    }
+
+    let conn = match rusqlite::Connection::open(&db_path) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("Autofill FFI: failed to open SQLite connection: {:?}", e);
+            return Err(e.into());
+        }
+    };
+    if let Err(e) = store::schema::ensure_schema(&conn) {
+        eprintln!("Autofill FFI: failed to ensure schema: {:?}", e);
+        return Err(e);
+    }
     Ok(conn)
 }
 
