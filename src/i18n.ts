@@ -5,7 +5,7 @@
  */
 
 type Locale = "en" | "fr";
-type Entry = string | ((arg: string) => string);
+type Entry = string | ((...args: string[]) => string);
 
 const EN = {
   common_generate: "Generate",
@@ -42,6 +42,11 @@ const EN = {
   err_autofill_toggle_failed: "Could not toggle system autofill.",
   err_history_toggle_failed: "Could not change the history setting.",
   err_no_other_vault: "No other vault available to switch back to.",
+  err_pin_set_failed: "Could not set the PIN.",
+  err_wipe_failed: "Could not wipe the vault.",
+  err_export_failed: "Could not export the vault.",
+  err_import_failed: "Could not import the vault.",
+  err_rotation_failed: "Could not rotate the password.",
 
   setup_welcome: "Set up your master password",
   setup_intro:
@@ -122,7 +127,53 @@ const EN = {
   settings_vault_import: "Import vault",
   settings_about: "About",
   settings_danger: "Danger zone",
+  settings_danger_hint:
+    "Irreversible actions for the active vault. Make sure you have an export before touching anything here.",
   settings_wipe: "Forget this vault",
+  settings_wipe_button: "Wipe vault",
+  settings_wipe_wiping: "Wiping…",
+  settings_wipe_confirm_title: "Wipe this vault for good?",
+  settings_wipe_confirm_body:
+    "Wiping erases every account, every per-site profile, the PIN, and any biometric/sync session attached to this vault. The master password no longer unlocks anything — the data is gone. Make sure you have an exported envelope if you ever want to come back.",
+
+  pin_section_title: "Quick PIN",
+  pin_section_hint:
+    "A 4–6 digit PIN unlocks the vault faster than the master password. The master is still kept in OS storage encrypted behind the PIN — losing the PIN doesn't lose the vault.",
+  pin_warning_master_only:
+    "The PIN is a convenience, not extra security: anyone with this device can try PIN combinations more easily than master passwords.",
+  pin_enabled_label: "PIN is set on this vault",
+  pin_choose_label: "Choose a 4–6 digit PIN",
+  pin_enable_cta: "Set a PIN",
+  pin_confirm_enable: "Save PIN",
+  pin_saving: "Saving…",
+  pin_remove: "Remove PIN",
+
+  export_section_title: "Export this vault",
+  export_section_hint:
+    "Save an encrypted .keyfountvault file you can move to another device. The export passphrase is separate from the master password — choose a strong one and keep it safe.",
+  export_passphrase_label: "Export passphrase",
+  export_passphrase_hint: "At least 12 characters. Required to re-import this file.",
+  export_button: "Export vault",
+  export_busy: "Exporting…",
+  export_filename: (date: string) => `keyfount-vault-${date}.keyfountvault`,
+
+  import_section_title: "Import a vault",
+  import_section_hint:
+    "Load a .keyfountvault file and decrypt it with its passphrase. Accounts and per-site profiles in the file get merged into the active vault.",
+  import_choose_file: "Choose a .keyfountvault file",
+  import_passphrase_label: "File passphrase",
+  import_button: "Import",
+  import_busy: "Importing…",
+  import_done: (accounts: string, sites: string) =>
+    `Imported ${accounts} account(s) and ${sites} per-site profile(s).`,
+
+  detail_rotate_section: "Rotate the password",
+  detail_rotate_hint:
+    "Bumps the derivation counter so the password changes without renaming the account. Useful when the site forces a rotation. Both values are previewed so you can copy current + new into the change-password form.",
+  detail_rotate_cta: "Start rotation",
+  detail_rotate_old_label: "Current password",
+  detail_rotate_new_label: "New password",
+  detail_rotate_confirm: "Confirm rotation",
 
   biometric_toggle_label: "Unlock with biometrics",
   biometric_toggle_label_touchid: "Unlock with Touch ID",
@@ -297,6 +348,11 @@ const FR: Record<keyof typeof EN, Entry> = {
   err_autofill_toggle_failed: "Impossible de basculer le remplissage système.",
   err_history_toggle_failed: "Impossible de modifier le réglage d'historique.",
   err_no_other_vault: "Aucun autre coffre disponible.",
+  err_pin_set_failed: "Impossible d'enregistrer le PIN.",
+  err_wipe_failed: "Impossible d'effacer le coffre.",
+  err_export_failed: "Impossible d'exporter le coffre.",
+  err_import_failed: "Impossible d'importer le coffre.",
+  err_rotation_failed: "Impossible de faire tourner le mot de passe.",
 
   setup_welcome: "Configurer votre mot de passe maître",
   setup_intro:
@@ -379,7 +435,53 @@ const FR: Record<keyof typeof EN, Entry> = {
   settings_vault_import: "Importer un coffre",
   settings_about: "À propos",
   settings_danger: "Zone dangereuse",
+  settings_danger_hint:
+    "Actions irréversibles sur le coffre actif. Assurez-vous d'avoir un export avant de toucher à quoi que ce soit ici.",
   settings_wipe: "Oublier ce coffre",
+  settings_wipe_button: "Effacer le coffre",
+  settings_wipe_wiping: "Effacement…",
+  settings_wipe_confirm_title: "Effacer ce coffre définitivement ?",
+  settings_wipe_confirm_body:
+    "Effacer le coffre supprime tous les comptes, tous les profils par site, le PIN, et toute session biométrique ou de synchro attachée. Le mot de passe maître ne déverrouille plus rien — les données sont parties. Vérifiez que vous avez une enveloppe exportée si vous comptez revenir un jour.",
+
+  pin_section_title: "PIN rapide",
+  pin_section_hint:
+    "Un PIN de 4 à 6 chiffres déverrouille le coffre plus vite que le mot de passe maître. Le maître reste stocké chiffré, protégé par le PIN — perdre le PIN ne fait pas perdre le coffre.",
+  pin_warning_master_only:
+    "Le PIN, c'est du confort, pas de la sécurité en plus : quiconque a ce device peut essayer des combinaisons de PIN plus facilement que des mots de passe maîtres.",
+  pin_enabled_label: "Un PIN est configuré sur ce coffre",
+  pin_choose_label: "Choisis un PIN à 4–6 chiffres",
+  pin_enable_cta: "Définir un PIN",
+  pin_confirm_enable: "Enregistrer le PIN",
+  pin_saving: "Enregistrement…",
+  pin_remove: "Retirer le PIN",
+
+  export_section_title: "Exporter ce coffre",
+  export_section_hint:
+    "Sauvegarde un fichier .keyfountvault chiffré que tu peux déplacer sur un autre appareil. La passphrase d'export est différente du mot de passe maître — choisis-la solide et garde-la en sécurité.",
+  export_passphrase_label: "Passphrase d'export",
+  export_passphrase_hint: "12 caractères minimum. Requise pour réimporter le fichier.",
+  export_button: "Exporter le coffre",
+  export_busy: "Export…",
+  export_filename: (date: string) => `keyfount-coffre-${date}.keyfountvault`,
+
+  import_section_title: "Importer un coffre",
+  import_section_hint:
+    "Charge un fichier .keyfountvault et déchiffre-le avec sa passphrase. Les comptes et profils par site du fichier sont fusionnés dans le coffre actif.",
+  import_choose_file: "Choisir un fichier .keyfountvault",
+  import_passphrase_label: "Passphrase du fichier",
+  import_button: "Importer",
+  import_busy: "Import…",
+  import_done: (accounts: string, sites: string) =>
+    `${accounts} compte(s) et ${sites} profil(s) de site importés.`,
+
+  detail_rotate_section: "Faire tourner le mot de passe",
+  detail_rotate_hint:
+    "Incrémente le compteur de dérivation, ce qui change le mot de passe sans renommer le compte. Pratique quand le site impose une rotation. Les deux valeurs sont affichées pour copier l'actuel + le nouveau dans le formulaire de changement.",
+  detail_rotate_cta: "Démarrer la rotation",
+  detail_rotate_old_label: "Mot de passe actuel",
+  detail_rotate_new_label: "Nouveau mot de passe",
+  detail_rotate_confirm: "Confirmer la rotation",
 
   biometric_toggle_label: "Déverrouiller avec la biométrie",
   biometric_toggle_label_touchid: "Déverrouiller avec Touch ID",
@@ -533,7 +635,7 @@ const TABLE = STRINGS[LOCALE];
 export function t(key: keyof typeof EN, ...args: string[]): string {
   const entry = TABLE[key] ?? EN[key];
   if (typeof entry === "function") {
-    return (entry as (arg: string) => string)(args[0] ?? "");
+    return (entry as (...a: string[]) => string)(...args);
   }
   return entry;
 }

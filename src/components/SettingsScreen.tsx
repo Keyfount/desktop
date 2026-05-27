@@ -18,8 +18,11 @@ import {
 import { clearSession, disconnect, loadStoredSession } from "../sync/manager.js";
 import type { GetStateResponse, Profile } from "../types.js";
 import { previousView } from "../state.js";
+import { DangerZone } from "./DangerZone.js";
 import { PageHeader } from "./PageHeader.js";
+import { PinManager } from "./PinManager.js";
 import { ProfileEditor } from "./ProfileEditor.js";
+import { VaultExportImport } from "./VaultExportImport.js";
 
 export function SettingsScreen() {
   const [state, setState] = useState<GetStateResponse | null>(null);
@@ -28,8 +31,17 @@ export function SettingsScreen() {
   const [biometricSupported, setBiometricSupported] = useState(false);
   const [biometricEnrolled, setBiometricEnrolled] = useState(false);
 
+  const refreshState = useCallback(async () => {
+    try {
+      const next = await api.getState();
+      setState(next);
+    } catch {
+      /* swallow — surface via the existing error path if needed */
+    }
+  }, []);
+
   useEffect(() => {
-    void api.getState().then(setState);
+    void refreshState();
     void api.autofillStatus().then((r) => setAutofillEnabled(r.enabled));
     void api
       .biometricAvailable()
@@ -43,7 +55,7 @@ export function SettingsScreen() {
         setBiometricEnrolled(false);
         setBiometricEnabled(false);
       });
-  }, []);
+  }, [refreshState]);
 
   const setDefault = useCallback(async (next: Profile) => {
     await api.setDefaultProfile(next);
@@ -273,6 +285,27 @@ export function SettingsScreen() {
               }}
             />
           </div>
+
+          <Section title={t("pin_section_title")}>
+            <div class="card !p-5 flex flex-col gap-3">
+              <p class="text-xs text-(--color-ink-muted) leading-relaxed">
+                {t("pin_section_hint")}
+              </p>
+              <PinManager hasPin={state.hasPin} onChange={refreshState} />
+            </div>
+          </Section>
+
+          <Section title={t("export_section_title")}>
+            <div class="card !p-5">
+              <VaultExportImport onImported={refreshState} />
+            </div>
+          </Section>
+
+          <Section title={t("settings_danger")}>
+            <div class="card !p-5 border border-red-500/30">
+              <DangerZone />
+            </div>
+          </Section>
 
           {errorMessage.value !== null ? (
             <div class="field-error" role="alert">

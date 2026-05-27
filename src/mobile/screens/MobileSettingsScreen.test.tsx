@@ -47,6 +47,10 @@ describe("<MobileSettingsScreen />", () => {
     expect(root.textContent).toMatch(/Données|Data/);
     expect(root.textContent).toMatch(/À propos|About/);
     expect(root.textContent).toMatch(/Profil par défaut|Default profile/);
+    // Chantier 2 additions
+    expect(root.textContent).toMatch(/PIN rapide|Quick PIN/);
+    expect(root.textContent).toMatch(/Exporter ce coffre|Export this vault/);
+    expect(root.textContent).toMatch(/Zone dangereuse|Danger zone/);
   });
 
   it("renders a Lock row that calls the onLock prop when tapped", async () => {

@@ -16,6 +16,7 @@ import { selectedAccount, allAccounts } from "../state.js";
 import { AccountAvatar } from "../components/AccountAvatar.js";
 import { ConfirmModal } from "../components/ConfirmModal.js";
 import { ProfileEditor } from "../components/ProfileEditor.js";
+import { RotationPanel } from "../components/RotationPanel.js";
 import type { Profile } from "../types.js";
 
 interface Props {
@@ -425,6 +426,22 @@ export function MobileAccountDetailSheet(_props: Props) {
               <div class="card !p-4">
                 <ProfileEditor profile={profile} onChange={updateProfile} compact />
               </div>
+            </div>
+
+            {/* Rotation */}
+            <div class="flex flex-col gap-2">
+              <RotationPanel
+                entry={entry}
+                compact
+                onUpdated={(next) => {
+                  allAccounts.value = allAccounts.value.map((e) =>
+                    e.domain === entry.domain && e.username === entry.username ? next : e,
+                  );
+                  selectedAccount.value = next;
+                  setProfile(next.profile);
+                  void regenerate(next.profile);
+                }}
+              />
             </div>
 
             {/* Footer / Delete */}
