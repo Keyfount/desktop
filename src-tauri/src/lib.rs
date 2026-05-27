@@ -315,6 +315,40 @@ pub unsafe extern "C" fn derive_password_ffi(
     c_str.into_raw()
 }
 
+/// Verify a candidate master against the fingerprint stored in the
+/// vault's `settings` row. The extension reads `expected_fp_hex` from
+/// SQLite directly and passes both strings here so we can run the same
+/// Argon2id derivation as the IPC `unlock` command without exposing
+/// the full session state across the C boundary.
+///
+/// Returns 1 on match, 0 on mismatch, -1 on argument/derivation error.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn verify_master_ffi(
+    master: *const c_char,
+    expected_fp_hex: *const c_char,
+) -> i32 {
+    if master.is_null() || expected_fp_hex.is_null() {
+        return -1;
+    }
+    let master = unsafe { CStr::from_ptr(master) }.to_string_lossy().into_owned();
+    let expected_hex = unsafe { CStr::from_ptr(expected_fp_hex) }
+        .to_string_lossy()
+        .into_owned();
+
+    let computed = match crypto::fingerprint_master(&master) {
+        Ok(fp) => fp,
+        Err(_) => return -1,
+    };
+
+    let expected = match hex::decode(expected_hex.trim()) {
+        Ok(bytes) if bytes.len() == 3 => bytes,
+        _ => return -1,
+    };
+
+    let eq: bool = subtle::ConstantTimeEq::ct_eq(&expected[..], &computed[..]).into();
+    if eq { 1 } else { 0 }
+}
+
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn free_password_ffi(s: *mut c_char) {
     if !s.is_null() {
