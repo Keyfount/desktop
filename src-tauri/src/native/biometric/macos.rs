@@ -35,6 +35,8 @@ use objc2::runtime::Bool;
 use objc2_foundation::{NSError, NSString};
 use objc2_local_authentication::{LAContext, LAPolicy};
 use security_framework_sys::base::{errSecItemNotFound, errSecSuccess};
+#[cfg(target_os = "ios")]
+use security_framework_sys::item::kSecAttrAccessGroup;
 use security_framework_sys::item::{
     kSecAttrAccount, kSecAttrService, kSecClass, kSecClassGenericPassword, kSecMatchLimit,
     kSecReturnData, kSecValueData,
@@ -44,6 +46,30 @@ use security_framework_sys::keychain_item::{SecItemAdd, SecItemCopyMatching, Sec
 use super::Availability;
 
 const KEYCHAIN_SERVICE: &str = "io.keyfount.desktop.biometric";
+
+/// On iOS the main app and the AutoFill extension live in separate
+/// processes; the only way they can share a Keychain item is through a
+/// `keychain-access-group` entitlement. Tag every Keychain operation
+/// with this group so the extension's `SecItemCopyMatching` can locate
+/// the sealed master.
+///
+/// macOS desktop has no extension, so the group is omitted to avoid the
+/// `errSecMissingEntitlement (-34018)` that unsigned dev builds get
+/// when they try to write into an access group they don't claim.
+#[cfg(target_os = "ios")]
+const KEYCHAIN_ACCESS_GROUP: &str = "io.keyfount.shared";
+
+#[cfg(target_os = "ios")]
+fn add_access_group(query: &mut CFMutableDictionary<CFString, CFType>) {
+    let group = CFString::new(KEYCHAIN_ACCESS_GROUP);
+    query.add(
+        &wrap_cfstr(unsafe { kSecAttrAccessGroup }),
+        &group.as_CFType(),
+    );
+}
+
+#[cfg(not(target_os = "ios"))]
+fn add_access_group(_query: &mut CFMutableDictionary<CFString, CFType>) {}
 
 #[derive(Debug, Default)]
 pub struct Backend;
@@ -83,7 +109,7 @@ impl Backend {
         // Replace any prior entry — SecItemAdd duplicate-errors otherwise.
         let _ = delete_existing(&service, &acct);
 
-        let mut query = CFMutableDictionary::<CFString, CFType>::with_capacity(4);
+        let mut query = CFMutableDictionary::<CFString, CFType>::with_capacity(5);
         let class_value = wrap_cfstr(unsafe { kSecClassGenericPassword });
         query.add(&wrap_cfstr(unsafe { kSecClass }), &class_value.as_CFType());
         query.add(
@@ -92,6 +118,7 @@ impl Backend {
         );
         query.add(&wrap_cfstr(unsafe { kSecAttrAccount }), &acct.as_CFType());
         query.add(&wrap_cfstr(unsafe { kSecValueData }), &data.as_CFType());
+        add_access_group(&mut query);
 
         let status = unsafe { SecItemAdd(query.as_concrete_TypeRef() as _, std::ptr::null_mut()) };
         if status != errSecSuccess {
@@ -109,7 +136,7 @@ impl Backend {
         let service = CFString::new(KEYCHAIN_SERVICE);
         let acct = CFString::new(account);
 
-        let mut query = CFMutableDictionary::<CFString, CFType>::with_capacity(5);
+        let mut query = CFMutableDictionary::<CFString, CFType>::with_capacity(6);
         let class_value = wrap_cfstr(unsafe { kSecClassGenericPassword });
         query.add(&wrap_cfstr(unsafe { kSecClass }), &class_value.as_CFType());
         query.add(
@@ -123,6 +150,7 @@ impl Backend {
             &wrap_cfstr(unsafe { kSecReturnData }),
             &CFBoolean::true_value().as_CFType(),
         );
+        add_access_group(&mut query);
 
         let mut result: CFTypeRef = std::ptr::null();
         let status = unsafe { SecItemCopyMatching(query.as_concrete_TypeRef() as _, &mut result) };
@@ -148,7 +176,7 @@ impl Backend {
     pub fn is_enrolled(&self, account: &str) -> bool {
         let service = CFString::new(KEYCHAIN_SERVICE);
         let acct = CFString::new(account);
-        let mut query = CFMutableDictionary::<CFString, CFType>::with_capacity(4);
+        let mut query = CFMutableDictionary::<CFString, CFType>::with_capacity(5);
         let class_value = wrap_cfstr(unsafe { kSecClassGenericPassword });
         query.add(&wrap_cfstr(unsafe { kSecClass }), &class_value.as_CFType());
         query.add(
@@ -158,6 +186,7 @@ impl Backend {
         query.add(&wrap_cfstr(unsafe { kSecAttrAccount }), &acct.as_CFType());
         let one = CFNumber::from(1i32);
         query.add(&wrap_cfstr(unsafe { kSecMatchLimit }), &one.as_CFType());
+        add_access_group(&mut query);
         let status =
             unsafe { SecItemCopyMatching(query.as_concrete_TypeRef() as _, std::ptr::null_mut()) };
         status == errSecSuccess
@@ -224,7 +253,7 @@ fn wrap_cfstr(raw: CFStringRef) -> CFString {
 }
 
 fn delete_existing(service: &CFString, account: &CFString) -> Result<(), String> {
-    let mut query = CFMutableDictionary::<CFString, CFType>::with_capacity(3);
+    let mut query = CFMutableDictionary::<CFString, CFType>::with_capacity(4);
     let class_value = wrap_cfstr(unsafe { kSecClassGenericPassword });
     query.add(&wrap_cfstr(unsafe { kSecClass }), &class_value.as_CFType());
     query.add(
@@ -235,6 +264,7 @@ fn delete_existing(service: &CFString, account: &CFString) -> Result<(), String>
         &wrap_cfstr(unsafe { kSecAttrAccount }),
         &account.as_CFType(),
     );
+    add_access_group(&mut query);
     let status = unsafe { SecItemDelete(query.as_concrete_TypeRef() as _) };
     if status == errSecSuccess || status == errSecItemNotFound {
         Ok(())
