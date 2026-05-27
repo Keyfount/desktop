@@ -68,29 +68,49 @@ Same as the desktop build, no stronger:
 
 ```rust
 // lib.rs
-verify_master_ffi(master) -> bool          // fingerprint check
-record_account_ffi(domain, username, profile_json) -> *mut c_char (entry JSON or null)
-try_push_pending_ffi(timeout_ms: u32) -> i32  // -1 no session, -2 net KO, ≥0 pushed
+verify_master_ffi(master, expected_fp_hex) -> i32   // 1 OK / 0 KO / -1 err
+record_account_ffi(domain, username, profile_json) -> i32  // 1 OK / 0 bad / -1 store
 ```
 
-All three read the vault DB via the existing `store::` modules and
-respect the same locks as the IPC commands.
+Both read the active vault via `open_active_vault_db()` (registry
+→ active id → SQLite). `last_synced_at` is left NULL on insert so
+the deferred drain can pick it up.
 
-## Sync semantics
+## Sync semantics — revised: defer-only
 
-- New accounts written with `last_synced_at = NULL`.
-- Extension attempts immediate push (5s timeout). Silent failure
-  acceptable — the record is already local.
-- Main app drains `WHERE last_synced_at IS NULL` after every unlock
-  (new helper called from `restore_active_vault` and from the unlock
-  command handler).
+Original plan called for an immediate `try_push_pending_ffi`. Dropped
+after measuring: porting the push pipeline (HKDF over the OPAQUE
+export_key, AES-GCM nonce, lamport-clocked `SyncOp` framing, retries,
+cursor logic) to pure Rust would duplicate ~200 lines of carefully
+tested TypeScript in `src/sync/auto.ts`. Two implementations of the
+crypto envelope is a real footgun for E2E confidentiality — one
+diverges, ciphertexts decrypt fine but pull-applied state silently
+drifts. Not worth the convenience.
 
-## Keychain assumption
+So:
 
-The sync session's `export_key` must live in the `io.keyfount.shared`
-access group for the extension to push. If today it sits in the
-default group, that migration is its own commit before
-`try_push_pending_ffi` lands.
+1. Extension writes the account with `last_synced_at = NULL`.
+2. **No immediate push from the extension.** The created account is
+   already complete locally, the user gets their filled credential
+   instantly, and iOS dismisses the chooser.
+3. **Main app drains on unlock.** A new IPC command
+   `list_pending_sync_accounts` returns rows with `last_synced_at
+   IS NULL`. `sync/auto.ts` (or whatever starts auto-sync) iterates
+   them and re-emits `syncBus.notify({ t: "upsert_account", entry })`
+   for each. The existing push pipeline handles the rest, and the
+   server side is already idempotent on (domain, username) so replays
+   are cheap.
+4. **No `last_synced_at` update yet.** First iteration trusts the
+   replay-on-boot to be idempotent and cheap. If users accumulate
+   thousands of pending entries because the main app is never
+   opened, we'll revisit by updating `last_synced_at` after a
+   confirmed push.
+
+User-visible consequence: an account created in the AutoFill extension
+becomes visible on other devices only after the user next opens the
+desktop / mobile app and an auto-sync round trip completes. Acceptable
+for v1 — every other manager with a Credential Provider extension
+behaves the same way.
 
 ## Commit plan
 
@@ -103,9 +123,8 @@ Small commits, in order:
 5. `feat(ios): show all accounts with search + suggestions section`.
 6. `feat(rust): record_account_ffi for extension-driven creation`.
 7. `feat(ios): create-account form (ProfileEditor parity)`.
-8. `feat(rust): try_push_pending_ffi best-effort push from extension`.
-9. `feat(rust): drain pending pushes after unlock`.
-10. (if needed) `chore(ios): move sync export_key to shared keychain group`.
+8. `feat(rust): list_pending_sync_accounts IPC for drain on boot`.
+9. `feat(sync): replay pending accounts via syncBus when auto-sync starts`.
 
 Each commit must keep the previous step's behaviour working — no
 "big bang" merge.

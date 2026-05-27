@@ -214,6 +214,7 @@ pub fn run() {
             commands::wipe,
             // accounts
             commands::list_accounts,
+            commands::list_pending_sync_accounts,
             commands::record_account,
             commands::update_account_profile,
             commands::rename_account,
