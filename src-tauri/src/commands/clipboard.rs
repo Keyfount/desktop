@@ -18,6 +18,7 @@ pub async fn copy_with_auto_clear(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> AppResult<()> {
+    state.touch().await;
     app.clipboard()
         .write_text(text.clone())
         .map_err(|e| crate::error::AppError::internal(e.to_string()))?;

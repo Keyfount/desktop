@@ -4,7 +4,7 @@
 //! It is never written to disk in plaintext. When the auto-lock timer
 //! fires, or the user explicitly locks, the master is zeroised.
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use zeroize::Zeroize;
 
@@ -40,6 +40,13 @@ impl SessionState {
 
     pub fn master(&self) -> Option<&str> {
         self.inner.as_ref().map(|s| s.master.as_str())
+    }
+
+    /// Time elapsed since the last unlock or `touch()`, or `None` while
+    /// locked. The auto-lock task compares this against the configured
+    /// timeout (see `crate::autolock`).
+    pub fn idle(&self) -> Option<Duration> {
+        self.inner.as_ref().map(|s| s.unlocked_at.elapsed())
     }
 
     pub fn lock(&mut self) {
@@ -89,5 +96,36 @@ mod tests {
         s.unlock("b".into(), [1, 1, 1]);
         assert_eq!(s.master(), Some("b"));
         assert_eq!(s.fingerprint(), Some([1, 1, 1]));
+    }
+
+    #[test]
+    fn idle_is_none_while_locked() {
+        let s = SessionState::default();
+        assert!(s.idle().is_none());
+    }
+
+    #[test]
+    fn idle_is_some_after_unlock() {
+        let mut s = SessionState::default();
+        s.unlock("m".into(), [0, 0, 0]);
+        assert!(s.idle().is_some());
+    }
+
+    #[test]
+    fn touch_advances_the_idle_clock() {
+        let mut s = SessionState::default();
+        s.unlock("m".into(), [0, 0, 0]);
+        let before = s.inner.as_ref().unwrap().unlocked_at;
+        std::thread::sleep(Duration::from_millis(2));
+        s.touch();
+        let after = s.inner.as_ref().unwrap().unlocked_at;
+        assert!(after > before, "touch() must move unlocked_at forward");
+    }
+
+    #[test]
+    fn touch_on_a_locked_session_is_a_noop() {
+        let mut s = SessionState::default();
+        s.touch();
+        assert!(!s.is_unlocked());
     }
 }
