@@ -63,9 +63,8 @@ pub async fn unlock_biometric(
     // We read the fingerprint from the registry (available pre-unlock)
     // rather than from the DB; the DB now requires the SQLCipher key
     // before any read, which is exactly what we're about to do.
-    let registry = crate::store::vaults::VaultRegistry::load(
-        crate::store::vaults::registry_path(),
-    )?;
+    let registry =
+        crate::store::vaults::VaultRegistry::load(crate::store::vaults::registry_path())?;
     if let Some(meta) = registry.vaults.iter().find(|v| v.id == vault_id) {
         if !meta.fingerprint.is_empty() {
             let expected_bytes = hex_to_3(&meta.fingerprint)?;

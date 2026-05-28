@@ -36,10 +36,7 @@ impl From<pending_ops::PendingOpRow> for PendingOpDto {
 }
 
 #[tauri::command]
-pub async fn pending_ops_enqueue(
-    op_json: String,
-    state: State<'_, AppState>,
-) -> AppResult<i64> {
+pub async fn pending_ops_enqueue(op_json: String, state: State<'_, AppState>) -> AppResult<i64> {
     let store = state.store.lock().await;
     let open = store.require()?;
     pending_ops::enqueue(&open.conn, &op_json)

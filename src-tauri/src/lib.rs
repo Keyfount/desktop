@@ -134,7 +134,9 @@ pub fn run() {
             {
                 if let Ok(data_dir) = app.path().app_data_dir() {
                     std::fs::create_dir_all(&data_dir).ok();
-                    unsafe { std::env::set_var("HOME", &data_dir); }
+                    unsafe {
+                        std::env::set_var("HOME", &data_dir);
+                    }
                 }
             }
 
@@ -301,8 +303,8 @@ pub fn run() {
         });
 }
 
-use std::os::raw::c_char;
 use std::ffi::{CStr, CString};
+use std::os::raw::c_char;
 
 // ===========================================================================
 // iOS AutoFill FFI surface.
@@ -335,7 +337,11 @@ unsafe fn c_str_to_string(ptr: *const c_char) -> Option<String> {
     if ptr.is_null() {
         return None;
     }
-    Some(unsafe { CStr::from_ptr(ptr) }.to_string_lossy().into_owned())
+    Some(
+        unsafe { CStr::from_ptr(ptr) }
+            .to_string_lossy()
+            .into_owned(),
+    )
 }
 
 /// Convert a Rust string into a `CString` raw pointer or null on error.
@@ -491,11 +497,10 @@ pub unsafe extern "C" fn vault_load_fingerprint_ffi(master: *const c_char) -> *m
         Ok(c) => c,
         Err(_) => return std::ptr::null_mut(),
     };
-    let row: Result<Option<String>, _> = conn.query_row(
-        "SELECT fingerprint FROM settings WHERE id = 1",
-        [],
-        |r| r.get(0),
-    );
+    let row: Result<Option<String>, _> =
+        conn.query_row("SELECT fingerprint FROM settings WHERE id = 1", [], |r| {
+            r.get(0)
+        });
     match row {
         Ok(Some(hex)) => rust_string_to_c(hex),
         _ => std::ptr::null_mut(),
@@ -638,7 +643,9 @@ fn open_active_vault_db(master: &str) -> Result<rusqlite::Connection, error::App
     conn.execute_batch(&format!("PRAGMA key = \"{literal}\";"))
         .map_err(|e| error::AppError::Storage(format!("PRAGMA key: {e}")))?;
     // Touch page 1 — wrong key surfaces here as SQLITE_NOTADB.
-    match conn.query_row("SELECT count(*) FROM sqlite_master", [], |r| r.get::<_, i64>(0)) {
+    match conn.query_row("SELECT count(*) FROM sqlite_master", [], |r| {
+        r.get::<_, i64>(0)
+    }) {
         Ok(_) => {}
         Err(rusqlite::Error::SqliteFailure(e, _))
             if matches!(
@@ -665,4 +672,3 @@ pub unsafe extern "C" fn free_password_ffi(s: *mut c_char) {
         }
     }
 }
-

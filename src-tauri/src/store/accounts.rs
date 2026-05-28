@@ -127,10 +127,7 @@ pub fn list_tombstones(conn: &rusqlite::Connection) -> AppResult<Vec<TombstoneRo
 /// `applyStateLocally` on snapshot pull so the receiving device
 /// carries forward every tombstone it learns about into its own
 /// future snapshots.
-pub fn merge_tombstones(
-    conn: &rusqlite::Connection,
-    incoming: &[TombstoneRow],
-) -> AppResult<()> {
+pub fn merge_tombstones(conn: &rusqlite::Connection, incoming: &[TombstoneRow]) -> AppResult<()> {
     if incoming.is_empty() {
         return Ok(());
     }
@@ -287,15 +284,24 @@ mod tests {
         let conn = fresh_db();
         record(&conn, &fixture()).expect("record");
         let stamp = get_sync_stamp(&conn, "example.com", "alice@example.com").expect("query");
-        assert!(stamp.is_none(), "freshly-recorded row should have no sync stamp");
+        assert!(
+            stamp.is_none(),
+            "freshly-recorded row should have no sync stamp"
+        );
     }
 
     #[test]
     fn stamp_synced_writes_both_timestamp_and_direction() {
         let conn = fresh_db();
         record(&conn, &fixture()).expect("record");
-        stamp_synced(&conn, "example.com", "alice@example.com", 1_700_000_000_000, SyncDir::Push)
-            .expect("stamp");
+        stamp_synced(
+            &conn,
+            "example.com",
+            "alice@example.com",
+            1_700_000_000_000,
+            SyncDir::Push,
+        )
+        .expect("stamp");
         let stamp = get_sync_stamp(&conn, "example.com", "alice@example.com")
             .expect("query")
             .expect("stamp present");
@@ -307,10 +313,22 @@ mod tests {
     fn stamp_synced_overwrites_with_latest_direction() {
         let conn = fresh_db();
         record(&conn, &fixture()).expect("record");
-        stamp_synced(&conn, "example.com", "alice@example.com", 1_000, SyncDir::Push)
-            .expect("stamp push");
-        stamp_synced(&conn, "example.com", "alice@example.com", 2_000, SyncDir::Pull)
-            .expect("stamp pull");
+        stamp_synced(
+            &conn,
+            "example.com",
+            "alice@example.com",
+            1_000,
+            SyncDir::Push,
+        )
+        .expect("stamp push");
+        stamp_synced(
+            &conn,
+            "example.com",
+            "alice@example.com",
+            2_000,
+            SyncDir::Pull,
+        )
+        .expect("stamp pull");
         let stamp = get_sync_stamp(&conn, "example.com", "alice@example.com")
             .expect("query")
             .expect("stamp present");
