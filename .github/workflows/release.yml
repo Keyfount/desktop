@@ -112,6 +112,23 @@ jobs:
           npm version "$VERSION" --no-git-tag-version --allow-same-version
           perl -pi -e 'if(!$d && s/^version = "[^"]*"/version = "'"$VERSION"'"/){$d=1}' src-tauri/Cargo.toml
 
+      - name: Compose release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          # Release notes = the PR description, then an auto-generated changelog
+          # of the PRs merged since the previous tag.
+          gen=$(gh api "repos/${{ github.repository }}/releases/generate-notes" \
+            -f tag_name="$TAG" -f target_commitish=main --jq '.body')
+          {
+            echo "RELEASE_NOTES<<KF_NOTES_EOF"
+            printf '%s\n\n' "$PR_BODY"
+            printf '%s\n' "$gen"
+            echo "KF_NOTES_EOF"
+          } >> "$GITHUB_ENV"
+
       - name: Build & publish release
         uses: tauri-apps/tauri-action@v0
         env:
@@ -122,6 +139,6 @@ jobs:
           args: --target universal-apple-darwin
           tagName: ${{ needs.prepare.outputs.tag }}
           releaseName: "Keyfount Desktop ${{ needs.prepare.outputs.tag }}"
-          releaseBody: ${{ github.event.pull_request.body }}
+          releaseBody: ${{ env.RELEASE_NOTES }}
           releaseDraft: false
           prerelease: false
