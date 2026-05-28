@@ -4,7 +4,17 @@ import { AnimatePresence, motion } from "framer-motion";
 
 import { api, describeError } from "../api.js";
 import { t } from "../i18n.js";
-import { IconChevronRight, IconTouchId, IconWindowsHello } from "../icons.js";
+import {
+  IconBolt,
+  IconChevronRight,
+  IconKey,
+  IconRefresh,
+  IconShield,
+  IconTouchId,
+  IconTrash,
+  IconUnlock,
+  IconWindowsHello,
+} from "../icons.js";
 import { SOFT_SPRING, TAP_SCALE } from "../motion.js";
 import { detectPlatform } from "../platform.js";
 import {
@@ -249,25 +259,43 @@ function pageTitle(page: SubPage): string {
 // --- Menu ---------------------------------------------------------------
 
 function Menu({ onSelect }: { onSelect: (p: SubPage) => void }) {
-  const rows: { id: SubPage; title: string; hint: string }[] = [
+  const rows: { id: SubPage; title: string; hint: string; icon: ComponentChildren }[] = [
     {
       id: "generation",
       title: t("settings_group_generation"),
       hint: t("settings_group_generation_hint"),
+      icon: <IconKey size={18} />,
     },
     {
       id: "security",
       title: t("settings_group_security"),
       hint: t("settings_group_security_hint"),
+      icon: <IconShield size={18} />,
     },
     {
       id: "accounts",
       title: t("settings_group_accounts"),
       hint: t("settings_group_accounts_hint"),
+      icon: <IconUnlock size={18} />,
     },
-    { id: "sync", title: t("settings_group_sync"), hint: t("settings_group_sync_hint") },
-    { id: "comfort", title: t("settings_group_comfort"), hint: t("settings_group_comfort_hint") },
-    { id: "danger", title: t("settings_group_danger"), hint: t("settings_group_danger_hint") },
+    {
+      id: "sync",
+      title: t("settings_group_sync"),
+      hint: t("settings_group_sync_hint"),
+      icon: <IconRefresh size={18} />,
+    },
+    {
+      id: "comfort",
+      title: t("settings_group_comfort"),
+      hint: t("settings_group_comfort_hint"),
+      icon: <IconBolt size={18} />,
+    },
+    {
+      id: "danger",
+      title: t("settings_group_danger"),
+      hint: t("settings_group_danger_hint"),
+      icon: <IconTrash size={18} />,
+    },
   ];
 
   return (
@@ -283,10 +311,15 @@ function Menu({ onSelect }: { onSelect: (p: SubPage) => void }) {
         <li key={r.id}>
           <motion.button
             type="button"
-            class="card !p-4 w-full flex items-center gap-3 cursor-pointer text-left bg-transparent border border-(--color-line)"
+            // Explicit row layout (not `.card`, whose flex-col would stack +
+            // centre the contents). Left icon, left-aligned title/hint, chevron right.
+            class="w-full flex items-center gap-3 p-4 rounded-2xl text-left cursor-pointer bg-(--color-surface-elev) border border-(--color-line) hover:border-(--color-line-strong) transition-colors"
             whileTap={TAP_SCALE}
             onClick={() => onSelect(r.id)}
           >
+            <span class="grid place-items-center w-9 h-9 rounded-xl bg-(--color-surface-sunken) text-(--color-ink-muted) shrink-0">
+              {r.icon}
+            </span>
             <span class="flex flex-col flex-1 min-w-0 gap-0.5">
               <span class="text-sm font-medium text-(--color-ink)">{r.title}</span>
               <span class="field-hint">{r.hint}</span>
