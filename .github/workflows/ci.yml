@@ -120,6 +120,43 @@ jobs:
       - name: Build frontend
         run: npm run build
 
+  e2e:
+    name: End-to-end (desktop + mobile shells)
+    needs: [frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install chromium --with-deps
+
+      # Drives the real Preact UI (desktop + mobile-emulation projects)
+      # against the Tauri IPC mock — no native runtime needed. The Vite dev
+      # server is started by Playwright's webServer config.
+      - name: Run Playwright tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.sha }}
+          path: playwright-report/
+          retention-days: 7
+          include-hidden-files: true
+
   # Native Tauri builds (DMG/MSIX/AppImage) run in the release workflow,
   # which has the signing keys and is the only path that ships artefacts.
   # CI here only verifies that the frontend bundle and the Rust crate
