@@ -50,8 +50,10 @@ pub async fn export_vault(
     }
     let store = state.store.lock().await;
     let open = store.require()?;
-    let mut settings = settings_store::load(&open.conn)?;
-    settings.pin = None; // never include the PIN blob in a portable export
+    let settings = settings_store::load(&open.conn)?;
+    // The PIN blob is stored in a sidecar file rather than `StoredState`
+    // (see `store::pin_sidecar`); a portable export intentionally never
+    // carries it.
     let payload = ExportPayload {
         settings,
         accounts: accounts_store::list(&open.conn)?,

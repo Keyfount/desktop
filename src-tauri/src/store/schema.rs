@@ -25,6 +25,12 @@ const MIGRATIONS: &[(u32, &str)] = &[
         favicon_fallback_enabled INTEGER NOT NULL DEFAULT 1,
         clipboard_clear_seconds INTEGER NOT NULL DEFAULT 30,
         fingerprint TEXT,
+        -- `pin_blob_id` is a leftover from the original PIN design that
+        -- stored the wrapped master inside the encrypted DB. The PIN blob
+        -- now lives in a sidecar file (`store::pin_sidecar`) because it has
+        -- to be readable before the SQLCipher key is known. The column is
+        -- never read or written; dropping it would need a v4 migration so
+        -- we keep it as a NULL slot.
         pin_blob_id TEXT
     ) STRICT;
 

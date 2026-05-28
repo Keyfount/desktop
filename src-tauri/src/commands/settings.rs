@@ -6,7 +6,7 @@ use tauri::State;
 use crate::AppState;
 use crate::crypto;
 use crate::error::{AppError, AppResult};
-use crate::store::{StoredState, settings as settings_store};
+use crate::store::{StoredState, pin_sidecar, settings as settings_store};
 use crate::types::Profile;
 
 #[derive(Debug, Serialize)]
@@ -33,10 +33,14 @@ pub async fn get_state(state: State<'_, AppState>) -> AppResult<GetStateResponse
         Ok(open) => settings_store::load(&open.conn)?,
         Err(_) => StoredState::default(),
     };
+    let has_pin = store
+        .active_dir()
+        .map(|dir| pin_sidecar::exists(&dir))
+        .unwrap_or(false);
     Ok(GetStateResponse {
         default_profile: st.default_profile,
         auto_lock_minutes: st.auto_lock_minutes,
-        has_pin: st.pin.is_some(),
+        has_pin,
         history_enabled: st.history_enabled,
         favicon_fallback_enabled: st.favicon_fallback_enabled,
         clipboard_clear_seconds: st.clipboard_clear_seconds,
@@ -88,25 +92,30 @@ pub async fn set_clipboard_clear_seconds(
 
 #[tauri::command]
 pub async fn set_pin(pin: String, state: State<'_, AppState>) -> AppResult<()> {
-    let session = state.session.lock().await;
-    let Some(master) = session.master() else {
-        return Err(AppError::Locked);
+    // Encrypt while we hold the session lock so the unlocked master cannot
+    // disappear between the read and the wrap, then drop it before touching
+    // the store lock.
+    let blob = {
+        let session = state.session.lock().await;
+        let Some(master) = session.master() else {
+            return Err(AppError::Locked);
+        };
+        crypto::encrypt_master(master, &pin)?
     };
-    let blob = crypto::encrypt_master(master, &pin)?;
     let store = state.store.lock().await;
-    let open = store.require()?;
-    let mut st = settings_store::load(&open.conn)?;
-    st.pin = Some(blob);
-    settings_store::save_defaults(&open.conn, &st)
+    let dir = store
+        .active_dir()
+        .ok_or(AppError::NoActiveVault)?;
+    pin_sidecar::write(&dir, &blob)
 }
 
 #[tauri::command]
 pub async fn remove_pin(state: State<'_, AppState>) -> AppResult<()> {
     let store = state.store.lock().await;
-    let open = store.require()?;
-    let mut st = settings_store::load(&open.conn)?;
-    st.pin = None;
-    settings_store::save_defaults(&open.conn, &st)
+    let dir = store
+        .active_dir()
+        .ok_or(AppError::NoActiveVault)?;
+    pin_sidecar::remove(&dir)
 }
 
 #[tauri::command]

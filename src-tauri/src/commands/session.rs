@@ -4,9 +4,9 @@ use serde::Serialize;
 use tauri::State;
 
 use crate::AppState;
-use crate::crypto::{fingerprint_master, format_fingerprint};
+use crate::crypto::{self, fingerprint_master, format_fingerprint};
 use crate::error::{AppError, AppResult};
-use crate::store::{settings as settings_store, vaults as vault_store};
+use crate::store::{pin_sidecar, settings as settings_store, vaults as vault_store};
 
 #[derive(Debug, Serialize)]
 pub struct StatusResponse {
@@ -45,7 +45,7 @@ pub async fn status(state: State<'_, AppState>) -> AppResult<StatusResponse> {
     // Try the DB first (it's the source of truth when unlocked); fall
     // back to the registry record (visible while locked). The registry
     // stores the fingerprint as a hex string captured at setup time.
-    let (fingerprint, has_pin, has_state) = match store.require() {
+    let (fingerprint, has_state) = match store.require() {
         Ok(open) => {
             let st = settings_store::load(&open.conn)?;
             let fp = st
@@ -53,7 +53,7 @@ pub async fn status(state: State<'_, AppState>) -> AppResult<StatusResponse> {
                 .as_deref()
                 .and_then(|hex| hex_to_3_bytes(hex).ok())
                 .and_then(|b| format_fingerprint(&b).ok());
-            (fp, st.pin.is_some(), st.fingerprint.is_some())
+            (fp, st.fingerprint.is_some())
         }
         Err(_) => {
             // Locked or uninitialised. Recover fingerprint + existence
@@ -73,9 +73,15 @@ pub async fn status(state: State<'_, AppState>) -> AppResult<StatusResponse> {
                     }
                 }
             }
-            (fp, false, has_state)
+            (fp, has_state)
         }
     };
+    // PIN existence is derived from the on-disk sidecar so the unlock
+    // screen can show the PIN tab while the DB is still locked.
+    let has_pin = store
+        .active_dir()
+        .map(|dir| pin_sidecar::exists(&dir))
+        .unwrap_or(false);
     Ok(StatusResponse {
         locked: !session.is_unlocked(),
         is_first_run: !has_state,
@@ -200,16 +206,35 @@ pub async fn unlock(master: String, state: State<'_, AppState>) -> AppResult<Unl
 
 #[tauri::command]
 pub async fn unlock_with_pin(pin: String, state: State<'_, AppState>) -> AppResult<UnlockResponse> {
-    // PIN persistence (#25) is not yet implemented — the schema slot
-    // exists but nothing reads/writes it. Once it is, the PIN blob has
-    // to live OUTSIDE the encrypted vault (e.g. in a sidecar file or
-    // the OS keychain) because we need to recover the master before
-    // the DB can be opened. For now we just return the standard "PIN
-    // mode is not enabled" error so the UI falls back to the master
-    // prompt.
-    let _ = pin;
-    let _ = state;
-    Err(AppError::invalid("PIN mode is not enabled"))
+    // The PIN blob lives next to the vault DB in a sidecar file (see
+    // `store::pin_sidecar`) precisely so we can read it while the
+    // encrypted DB is still locked. Steps:
+    //   1. Locate the active vault's directory.
+    //   2. Read the sidecar; absent → PIN mode is off, surface that.
+    //   3. Decrypt the master with the supplied PIN.
+    //   4. Open the encrypted DB with the recovered master.
+    //   5. Promote the session to unlocked, exactly like `unlock`.
+    let mut store = state.store.lock().await;
+    let dir = store
+        .active_dir()
+        .ok_or_else(|| AppError::invalid("no active vault"))?;
+    let blob = pin_sidecar::read(&dir)?
+        .ok_or_else(|| AppError::invalid("PIN mode is not enabled"))?;
+    let master = crypto::decrypt_master(&blob, &pin)?
+        .ok_or_else(|| AppError::invalid("incorrect PIN"))?;
+    let fp = fingerprint_master(&master)?;
+
+    // Open the encrypted DB. A wrong-master signal here (`AppError::Locked`)
+    // would mean the sidecar blob is stale relative to the current master
+    // — treat it the same way `unlock_biometric` does and let the UI
+    // route the user back to the master prompt.
+    store.open_encrypted(&master)?;
+
+    let mut session = state.session.lock().await;
+    session.unlock(master, fp);
+    Ok(UnlockResponse {
+        fingerprint: format_fingerprint(&fp)?,
+    })
 }
 
 #[tauri::command]
