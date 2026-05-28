@@ -68,4 +68,40 @@ test.describe("account history lifecycle", () => {
       .toBe(false);
     await expect(app.getByRole("button", { name: /github\.com/ })).toHaveCount(0);
   });
+
+  test("a search with no match shows the empty-results state", async ({ app }) => {
+    await app.getByRole("button", { name: "Accounts" }).click();
+    await app.getByPlaceholder("Search accounts…").fill("nope-no-such-domain");
+    await expect(app.getByText("No matches")).toBeVisible();
+    await expect(app.getByRole("button", { name: /github\.com/ })).toHaveCount(0);
+  });
+});
+
+test.describe("account history — empty vault", () => {
+  test.use({ seed: { scenario: "unlocked", master: MASTER, historyEnabled: true } });
+
+  test("shows the empty state, and stays empty after deleting the only account", async ({
+    app,
+  }) => {
+    await app.getByRole("button", { name: "Accounts" }).click();
+    await expect(app.getByText("No accounts yet")).toBeVisible();
+
+    // Generate + save one account, then it appears in the list.
+    await app.getByRole("button", { name: "Generator" }).click();
+    await app.locator("input.input-mono").fill("solo.example");
+    await app.getByPlaceholder("alice@example.com").fill("only-user");
+    await app.getByRole("button", { name: "Generate" }).click();
+    await expect(app.locator("code.font-mono")).toBeVisible();
+    await app.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(app.getByRole("button", { name: "Saved" })).toBeVisible();
+
+    await app.getByRole("button", { name: "Accounts" }).click();
+    await app.getByRole("button", { name: /solo\.example/ }).click();
+    await app.getByRole("button", { name: "Delete account" }).click();
+    await app.getByRole("dialog").getByRole("button", { name: "Delete account" }).click();
+
+    // Back to the empty state.
+    await expect(app.getByText("No accounts yet")).toBeVisible();
+    expect((await mockSnapshot(app)).accounts).toHaveLength(0);
+  });
 });

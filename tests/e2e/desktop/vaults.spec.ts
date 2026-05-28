@@ -47,4 +47,43 @@ test.describe("vaults", () => {
     await expect(rows).toHaveCount(2);
     expect((await mockSnapshot(app)).vaultCount).toBe(2);
   });
+
+  test("deleting the active vault reassigns the active one and shrinks the list", async ({
+    app,
+  }) => {
+    await app.getByRole("button", { name: "Vaults" }).click();
+    const rows = app.locator("ul > li");
+    await expect(rows).toHaveCount(3);
+    const activeBefore = (await mockSnapshot(app)).activeId;
+
+    // The active row is the one showing the "Active" chip; its delete
+    // button is the same "Delete this vault" aria-label.
+    const activeRow = rows.filter({ hasText: "Active" });
+    await activeRow.getByRole("button", { name: "Delete this vault" }).click();
+    await app.getByRole("dialog").getByRole("button", { name: "Delete", exact: true }).click();
+
+    await expect(rows).toHaveCount(2);
+    const snap = await mockSnapshot(app);
+    expect(snap.vaultCount).toBe(2);
+    expect(snap.activeId).not.toBe(activeBefore);
+  });
+});
+
+test.describe("wipe vault", () => {
+  test.use({ seed: { scenario: "unlocked", master: MASTER } });
+
+  test("wiping the only vault routes to first-run setup", async ({ app }) => {
+    await app.getByRole("button", { name: "Settings" }).click();
+    await app.getByRole("button", { name: "Danger zone" }).click();
+
+    await app.getByRole("button", { name: "Wipe vault" }).click();
+    const dialog = app.getByRole("dialog");
+    await expect(dialog).toContainText("Wipe this vault for good?");
+    await dialog.getByRole("button", { name: "Wipe vault" }).click();
+
+    await expect(app.getByText("Set up your master password")).toBeVisible();
+    const snap = await mockSnapshot(app);
+    expect(snap.vaultCount).toBe(0);
+    expect(snap.activeId).toBeNull();
+  });
 });

@@ -36,6 +36,68 @@ test.describe("settings", () => {
     await expect(app.getByRole("button", { name: "Set a PIN" })).toBeVisible();
     expect((await mockSnapshot(app)).hasPin).toBe(false);
   });
+
+  test("an out-of-range auto-lock value is clamped to the maximum", async ({ app }) => {
+    await app.getByRole("button", { name: "Settings" }).click();
+    await app.getByRole("button", { name: "Security" }).click();
+
+    const minutes = app.locator('input[type="number"]').first();
+    await minutes.fill("999");
+    await minutes.blur();
+    await expect.poll(async () => (await mockSnapshot(app)).autoLockMinutes).toBe(240);
+  });
+
+  test("the clipboard auto-clear delay persists", async ({ app }) => {
+    await app.getByRole("button", { name: "Settings" }).click();
+    await app.getByRole("button", { name: "Security" }).click();
+
+    // Two number inputs on the Security page: auto-lock, then clipboard.
+    const clipboard = app.locator('input[type="number"]').nth(1);
+    await clipboard.fill("12");
+    await clipboard.blur();
+    await expect.poll(async () => (await mockSnapshot(app)).clipboardClearSeconds).toBe(12);
+  });
+
+  test("toggling the favicon fallback flips its checkbox", async ({ app }) => {
+    await app.getByRole("button", { name: "Settings" }).click();
+    await app.getByRole("button", { name: "Comfort" }).click();
+
+    // Comfort page: favicon toggle first, autofill second.
+    const favicon = app.getByRole("checkbox").first();
+    await expect(favicon).toBeChecked();
+    await favicon.click();
+    await expect(favicon).not.toBeChecked();
+    await expect.poll(async () => (await mockSnapshot(app)).faviconFallbackEnabled).toBe(false);
+  });
+});
+
+test.describe("settings — disabling history with saved accounts", () => {
+  test.use({
+    seed: {
+      scenario: "unlocked",
+      master: MASTER,
+      historyEnabled: true,
+      accounts: [{ domain: "example.com", username: "alice" }],
+    },
+  });
+
+  test("requires confirmation, then wipes the saved accounts", async ({ app }) => {
+    await app.getByRole("button", { name: "Settings" }).click();
+    // Two "Accounts" controls exist while history is on (sidebar nav + the
+    // settings menu row); the menu row is the last match.
+    await app.getByRole("button", { name: "Accounts" }).last().click();
+
+    await app.getByRole("checkbox").click(); // turn history off
+
+    // A confirmation modal warns before wiping.
+    const dialog = app.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText("Disable account history?");
+    await dialog.getByRole("button", { name: "Disable" }).click();
+
+    await expect.poll(async () => (await mockSnapshot(app)).historyEnabled).toBe(false);
+    expect((await mockSnapshot(app)).accounts).toHaveLength(0);
+  });
 });
 
 test.describe("settings — enabling history", () => {

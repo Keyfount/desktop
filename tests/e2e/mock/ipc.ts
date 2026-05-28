@@ -529,13 +529,17 @@ export function installMock(seed: Seed): void {
     },
     /** Inspect mock state from a test. */
     snapshot() {
+      const v = active();
       return {
         activeId,
         unlocked,
         vaultCount: vaults.length,
-        accounts: active() ? active()!.accounts.map((x) => ({ ...x })) : [],
-        hasPin: active() ? active()!.pin !== null : false,
-        autoLockMinutes: active() ? active()!.autoLockMinutes : null,
+        accounts: v ? v.accounts.map((x) => ({ ...x })) : [],
+        hasPin: v ? v.pin !== null : false,
+        autoLockMinutes: v ? v.autoLockMinutes : null,
+        historyEnabled: v ? v.historyEnabled : false,
+        faviconFallbackEnabled: v ? v.faviconFallbackEnabled : true,
+        clipboardClearSeconds: v ? v.clipboardClearSeconds : null,
       };
     },
   };

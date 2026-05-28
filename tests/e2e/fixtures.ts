@@ -39,6 +39,9 @@ export async function mockSnapshot(page: Page): Promise<{
   accounts: Array<{ domain: string; username: string }>;
   hasPin: boolean;
   autoLockMinutes: number | null;
+  historyEnabled: boolean;
+  faviconFallbackEnabled: boolean;
+  clipboardClearSeconds: number | null;
 }> {
   return page.evaluate(() =>
     (window as unknown as { __MOCK__: { snapshot: () => any } }).__MOCK__.snapshot(),

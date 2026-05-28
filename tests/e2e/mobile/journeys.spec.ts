@@ -87,3 +87,30 @@ test.describe("mobile shell navigation", () => {
     expect((await code.innerText()).trim().length).toBeGreaterThan(0);
   });
 });
+
+test.describe("mobile in-app lock after enabling a PIN", () => {
+  test.use({ seed: { scenario: "unlocked", master: MASTER } });
+
+  test("locking from settings keeps the PIN option on the unlock screen", async ({ app }) => {
+    // Enable a PIN this session via Settings → Security.
+    await app.getByRole("button", { name: "Settings" }).click();
+    await app.getByRole("button", { name: "Security" }).click();
+    await app.getByRole("button", { name: "Set a PIN" }).click();
+    await app.locator('input[type="password"].input-mono').fill("24680");
+    await app.getByRole("button", { name: "Save PIN" }).click();
+    await expect(app.getByText("PIN is set on this vault")).toBeVisible({ timeout: 10_000 });
+
+    // Back to the settings menu and lock.
+    await app.getByRole("button", { name: "Back" }).click();
+    await app.locator('[data-action="lock"]').click();
+
+    // The unlock screen must be in PIN mode (the master toggle only appears
+    // when hasPin is true), even though the PIN was enabled after bootstrap.
+    await expect(app.getByRole("button", { name: "Use master password" })).toBeVisible({
+      timeout: 15_000,
+    });
+    await app.locator('input[type="password"]').fill("24680");
+    await app.getByRole("button", { name: "Unlock" }).click();
+    await expect(app.getByRole("button", { name: "Generator" })).toBeVisible({ timeout: 30_000 });
+  });
+});
