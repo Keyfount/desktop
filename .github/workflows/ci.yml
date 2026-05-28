@@ -1,13 +1,14 @@
 name: CI
 
-# Triggered only on release tags and manual runs. Day-to-day pushes and
-# pull requests skip CI to keep iteration fast during in-progress UX
-# work; the release tag path still runs the full lint/test/build chain
-# before the signed artefacts are published by release.yml.
+# Gates every pull request into develop and main, plus direct pushes to
+# develop. Feature branches merge into develop; develop merges into main to
+# cut a release (release.yml). The release build itself is the final gate on
+# the develop -> main PR, so CI does not re-run on the main push.
 on:
+  pull_request:
+    branches: [develop, main]
   push:
-    tags:
-      - "v*.*.*"
+    branches: [develop]
   workflow_dispatch:
 
 concurrency:

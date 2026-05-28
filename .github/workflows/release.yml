@@ -1,36 +1,78 @@
 name: Release
 
+# A release is cut when a pull request is merged into `main` (normally the
+# develop -> main PR). The PR must carry exactly one `release:` label, which
+# decides the version bump; the PR body becomes the GitHub Release notes.
 on:
-  push:
-    tags:
-      - "v*.*.*"
+  pull_request:
+    types: [closed]
+    branches: [main]
 
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  release:
-    name: Release (${{ matrix.platform.name }})
-    runs-on: ${{ matrix.platform.runs-on }}
-    timeout-minutes: 60
-
-    strategy:
-      fail-fast: false
-      matrix:
-        platform:
-          - name: macOS-aarch64
-            runs-on: macos-latest
-            target: aarch64-apple-darwin
-          - name: macOS-x86_64
-            runs-on: macos-latest
-            target: x86_64-apple-darwin
-          - name: Windows-x86_64
-            runs-on: windows-latest
-            target: x86_64-pc-windows-msvc
-
+  prepare:
+    name: Resolve version
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
     steps:
-      - name: Checkout
+      - name: Checkout main
         uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Resolve version bump from the PR label
+        id: bump
+        env:
+          LABELS: ${{ toJson(github.event.pull_request.labels.*.name) }}
+        run: |
+          level=$(printf '%s' "$LABELS" | jq -r '.[]' | grep -E '^release:(major|minor|patch)$' | sed 's/release://' || true)
+          count=$(printf '%s' "$level" | grep -c . || true)
+          if [ "$count" -ne 1 ]; then
+            echo "::error::Exactly one release label is required on the PR (release:major | release:minor | release:patch). Found: [${level//$'\n'/, }]"
+            exit 1
+          fi
+          echo "level=$level" >> "$GITHUB_OUTPUT"
+          echo "Bump level: $level"
+
+      - name: Compute next version
+        id: version
+        run: |
+          latest=$(git tag --list 'v*.*.*' --sort=-v:refname | head -n1)
+          latest=${latest:-v0.0.0}
+          ver=${latest#v}
+          major=$(echo "$ver" | cut -d. -f1)
+          minor=$(echo "$ver" | cut -d. -f2)
+          patch=$(echo "$ver" | cut -d. -f3)
+          case "${{ steps.bump.outputs.level }}" in
+            major) major=$((major + 1)); minor=0; patch=0 ;;
+            minor) minor=$((minor + 1)); patch=0 ;;
+            patch) patch=$((patch + 1)) ;;
+          esac
+          new="${major}.${minor}.${patch}"
+          echo "version=${new}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${new}" >> "$GITHUB_OUTPUT"
+          echo "Releasing ${latest} -> v${new}"
+
+  release:
+    name: Build & publish (macOS Universal)
+    needs: prepare
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -38,10 +80,10 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
-      - name: Install Rust
+      - name: Install Rust (universal targets)
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform.target }}
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
 
       - name: Cache Cargo registry
         uses: actions/cache@v4
@@ -50,18 +92,23 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             src-tauri/target
-          key: cargo-${{ runner.os }}-${{ hashFiles('src-tauri/Cargo.lock') }}
+          key: cargo-release-${{ runner.os }}-${{ hashFiles('src-tauri/Cargo.lock') }}
 
       - name: Install npm dependencies
         run: npm ci
 
-      - name: Build frontend
-        run: npm run build
+      - name: Stamp release version
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          node -e "const fs=require('fs'),f='src-tauri/tauri.conf.json',j=JSON.parse(fs.readFileSync(f,'utf8'));j.version=process.env.VERSION;fs.writeFileSync(f,JSON.stringify(j,null,2)+'\n')"
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
+          perl -pi -e 'if(!$d && s/^version = "[^"]*"/version = "'"$VERSION"'"/){$d=1}' src-tauri/Cargo.toml
 
-      - name: tauri build (signed)
+      - name: Build & publish release
         uses: tauri-apps/tauri-action@v0
         env:
-          # Auto-update signing — required to publish a usable manifest.
+          # Auto-update signing — required to publish a usable latest.json.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           # macOS code signing & notarisation.
@@ -72,8 +119,9 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
-          args: --target ${{ matrix.platform.target }}
-          tagName: ${{ github.ref_name }}
-          releaseName: "Keyfount Desktop ${{ github.ref_name }}"
-          releaseDraft: true
+          args: --target universal-apple-darwin
+          tagName: ${{ needs.prepare.outputs.tag }}
+          releaseName: "Keyfount Desktop ${{ needs.prepare.outputs.tag }}"
+          releaseBody: ${{ github.event.pull_request.body }}
+          releaseDraft: false
           prerelease: false
