@@ -10,6 +10,7 @@ import { SOFT_SPRING, TAP_SCALE } from "../motion.js";
 import {
   fingerprint,
   generated,
+  hasPin,
   historyEnabled,
   previousView,
   screen,
@@ -41,6 +42,16 @@ export function Sidebar() {
   const onLock = useCallback(async () => {
     await api.lock();
     generated.value = null;
+    // Refresh hasPin so the unlock screen offers the PIN option. The signal
+    // is only primed at bootstrap, so a PIN enabled later this session would
+    // otherwise be missed here (the unlock screen would hide the PIN tab
+    // until the app is relaunched).
+    try {
+      const status = await api.status();
+      hasPin.value = status.hasPin;
+    } catch {
+      /* keep the last-known hasPin */
+    }
     screen.value = "unlock";
   }, []);
 
