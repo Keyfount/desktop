@@ -62,8 +62,7 @@ pub async fn status(state: State<'_, AppState>) -> AppResult<StatusResponse> {
             let mut fp = None;
             let mut has_state = false;
             if let Some(id) = active_id {
-                if let Ok(registry) =
-                    vault_store::VaultRegistry::load(vault_store::registry_path())
+                if let Ok(registry) = vault_store::VaultRegistry::load(vault_store::registry_path())
                 {
                     if let Some(meta) = registry.vaults.iter().find(|v| v.id == id) {
                         has_state = true;
@@ -177,9 +176,8 @@ pub async fn unlock(master: String, state: State<'_, AppState>) -> AppResult<Unl
         .iter()
         .find(|v| v.id == active_id)
         .ok_or_else(|| AppError::invalid("active vault not in registry"))?;
-    let expected_bytes = hex_to_3_bytes(&meta.fingerprint).map_err(|_| {
-        AppError::invalid("no fingerprint set — run setup first")
-    })?;
+    let expected_bytes = hex_to_3_bytes(&meta.fingerprint)
+        .map_err(|_| AppError::invalid("no fingerprint set — run setup first"))?;
     let eq: bool = subtle::ConstantTimeEq::ct_eq(&expected_bytes[..], &fp[..]).into();
     if !eq {
         // Pre-check fingerprint mismatch — keep the user-friendly
@@ -218,10 +216,10 @@ pub async fn unlock_with_pin(pin: String, state: State<'_, AppState>) -> AppResu
     let dir = store
         .active_dir()
         .ok_or_else(|| AppError::invalid("no active vault"))?;
-    let blob = pin_sidecar::read(&dir)?
-        .ok_or_else(|| AppError::invalid("PIN mode is not enabled"))?;
-    let master = crypto::decrypt_master(&blob, &pin)?
-        .ok_or_else(|| AppError::invalid("incorrect PIN"))?;
+    let blob =
+        pin_sidecar::read(&dir)?.ok_or_else(|| AppError::invalid("PIN mode is not enabled"))?;
+    let master =
+        crypto::decrypt_master(&blob, &pin)?.ok_or_else(|| AppError::invalid("incorrect PIN"))?;
     let fp = fingerprint_master(&master)?;
 
     // Open the encrypted DB. A wrong-master signal here (`AppError::Locked`)

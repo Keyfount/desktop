@@ -110,7 +110,9 @@ mod tests {
         write(&dir, &blob).unwrap();
         assert!(exists(&dir));
 
-        let back = read(&dir).unwrap().expect("blob must be present after write");
+        let back = read(&dir)
+            .unwrap()
+            .expect("blob must be present after write");
         assert_eq!(back.ciphertext, blob.ciphertext);
         assert_eq!(back.iv, blob.iv);
         assert_eq!(back.salt, blob.salt);
@@ -198,7 +200,9 @@ mod tests {
 
         // 4. Recover the master from the sidecar + PIN — this is what
         //    `unlock_with_pin` does.
-        let on_disk = read(&dir).unwrap().expect("sidecar must persist after close");
+        let on_disk = read(&dir)
+            .unwrap()
+            .expect("sidecar must persist after close");
         let recovered = crypto::decrypt_master(&on_disk, pin)
             .unwrap()
             .expect("correct PIN must decrypt the master");
@@ -213,11 +217,9 @@ mod tests {
             .require()
             .unwrap()
             .conn
-            .query_row(
-                "SELECT value FROM meta WHERE key = 'pin-test'",
-                [],
-                |r| r.get(0),
-            )
+            .query_row("SELECT value FROM meta WHERE key = 'pin-test'", [], |r| {
+                r.get(0)
+            })
             .unwrap();
         assert_eq!(value, "before-pin");
 

@@ -67,7 +67,9 @@ fn seed_plaintext(dir: &Path) -> PathBuf {
         let username = format!("user-{i:04}@example.com");
         let profile = r#"{"mode":"random","length":16,"lower":true,"upper":true,"digits":true,"symbols":true,"counter":1}"#;
         prepared
-            .execute(rusqlite::params![domain, username, profile, i as i64, i as i64])
+            .execute(rusqlite::params![
+                domain, username, profile, i as i64, i as i64
+            ])
             .unwrap();
     }
     drop(prepared);
@@ -81,10 +83,7 @@ fn seed_encrypted(dir: &Path, master: &str) -> PathBuf {
     h.open_encrypted(master).unwrap();
     {
         let open = h.require().unwrap();
-        let tx = open
-            .conn
-            .unchecked_transaction()
-            .expect("transaction");
+        let tx = open.conn.unchecked_transaction().expect("transaction");
         {
             let stmt = "INSERT INTO accounts(domain, username, profile_json, created_at, last_used_at) VALUES (?, ?, ?, ?, ?)";
             let mut prepared = tx.prepare(stmt).unwrap();
@@ -93,7 +92,9 @@ fn seed_encrypted(dir: &Path, master: &str) -> PathBuf {
                 let username = format!("user-{i:04}@example.com");
                 let profile = r#"{"mode":"random","length":16,"lower":true,"upper":true,"digits":true,"symbols":true,"counter":1}"#;
                 prepared
-                    .execute(rusqlite::params![domain, username, profile, i as i64, i as i64])
+                    .execute(rusqlite::params![
+                        domain, username, profile, i as i64, i as i64
+                    ])
                     .unwrap();
             }
         }

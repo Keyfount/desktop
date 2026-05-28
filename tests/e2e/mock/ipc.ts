@@ -242,8 +242,7 @@ export function installMock(seed: Seed): void {
       case "generate": {
         const v = requireUnlocked();
         if (!v) return fail("locked", "locked");
-        const profile =
-          a.profile ?? v.sites[(a.domain ?? "").toLowerCase()] ?? v.defaultProfile;
+        const profile = a.profile ?? v.sites[(a.domain ?? "").toLowerCase()] ?? v.defaultProfile;
         return Promise.resolve({ password: fakePassword(a.domain ?? "", a.email ?? "", profile) });
       }
       case "get_profile": {

@@ -103,18 +103,14 @@ pub async fn set_pin(pin: String, state: State<'_, AppState>) -> AppResult<()> {
         crypto::encrypt_master(master, &pin)?
     };
     let store = state.store.lock().await;
-    let dir = store
-        .active_dir()
-        .ok_or(AppError::NoActiveVault)?;
+    let dir = store.active_dir().ok_or(AppError::NoActiveVault)?;
     pin_sidecar::write(&dir, &blob)
 }
 
 #[tauri::command]
 pub async fn remove_pin(state: State<'_, AppState>) -> AppResult<()> {
     let store = state.store.lock().await;
-    let dir = store
-        .active_dir()
-        .ok_or(AppError::NoActiveVault)?;
+    let dir = store.active_dir().ok_or(AppError::NoActiveVault)?;
     pin_sidecar::remove(&dir)
 }
 

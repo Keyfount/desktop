@@ -39,7 +39,7 @@ use security_framework_sys::base::{errSecItemNotFound, errSecSuccess};
 use security_framework_sys::item::kSecAttrAccessGroup;
 use security_framework_sys::item::{
     kSecAttrAccount, kSecAttrService, kSecClass, kSecClassGenericPassword, kSecMatchLimit,
-    kSecReturnData, kSecValueData, kSecReturnAttributes,
+    kSecReturnAttributes, kSecReturnData, kSecValueData,
 };
 use security_framework_sys::keychain_item::{SecItemAdd, SecItemCopyMatching, SecItemDelete};
 
@@ -59,9 +59,7 @@ const KEYCHAIN_SERVICE: &str = "io.keyfount.desktop.biometric";
 #[cfg(target_os = "ios")]
 fn get_team_id_prefix() -> &'static str {
     static PREFIX: OnceLock<String> = OnceLock::new();
-    PREFIX.get_or_init(|| {
-        probe_team_id_prefix().unwrap_or_else(|| "FAKETEAMID".to_string())
-    })
+    PREFIX.get_or_init(|| probe_team_id_prefix().unwrap_or_else(|| "FAKETEAMID".to_string()))
 }
 
 #[cfg(target_os = "ios")]
@@ -74,14 +72,20 @@ fn probe_team_id_prefix() -> Option<String> {
     let mut query = CFMutableDictionary::<CFString, CFType>::with_capacity(3);
     let class_value = wrap_cfstr(unsafe { kSecClassGenericPassword });
     query.add(&wrap_cfstr(unsafe { kSecClass }), &class_value.as_CFType());
-    query.add(&wrap_cfstr(unsafe { kSecAttrService }), &service.as_CFType());
+    query.add(
+        &wrap_cfstr(unsafe { kSecAttrService }),
+        &service.as_CFType(),
+    );
     query.add(&wrap_cfstr(unsafe { kSecAttrAccount }), &acct.as_CFType());
     let _ = unsafe { SecItemDelete(query.as_concrete_TypeRef() as _) };
 
     // 2. Add temporary item (defaults to app access group)
     let mut add_query = CFMutableDictionary::<CFString, CFType>::with_capacity(4);
     add_query.add(&wrap_cfstr(unsafe { kSecClass }), &class_value.as_CFType());
-    add_query.add(&wrap_cfstr(unsafe { kSecAttrService }), &service.as_CFType());
+    add_query.add(
+        &wrap_cfstr(unsafe { kSecAttrService }),
+        &service.as_CFType(),
+    );
     add_query.add(&wrap_cfstr(unsafe { kSecAttrAccount }), &acct.as_CFType());
     add_query.add(&wrap_cfstr(unsafe { kSecValueData }), &data.as_CFType());
     let status = unsafe { SecItemAdd(add_query.as_concrete_TypeRef() as _, std::ptr::null_mut()) };
@@ -92,7 +96,10 @@ fn probe_team_id_prefix() -> Option<String> {
     // 3. Query item returning attributes
     let mut get_query = CFMutableDictionary::<CFString, CFType>::with_capacity(5);
     get_query.add(&wrap_cfstr(unsafe { kSecClass }), &class_value.as_CFType());
-    get_query.add(&wrap_cfstr(unsafe { kSecAttrService }), &service.as_CFType());
+    get_query.add(
+        &wrap_cfstr(unsafe { kSecAttrService }),
+        &service.as_CFType(),
+    );
     get_query.add(&wrap_cfstr(unsafe { kSecAttrAccount }), &acct.as_CFType());
     get_query.add(
         &wrap_cfstr(unsafe { kSecReturnAttributes }),
@@ -110,14 +117,18 @@ fn probe_team_id_prefix() -> Option<String> {
     }
 
     // 4. Extract group and parse prefix
-    let dict = unsafe { core_foundation::dictionary::CFDictionary::<CFString, CFType>::wrap_under_create_rule(result as _) };
+    let dict = unsafe {
+        core_foundation::dictionary::CFDictionary::<CFString, CFType>::wrap_under_create_rule(
+            result as _,
+        )
+    };
     let access_group_key = wrap_cfstr(unsafe { kSecAttrAccessGroup });
     let value_ref = dict.find(&access_group_key)?;
-    
+
     // Convert value_ref to CFString
     let access_group_cf = (*value_ref).downcast::<CFString>()?;
     let access_group_str = access_group_cf.to_string();
-    
+
     // Split by '.'
     let prefix = access_group_str.split('.').next()?;
     Some(prefix.to_string())

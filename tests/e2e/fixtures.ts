@@ -26,7 +26,11 @@ export const test = base.extend<Fixtures>({
 /** Fire a backend → frontend Tauri event from inside a test. */
 export async function emitEvent(page: Page, event: string, payload: unknown = null): Promise<void> {
   await page.evaluate(
-    ([e, p]) => (window as unknown as { __MOCK__: { emit: (e: string, p: unknown) => void } }).__MOCK__.emit(e as string, p),
+    ([e, p]) =>
+      (window as unknown as { __MOCK__: { emit: (e: string, p: unknown) => void } }).__MOCK__.emit(
+        e as string,
+        p,
+      ),
     [event, payload] as const,
   );
 }

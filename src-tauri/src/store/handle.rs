@@ -38,10 +38,7 @@ pub struct StoreHandle {
 #[derive(Debug)]
 enum HandleState {
     Uninitialised,
-    Locked {
-        vault_id: String,
-        dir: PathBuf,
-    },
+    Locked { vault_id: String, dir: PathBuf },
     Open(OpenStore),
 }
 
@@ -80,7 +77,13 @@ impl StoreHandle {
                 return Err(AppError::NoActiveVault);
             }
             HandleState::Locked { vault_id, dir } => (vault_id.clone(), dir.clone()),
-            HandleState::Open(open) => (open.vault_id.clone(), open.path.parent().map(|p| p.to_path_buf()).unwrap_or_default()),
+            HandleState::Open(open) => (
+                open.vault_id.clone(),
+                open.path
+                    .parent()
+                    .map(|p| p.to_path_buf())
+                    .unwrap_or_default(),
+            ),
         };
 
         // Drop the previous connection (if any) before we open the new
@@ -122,7 +125,11 @@ impl StoreHandle {
         let prev = std::mem::replace(&mut self.inner, HandleState::Uninitialised);
         match prev {
             HandleState::Open(open) => {
-                let dir = open.path.parent().map(|p| p.to_path_buf()).unwrap_or_default();
+                let dir = open
+                    .path
+                    .parent()
+                    .map(|p| p.to_path_buf())
+                    .unwrap_or_default();
                 self.inner = HandleState::Locked {
                     vault_id: open.vault_id,
                     dir,
@@ -193,7 +200,9 @@ fn open_with_key(path: &Path, key: &[u8; DB_KEY_LEN]) -> AppResult<Connection> {
         .map_err(|e| AppError::Storage(format!("PRAGMA key: {e}")))?;
     // Force SQLCipher to attempt page 1 — this is where a wrong key
     // surfaces as `SQLITE_NOTADB`.
-    if let Err(err) = conn.query_row("SELECT count(*) FROM sqlite_master", [], |r| r.get::<_, i64>(0)) {
+    if let Err(err) = conn.query_row("SELECT count(*) FROM sqlite_master", [], |r| {
+        r.get::<_, i64>(0)
+    }) {
         if is_wrong_key_error(&err) {
             return Err(AppError::Locked);
         }
@@ -210,10 +219,9 @@ fn open_with_key(path: &Path, key: &[u8; DB_KEY_LEN]) -> AppResult<Connection> {
 fn is_wrong_key_error(err: &rusqlite::Error) -> bool {
     use rusqlite::ffi::ErrorCode;
     match err {
-        rusqlite::Error::SqliteFailure(e, _) => matches!(
-            e.code,
-            ErrorCode::NotADatabase | ErrorCode::DatabaseCorrupt
-        ),
+        rusqlite::Error::SqliteFailure(e, _) => {
+            matches!(e.code, ErrorCode::NotADatabase | ErrorCode::DatabaseCorrupt)
+        }
         // SQLCipher sometimes surfaces "file is not a database" as a
         // `SqliteSingleThreadedMode`-flavoured error too; check the
         // stringified message as a fallback.
@@ -465,11 +473,9 @@ mod tests {
             .require()
             .unwrap()
             .conn
-            .query_row(
-                "SELECT value FROM meta WHERE key = 'sentinel'",
-                [],
-                |r| r.get(0),
-            )
+            .query_row("SELECT value FROM meta WHERE key = 'sentinel'", [], |r| {
+                r.get(0)
+            })
             .unwrap();
         assert_eq!(v, "before-migration");
         h.close();
@@ -493,11 +499,9 @@ mod tests {
             .require()
             .unwrap()
             .conn
-            .query_row(
-                "SELECT value FROM meta WHERE key = 'sentinel'",
-                [],
-                |r| r.get(0),
-            )
+            .query_row("SELECT value FROM meta WHERE key = 'sentinel'", [], |r| {
+                r.get(0)
+            })
             .unwrap();
         assert_eq!(v2, "before-migration");
 
