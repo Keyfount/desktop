@@ -1,6 +1,7 @@
 import type { ComponentChildren } from "preact";
 import { useEffect } from "preact/hooks";
 import { AnimatePresence, motion } from "framer-motion";
+import { listen } from "@tauri-apps/api/event";
 
 import { api, describeError } from "./api.js";
 import { DotGrid } from "./DotGrid.js";
@@ -23,8 +24,10 @@ import {
   errorMessage,
   faviconFallbackEnabled,
   fingerprint,
+  generated,
   hasPin,
   historyEnabled,
+  livePreview,
   previousView,
   screen,
   view,
@@ -52,6 +55,22 @@ export function App() {
     };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  // The Rust auto-lock task zeroes the master after the idle timeout and
+  // emits `vault:locked`. Drop any generated secret from the UI and route
+  // back to the unlock screen so the user can't keep acting on a vault the
+  // backend now considers locked.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    void listen("vault:locked", () => {
+      generated.value = null;
+      livePreview.value = null;
+      if (screen.value === "shell") screen.value = "unlock";
+    }).then((un) => {
+      unlisten = un;
+    });
+    return () => unlisten?.();
   }, []);
 
   // Auto-sync lifecycle. The engine pulls once on entry to the shell

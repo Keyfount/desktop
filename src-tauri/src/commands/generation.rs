@@ -21,9 +21,17 @@ pub async fn generate(
     profile: Option<Profile>,
     state: State<'_, AppState>,
 ) -> AppResult<GenerateResponse> {
-    let session = state.session.lock().await;
-    let Some(master) = session.master() else {
-        return Err(AppError::Locked);
+    // Read (and clone) the master, then release the session lock before
+    // the slow Argon2 derivation below. `touch()` defers auto-lock —
+    // generating is the headline user activity.
+    let master = {
+        let mut session = state.session.lock().await;
+        let Some(master) = session.master() else {
+            return Err(AppError::Locked);
+        };
+        let master = master.to_string();
+        session.touch();
+        master
     };
     let resolved_profile = match profile {
         Some(p) => p,
@@ -38,7 +46,7 @@ pub async fn generate(
         }
     };
     let inputs = DerivationInputs {
-        master: master.to_string(),
+        master,
         domain,
         email,
     };
@@ -58,6 +66,7 @@ pub async fn get_profile(
     domain: String,
     state: State<'_, AppState>,
 ) -> AppResult<GetProfileResponse> {
+    state.touch().await;
     let store = state.store.lock().await;
     let open = store.require()?;
     let key = domain.trim().to_lowercase();

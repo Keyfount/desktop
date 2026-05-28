@@ -7,6 +7,7 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 #![warn(missing_debug_implementations, rust_2018_idioms)]
 
+pub mod autolock;
 pub mod commands;
 pub mod crypto;
 pub mod error;
@@ -41,6 +42,13 @@ impl AppState {
             store: Arc::new(Mutex::new(store::StoreHandle::uninitialised())),
             clipboard: Arc::new(Mutex::new(native::clipboard::ClipboardState::default())),
         }
+    }
+
+    /// Reset the idle auto-lock clock. Authenticated command handlers call
+    /// this so active use defers the lock the background task would
+    /// otherwise trigger (see `crate::autolock`). A no-op while locked.
+    pub async fn touch(&self) {
+        self.session.lock().await.touch();
     }
 }
 
@@ -184,6 +192,17 @@ pub fn run() {
                     tracing::warn!(?err, "could not restore active vault at startup");
                 }
             });
+
+            // Enforce the idle auto-lock timeout. The task ticks every
+            // ~30 s, locks the session + closes the DB once the configured
+            // `auto_lock_minutes` is exceeded, and emits `vault:locked`.
+            #[cfg(desktop)]
+            {
+                let app_handle = app.handle().clone();
+                let session = state.session.clone();
+                let store = state.store.clone();
+                tauri::async_runtime::spawn(autolock::run(app_handle, session, store));
+            }
 
             Ok(())
         })
