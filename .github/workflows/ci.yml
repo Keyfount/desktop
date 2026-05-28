@@ -1,164 +1,20 @@
 name: CI
 
-# Triggered only on release tags and manual runs. Day-to-day pushes and
-# pull requests skip CI to keep iteration fast during in-progress UX
-# work; the release tag path still runs the full lint/test/build chain
-# before the signed artefacts are published by release.yml.
+# Gates every pull request into develop and main, plus direct pushes to
+# develop. Feature branches merge into develop; develop merges into main to
+# cut a release (release.yml). The actual checks live in verify.yml, which the
+# release workflow reuses so the same green bar gates both CI and releases.
 on:
+  pull_request:
+    branches: [develop, main]
   push:
-    tags:
-      - "v*.*.*"
+    branches: [develop]
   workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
-
 jobs:
-  frontend:
-    name: Frontend (lint, typecheck, test)
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Format check
-        run: npm run format:check
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Test
-        run: npm run test:coverage
-
-      - name: Upload coverage artefact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-coverage
-          path: coverage/
-          retention-days: 14
-
-  rust:
-    name: Rust (fmt, clippy, test, golden vectors)
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-
-      - name: Cache Cargo registry
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            src-tauri/target
-          key: cargo-${{ runner.os }}-${{ hashFiles('src-tauri/Cargo.lock') }}
-          restore-keys: |
-            cargo-${{ runner.os }}-
-
-      - name: Install Linux build deps
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libgtk-3-dev libwebkit2gtk-4.1-dev \
-            libappindicator3-dev librsvg2-dev patchelf \
-            libxdo-dev
-
-      - name: cargo fmt --check
-        run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
-
-      - name: cargo clippy
-        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings
-
-      - name: cargo test (incl. golden vectors)
-        run: cargo test --manifest-path src-tauri/Cargo.toml --all-features
-
-  frontend-build:
-    name: Build frontend
-    needs: [frontend, rust]
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-
-      - name: Install npm dependencies
-        run: npm ci
-
-      - name: Build frontend
-        run: npm run build
-
-  e2e:
-    name: End-to-end (desktop + mobile shells)
-    needs: [frontend]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install Playwright browser
-        run: npx playwright install chromium --with-deps
-
-      # Drives the real Preact UI (desktop + mobile-emulation projects)
-      # against the Tauri IPC mock — no native runtime needed. The Vite dev
-      # server is started by Playwright's webServer config.
-      - name: Run Playwright tests
-        run: npm run test:e2e
-
-      - name: Upload Playwright report on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report-${{ github.sha }}
-          path: playwright-report/
-          retention-days: 7
-          include-hidden-files: true
-
-  # Native Tauri builds (DMG/MSIX/AppImage) run in the release workflow,
-  # which has the signing keys and is the only path that ships artefacts.
-  # CI here only verifies that the frontend bundle and the Rust crate
-  # compile and pass tests — those signals catch every issue we can fix
-  # without a code-signing identity.
+  verify:
+    uses: ./.github/workflows/verify.yml
