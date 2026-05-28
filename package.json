@@ -27,6 +27,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:desktop": "playwright test --project=desktop",
+    "test:e2e:mobile": "playwright test --project=mobile",
     "test:rust": "cd src-tauri && cargo test --all-features",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
@@ -55,6 +58,7 @@
     "tldts": "^7.0.30"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@preact/preset-vite": "^2.10.0",
     "@tailwindcss/vite": "^4.3.0",
     "@tauri-apps/cli": "^2.4.0",

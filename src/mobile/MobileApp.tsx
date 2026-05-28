@@ -82,14 +82,22 @@ export function MobileApp() {
   }, []);
 
   const onLock = useCallback(() => {
-    void api
-      .lock()
-      .then(() => {
+    void (async () => {
+      try {
+        await api.lock();
+        // Refresh hasPin so the unlock screen offers the PIN tab even when a
+        // PIN was enabled after bootstrap (the signal is only primed there).
+        try {
+          const status = await api.status();
+          hasPin.value = status.hasPin;
+        } catch {
+          /* keep the last-known hasPin */
+        }
         screen.value = "unlock";
-      })
-      .catch((err) => {
+      } catch (err) {
         errorMessage.value = describeError(err);
-      });
+      }
+    })();
   }, []);
 
   const activeTab: "accounts" | "generator" | "settings" =

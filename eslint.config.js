@@ -38,6 +38,15 @@ export default [
     },
   },
   {
+    // The e2e Tauri-IPC mock sits at the dynamic boundary the real
+    // `window.__TAURI_INTERNALS__` occupies: heterogeneous command args and
+    // `window` casts are inherent, so `any` is allowed here only.
+    files: ["tests/e2e/**/*.ts"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+    },
+  },
+  {
     ignores: [
       "node_modules/",
       "dist/",
