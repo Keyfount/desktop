@@ -9,6 +9,7 @@ pub mod accounts;
 pub mod db_key;
 pub mod handle;
 pub mod pending_ops;
+pub mod pin_sidecar;
 pub mod schema;
 pub mod settings;
 pub mod sites;
@@ -18,11 +19,15 @@ pub use handle::StoreHandle;
 
 use serde::{Deserialize, Serialize};
 
-use crate::types::{PinBlob, Profile};
+use crate::types::Profile;
 
 pub const SCHEMA_VERSION: u32 = 1;
 pub const DEFAULT_CLIPBOARD_CLEAR_SECONDS: u32 = 30;
 
+// `pin` intentionally omitted: the PIN blob lives in a sidecar file
+// (`store::pin_sidecar`) because it must be readable BEFORE the encrypted
+// vault DB can be opened. Anything that needs to know whether PIN mode is
+// enabled goes through `pin_sidecar::exists`/`pin_sidecar::read`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StoredState {
     #[serde(rename = "schemaVersion")]
@@ -39,8 +44,6 @@ pub struct StoredState {
     pub clipboard_clear_seconds: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fingerprint: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub pin: Option<PinBlob>,
     pub sites: std::collections::BTreeMap<String, Profile>,
 }
 
@@ -54,7 +57,6 @@ impl Default for StoredState {
             favicon_fallback_enabled: true,
             clipboard_clear_seconds: DEFAULT_CLIPBOARD_CLEAR_SECONDS,
             fingerprint: None,
-            pin: None,
             sites: std::collections::BTreeMap::new(),
         }
     }
