@@ -63,9 +63,16 @@ jobs:
           echo "tag=v${new}" >> "$GITHUB_OUTPUT"
           echo "Releasing ${latest} -> v${new}"
 
+  verify:
+    name: Verify
+    needs: prepare
+    uses: ./.github/workflows/verify.yml
+    with:
+      ref: main
+
   release:
     name: Build & publish (macOS Universal)
-    needs: prepare
+    needs: [prepare, verify]
     runs-on: macos-latest
     timeout-minutes: 60
     steps:
