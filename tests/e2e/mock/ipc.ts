@@ -428,6 +428,25 @@ export function installMock(seed: Seed): void {
         }
         return Promise.resolve({ entry: entry ?? null });
       }
+      case "parse_link_target": {
+        // Mock parse: the real command uses the PSL (Rust). For tests a
+        // naive "last two labels" registrable is enough (no multi-label
+        // TLDs in the fixtures).
+        const raw = String(a.input ?? "").trim();
+        let host = "";
+        try {
+          const u = new URL(raw);
+          if (u.protocol === "http:" || u.protocol === "https:") host = u.hostname.toLowerCase();
+        } catch {
+          host = raw.toLowerCase().replace(/\/.*$/, "");
+        }
+        if (host === "" || /^\d{1,3}(\.\d{1,3}){3}$/.test(host)) {
+          return Promise.resolve({ host: null, registrable: null });
+        }
+        const labels = host.split(".");
+        const registrable = labels.length > 2 ? labels.slice(-2).join(".") : host;
+        return Promise.resolve({ host, registrable });
+      }
       case "get_account_sync_info":
         return Promise.resolve({ lastSyncedAt: null });
       case "account_stamp_synced":

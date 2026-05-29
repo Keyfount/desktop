@@ -242,6 +242,7 @@ pub fn run() {
             commands::link_account_domain,
             commands::unlink_account_domain,
             commands::set_account_linked_domains,
+            commands::parse_link_target,
             commands::delete_account,
             commands::get_account_sync_info,
             commands::account_stamp_synced,

@@ -110,6 +110,25 @@ pub async fn rename_account(
     Ok(RecordAccountResponse { entry })
 }
 
+#[derive(Debug, Serialize)]
+pub struct LinkTargetResponse {
+    /// Full host of a pasted URL/host (e.g. `app.example.com`), or null.
+    pub host: Option<String>,
+    /// Registrable domain (eTLD+1, e.g. `example.com`), or null.
+    pub registrable: Option<String>,
+}
+
+/// Parse a pasted value into its full host and registrable domain so the
+/// linked-domains UI can offer "this subdomain" vs "the whole site" when
+/// they differ. Pure (no vault access) — uses the shared PSL match rule.
+#[tauri::command]
+pub fn parse_link_target(input: String) -> LinkTargetResponse {
+    LinkTargetResponse {
+        host: crate::domain::full_host(&input),
+        registrable: crate::domain::registrable_domain(&input),
+    }
+}
+
 /// Add a match-only linked domain to an account (normalised, de-duped).
 /// No-op for the canonical domain. Returns the updated entry.
 #[tauri::command]

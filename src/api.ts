@@ -182,6 +182,13 @@ export const api = {
     if (opts?.skipBus !== true) syncBus.notify({ t: "delete_account", domain, username });
   },
   /**
+   * Parse a pasted value into `{ host, registrable }` (via the Rust PSL
+   * rule) so the linked-domains UI can offer "this subdomain" vs "the whole
+   * site" when they differ.
+   */
+  parseLinkTarget: (input: string) =>
+    call<{ host: string | null; registrable: string | null }>("parse_link_target", { input }),
+  /**
    * Add a match-only linked domain to an account. The account is then
    * offered on that host too (registrable → broad, full host → narrow),
    * while still deriving from its own canonical `domain`.

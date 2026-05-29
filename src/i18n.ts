@@ -170,6 +170,9 @@ const EN = {
     `Imported ${accounts} account(s) and ${sites} per-site profile(s).`,
 
   detail_linked_section: "Linked domains",
+  detail_linked_choose_title: "Which domain to link?",
+  detail_linked_scope_site: "All of this site",
+  detail_linked_scope_host: "This subdomain only",
   detail_linked_hint:
     "Also offer this account on other sites. A registrable domain (example.com) matches every subdomain; a full host (app.example.com) matches that host only. The password never changes — it still derives from this account's primary domain.",
   detail_linked_empty: "No linked domains yet.",
@@ -537,6 +540,9 @@ const FR: Record<keyof typeof EN, Entry> = {
     `${accounts} compte(s) et ${sites} profil(s) de site importés.`,
 
   detail_linked_section: "Domaines liés",
+  detail_linked_choose_title: "Quel domaine lier ?",
+  detail_linked_scope_site: "Tout le site",
+  detail_linked_scope_host: "Ce sous-domaine uniquement",
   detail_linked_hint:
     "Proposer aussi ce compte sur d'autres sites. Un domaine enregistrable (example.com) couvre tous les sous-domaines ; un hôte complet (app.example.com) ne couvre que cet hôte. Le mot de passe ne change pas — il dérive toujours du domaine principal de ce compte.",
   detail_linked_empty: "Aucun domaine lié pour l'instant.",

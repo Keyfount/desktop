@@ -63,6 +63,29 @@ test.describe("account history lifecycle", () => {
       .not.toContain("other-site.com");
   });
 
+  test("pasting a URL offers a host-vs-registrable link choice", async ({ app }) => {
+    await app.getByRole("button", { name: "Accounts" }).click();
+    await app.getByRole("button", { name: /github\.com/ }).click();
+    await expect(app.getByRole("heading", { name: "github.com" })).toBeVisible();
+
+    // A deep URL is ambiguous → the editor surfaces both candidates.
+    await app
+      .getByPlaceholder("app.other-site.com")
+      .fill("https://login.example.org/oauth2/v2.0/authorize");
+    await app.getByRole("button", { name: "Link", exact: true }).click();
+    await expect(app.getByText("Which domain to link?")).toBeVisible();
+
+    // Pick the registrable domain (the narrower host is the other option).
+    await app.getByText("example.org", { exact: true }).click();
+    await expect
+      .poll(
+        async () =>
+          (await mockSnapshot(app)).accounts.find((acc) => acc.domain === "github.com")
+            ?.linkedDomains,
+      )
+      .toContain("example.org");
+  });
+
   test("renames a saved account (changing the derived password)", async ({ app }) => {
     await app.getByRole("button", { name: "Accounts" }).click();
     await app.getByRole("button", { name: /github\.com/ }).click();
