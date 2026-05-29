@@ -241,6 +241,8 @@ function AccountDetail({ entry }: { entry: AccountEntry }) {
   const [previewPassword, setPreviewPassword] = useState<string | null>(null);
   const [previewRevealed, setPreviewRevealed] = useState(false);
   const [previewCopied, setPreviewCopied] = useState(false);
+  const [linkDraft, setLinkDraft] = useState("");
+  const [linkError, setLinkError] = useState<string | null>(null);
 
   useEffect(() => {
     setUsernameDraft(entry.username);
@@ -317,6 +319,41 @@ function AccountDetail({ entry }: { entry: AccountEntry }) {
       await regenerate(next);
     },
     [entry.domain, entry.username, regenerate],
+  );
+
+  const addLink = useCallback(
+    async (event: Event) => {
+      event.preventDefault();
+      const linked = linkDraft.trim().toLowerCase();
+      if (linked.length === 0) return;
+      setLinkError(null);
+      try {
+        const r = await api.linkAccountDomain(entry.domain, entry.username, linked);
+        allAccounts.value = allAccounts.value.map((e) =>
+          e.domain === entry.domain && e.username === entry.username ? r.entry : e,
+        );
+        selectedAccount.value = r.entry;
+        setLinkDraft("");
+      } catch (err) {
+        setLinkError(describeError(err) || t("detail_link_failed"));
+      }
+    },
+    [entry.domain, entry.username, linkDraft],
+  );
+
+  const removeLink = useCallback(
+    async (linked: string) => {
+      try {
+        const r = await api.unlinkAccountDomain(entry.domain, entry.username, linked);
+        allAccounts.value = allAccounts.value.map((e) =>
+          e.domain === entry.domain && e.username === entry.username ? r.entry : e,
+        );
+        selectedAccount.value = r.entry;
+      } catch {
+        /* swallow */
+      }
+    },
+    [entry.domain, entry.username],
   );
 
   const copy = useCallback(async () => {
@@ -571,6 +608,59 @@ function AccountDetail({ entry }: { entry: AccountEntry }) {
         <span class="field-label">{t("accounts_generation_profile")}</span>
         <div class="card !p-5">
           <ProfileEditor profile={profile} onChange={updateProfile} />
+        </div>
+      </section>
+
+      <section class="flex flex-col gap-3">
+        <span class="field-label">{t("detail_linked_section")}</span>
+        <div class="card !p-5 flex flex-col gap-3">
+          <span class="text-xs text-(--color-ink-muted) leading-relaxed">
+            {t("detail_linked_hint")}
+          </span>
+          {entry.linkedDomains && entry.linkedDomains.length > 0 ? (
+            <ul class="flex flex-col gap-1.5">
+              {entry.linkedDomains.map((linked) => (
+                <li
+                  key={linked}
+                  class="flex items-center justify-between gap-2 rounded-xl bg-(--color-surface-sunken) border border-(--color-line) px-3 py-2"
+                >
+                  <span class="font-mono text-xs truncate text-(--color-ink)">{linked}</span>
+                  <motion.button
+                    type="button"
+                    class="btn btn-quiet btn-sm"
+                    whileTap={TAP_SCALE}
+                    onClick={() => void removeLink(linked)}
+                  >
+                    {t("detail_linked_remove")}
+                  </motion.button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <span class="text-xs text-(--color-ink-subtle)">{t("detail_linked_empty")}</span>
+          )}
+          <form class="flex gap-2" onSubmit={addLink}>
+            <input
+              type="text"
+              class="input flex-1"
+              inputMode="url"
+              autocomplete="off"
+              placeholder={t("detail_linked_placeholder")}
+              value={linkDraft}
+              onInput={(e) => setLinkDraft((e.target as HTMLInputElement).value)}
+            />
+            <motion.button
+              type="submit"
+              class="btn btn-sm"
+              whileTap={TAP_SCALE}
+              disabled={linkDraft.trim().length === 0}
+            >
+              {t("detail_linked_add")}
+            </motion.button>
+          </form>
+          {linkError !== null ? (
+            <span class="text-xs text-(--color-danger)">{linkError}</span>
+          ) : null}
         </div>
       </section>
 

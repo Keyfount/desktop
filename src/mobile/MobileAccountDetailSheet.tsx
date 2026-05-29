@@ -41,6 +41,8 @@ export function MobileAccountDetailSheet(_props: Props) {
   const [previewRevealed, setPreviewRevealed] = useState(false);
   const [previewCopied, setPreviewCopied] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [linkDraft, setLinkDraft] = useState("");
+  const [linkError, setLinkError] = useState<string | null>(null);
 
   useEffect(() => {
     if (entry) {
@@ -181,6 +183,43 @@ export function MobileAccountDetailSheet(_props: Props) {
       }
     },
     [entry, usernameDraft],
+  );
+
+  const addLink = useCallback(
+    async (event: Event) => {
+      event.preventDefault();
+      if (!entry) return;
+      const linked = linkDraft.trim().toLowerCase();
+      if (linked.length === 0) return;
+      setLinkError(null);
+      try {
+        const r = await api.linkAccountDomain(entry.domain, entry.username, linked);
+        allAccounts.value = allAccounts.value.map((e) =>
+          e.domain === entry.domain && e.username === entry.username ? r.entry : e,
+        );
+        selectedAccount.value = r.entry;
+        setLinkDraft("");
+      } catch (err) {
+        setLinkError(describeError(err) || t("detail_link_failed"));
+      }
+    },
+    [entry, linkDraft],
+  );
+
+  const removeLink = useCallback(
+    async (linked: string) => {
+      if (!entry) return;
+      try {
+        const r = await api.unlinkAccountDomain(entry.domain, entry.username, linked);
+        allAccounts.value = allAccounts.value.map((e) =>
+          e.domain === entry.domain && e.username === entry.username ? r.entry : e,
+        );
+        selectedAccount.value = r.entry;
+      } catch {
+        /* swallow */
+      }
+    },
+    [entry],
   );
 
   const surfaceClass = "bg-(--color-surface) border-t border-(--color-line)";
@@ -426,6 +465,62 @@ export function MobileAccountDetailSheet(_props: Props) {
               </span>
               <div class="card !p-4">
                 <ProfileEditor profile={profile} onChange={updateProfile} compact />
+              </div>
+            </div>
+
+            {/* Linked domains */}
+            <div class="flex flex-col gap-2">
+              <span class="text-[10px] font-mono uppercase tracking-[0.22em] text-(--color-ink-subtle) px-1">
+                {t("detail_linked_section")}
+              </span>
+              <div class="card !p-4 flex flex-col gap-2">
+                <span class="text-[11px] text-(--color-ink-muted) leading-relaxed">
+                  {t("detail_linked_hint")}
+                </span>
+                {entry.linkedDomains && entry.linkedDomains.length > 0 ? (
+                  <ul class="flex flex-col gap-1">
+                    {entry.linkedDomains.map((linked) => (
+                      <li
+                        key={linked}
+                        class="flex items-center justify-between gap-2 rounded-xl bg-(--color-surface-sunken) px-3 py-2"
+                      >
+                        <span class="font-mono text-xs truncate text-(--color-ink)">{linked}</span>
+                        <motion.button
+                          type="button"
+                          class="btn btn-ghost btn-sm !h-7 !px-2 rounded-lg bg-transparent"
+                          whileTap={TAP_SCALE}
+                          onClick={() => void removeLink(linked)}
+                        >
+                          <span class="text-xs">{t("detail_linked_remove")}</span>
+                        </motion.button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <span class="text-xs text-(--color-ink-subtle)">{t("detail_linked_empty")}</span>
+                )}
+                <form class="flex gap-2" onSubmit={addLink}>
+                  <input
+                    type="text"
+                    inputMode="url"
+                    autocomplete="off"
+                    placeholder={t("detail_linked_placeholder")}
+                    value={linkDraft}
+                    onInput={(e) => setLinkDraft((e.target as HTMLInputElement).value)}
+                    class="bg-(--color-surface-sunken) rounded-lg px-3 h-9 outline-none text-[16px] text-(--color-ink) flex-1 border border-(--color-line)"
+                  />
+                  <motion.button
+                    type="submit"
+                    disabled={linkDraft.trim().length === 0}
+                    whileTap={TAP_SCALE}
+                    class="btn btn-sm !h-9 rounded-lg"
+                  >
+                    <span class="text-xs">{t("detail_linked_add")}</span>
+                  </motion.button>
+                </form>
+                {linkError !== null ? (
+                  <span class="text-xs text-(--color-danger)">{linkError}</span>
+                ) : null}
               </div>
             </div>
 

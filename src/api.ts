@@ -176,6 +176,39 @@ export const api = {
     if (opts?.skipBus !== true) syncBus.notify({ t: "delete_account", domain, username });
   },
   /**
+   * Add a match-only linked domain to an account. The account is then
+   * offered on that host too (registrable → broad, full host → narrow),
+   * while still deriving from its own canonical `domain`.
+   */
+  linkAccountDomain: async (
+    domain: string,
+    username: string,
+    linked: string,
+    opts?: MutationOpts,
+  ) => {
+    const r = await call<RecordAccountResponse>("link_account_domain", {
+      domain,
+      username,
+      linked,
+    });
+    if (opts?.skipBus !== true) syncBus.notify({ t: "upsert_account", entry: r.entry });
+    return r;
+  },
+  unlinkAccountDomain: async (
+    domain: string,
+    username: string,
+    linked: string,
+    opts?: MutationOpts,
+  ) => {
+    const r = await call<RecordAccountResponse>("unlink_account_domain", {
+      domain,
+      username,
+      linked,
+    });
+    if (opts?.skipBus !== true) syncBus.notify({ t: "upsert_account", entry: r.entry });
+    return r;
+  },
+  /**
    * Read the per-account sync stamp (`{ ts, dir }`) so the account
    * detail screen can show "Synced 12 min ago". Returns
    * `lastSyncedAt: null` for rows the sync pipeline has never touched.
