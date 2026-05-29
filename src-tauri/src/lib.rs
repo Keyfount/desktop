@@ -464,6 +464,9 @@ pub unsafe extern "C" fn record_account_ffi(
                 domain,
                 username,
                 profile,
+                // The AutoFill "save new account" path never sets links; the
+                // upsert COALESCEs so any existing links survive.
+                linked_domains: Vec::new(),
                 created_at: now,
                 last_used_at: now,
             };

@@ -102,6 +102,15 @@ const MIGRATIONS: &[(u32, &str)] = &[
     ) STRICT;
     "#,
     ),
+    (
+        4,
+        r#"
+    -- Match-only linked domains for an account, stored as a JSON array of
+    -- strings. NEVER part of the derivation salt — the canonical `domain`
+    -- column stays the sole identity + salt. NULL / absent means "no links".
+    ALTER TABLE accounts ADD COLUMN linked_domains_json TEXT;
+    "#,
+    ),
 ];
 
 pub fn ensure_schema(conn: &Connection) -> AppResult<()> {
@@ -140,7 +149,7 @@ mod tests {
                 |r| r.get(0),
             )
             .unwrap();
-        assert_eq!(version, "3");
+        assert_eq!(version, "4");
     }
 
     #[test]
@@ -183,6 +192,20 @@ mod tests {
                 |r| r.get(0),
             )
             .unwrap();
-        assert_eq!(version, "3");
+        assert_eq!(version, "4");
+    }
+
+    #[test]
+    fn migration_v4_adds_linked_domains_column() {
+        let conn = Connection::open_in_memory().unwrap();
+        ensure_schema(&conn).unwrap();
+        let count: i64 = conn
+            .query_row(
+                "SELECT count(*) FROM pragma_table_info('accounts') WHERE name = 'linked_domains_json'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 1);
     }
 }

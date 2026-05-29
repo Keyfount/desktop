@@ -21,7 +21,7 @@ pub fn list(conn: &rusqlite::Connection) -> AppResult<Vec<AccountEntry>> {
 
 fn list_with_clause(conn: &rusqlite::Connection, clause: &str) -> AppResult<Vec<AccountEntry>> {
     let sql = format!(
-        "SELECT domain, username, profile_json, created_at, last_used_at
+        "SELECT domain, username, profile_json, created_at, last_used_at, linked_domains_json
          FROM accounts {clause}
          ORDER BY last_used_at DESC"
     );
@@ -32,16 +32,22 @@ fn list_with_clause(conn: &rusqlite::Connection, clause: &str) -> AppResult<Vec<
         let json: String = r.get(2)?;
         let created: i64 = r.get(3)?;
         let last: i64 = r.get(4)?;
-        Ok((domain, username, json, created, last))
+        let linked: Option<String> = r.get(5)?;
+        Ok((domain, username, json, created, last, linked))
     })?;
     let mut out = Vec::new();
     for row in rows {
-        let (domain, username, json, created_at, last_used_at) = row?;
+        let (domain, username, json, created_at, last_used_at, linked_json) = row?;
         let profile: Profile = serde_json::from_str(&json)?;
+        let linked_domains: Vec<String> = match linked_json {
+            Some(s) => serde_json::from_str(&s).unwrap_or_default(),
+            None => Vec::new(),
+        };
         out.push(AccountEntry {
             domain,
             username,
             profile,
+            linked_domains,
             created_at,
             last_used_at,
         });
@@ -55,18 +61,29 @@ fn list_with_clause(conn: &rusqlite::Connection, clause: &str) -> AppResult<Vec<
 /// apply does not silently suppress the new row.
 pub fn record(conn: &rusqlite::Connection, entry: &AccountEntry) -> AppResult<AccountEntry> {
     let tx = conn.unchecked_transaction()?;
+    // Persist linked domains only when non-empty; NULL keeps the common
+    // case compact and means "no links". An upsert that carries no links
+    // (the autofill / first-save path) must not clobber existing links, so
+    // we COALESCE to the current value when the incoming list is empty.
+    let linked_json: Option<String> = if entry.linked_domains.is_empty() {
+        None
+    } else {
+        Some(serde_json::to_string(&entry.linked_domains)?)
+    };
     tx.execute(
-        "INSERT INTO accounts(domain, username, profile_json, created_at, last_used_at)
-         VALUES (?, ?, ?, ?, ?)
+        "INSERT INTO accounts(domain, username, profile_json, created_at, last_used_at, linked_domains_json)
+         VALUES (?, ?, ?, ?, ?, ?)
          ON CONFLICT(domain, username) DO UPDATE SET
              profile_json = excluded.profile_json,
-             last_used_at = excluded.last_used_at",
+             last_used_at = excluded.last_used_at,
+             linked_domains_json = COALESCE(excluded.linked_domains_json, accounts.linked_domains_json)",
         params![
             entry.domain,
             entry.username,
             serde_json::to_string(&entry.profile)?,
             entry.created_at,
             entry.last_used_at,
+            linked_json,
         ],
     )?;
     tx.execute(
@@ -168,6 +185,39 @@ pub fn update_profile(
         "UPDATE accounts SET profile_json = ?
          WHERE domain = ? AND username = ?",
         params![serde_json::to_string(profile)?, domain, username],
+    )?;
+    Ok(())
+}
+
+/// Fetch a single account by its `(domain, username)` identity.
+pub fn get(
+    conn: &rusqlite::Connection,
+    domain: &str,
+    username: &str,
+) -> AppResult<Option<AccountEntry>> {
+    let entries = list(conn)?;
+    Ok(entries
+        .into_iter()
+        .find(|e| e.domain == domain && e.username == username))
+}
+
+/// Replace the match-only linked-domain set for one account. An empty
+/// slice clears the column (back to NULL). No-op when the row is missing.
+pub fn set_linked_domains(
+    conn: &rusqlite::Connection,
+    domain: &str,
+    username: &str,
+    linked: &[String],
+) -> AppResult<()> {
+    let json: Option<String> = if linked.is_empty() {
+        None
+    } else {
+        Some(serde_json::to_string(linked)?)
+    };
+    conn.execute(
+        "UPDATE accounts SET linked_domains_json = ?
+         WHERE domain = ? AND username = ?",
+        params![json, domain, username],
     )?;
     Ok(())
 }
@@ -274,9 +324,64 @@ mod tests {
             domain: "example.com".into(),
             username: "alice@example.com".into(),
             profile: Profile::Random(RandomProfile::default()),
+            linked_domains: Vec::new(),
             created_at: 0,
             last_used_at: 0,
         }
+    }
+
+    #[test]
+    fn record_round_trips_linked_domains() {
+        let conn = fresh_db();
+        let mut entry = fixture();
+        entry.linked_domains = vec!["z.y.com".into(), "other-site.com".into()];
+        record(&conn, &entry).expect("record");
+        let got = get(&conn, "example.com", "alice@example.com")
+            .expect("query")
+            .expect("present");
+        assert_eq!(got.linked_domains, vec!["z.y.com", "other-site.com"]);
+    }
+
+    #[test]
+    fn record_without_links_preserves_existing_links() {
+        let conn = fresh_db();
+        let mut entry = fixture();
+        entry.linked_domains = vec!["z.y.com".into()];
+        record(&conn, &entry).expect("record with link");
+        // A later upsert that carries no links (e.g. the autofill save path)
+        // must not wipe the existing links.
+        let mut bump = fixture();
+        bump.linked_domains = Vec::new();
+        bump.last_used_at = 999;
+        record(&conn, &bump).expect("re-record");
+        let got = get(&conn, "example.com", "alice@example.com")
+            .expect("query")
+            .expect("present");
+        assert_eq!(got.linked_domains, vec!["z.y.com"]);
+        assert_eq!(got.last_used_at, 999);
+    }
+
+    #[test]
+    fn set_linked_domains_replaces_then_clears() {
+        let conn = fresh_db();
+        record(&conn, &fixture()).expect("record");
+        set_linked_domains(&conn, "example.com", "alice@example.com", &["a.com".into()])
+            .expect("set");
+        assert_eq!(
+            get(&conn, "example.com", "alice@example.com")
+                .unwrap()
+                .unwrap()
+                .linked_domains,
+            vec!["a.com"]
+        );
+        set_linked_domains(&conn, "example.com", "alice@example.com", &[]).expect("clear");
+        assert!(
+            get(&conn, "example.com", "alice@example.com")
+                .unwrap()
+                .unwrap()
+                .linked_domains
+                .is_empty()
+        );
     }
 
     #[test]

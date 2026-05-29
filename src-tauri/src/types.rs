@@ -123,6 +123,12 @@ pub struct AccountEntry {
     /// password recomputes identically forever regardless of later
     /// changes to per-site or default profiles.
     pub profile: Profile,
+    /// Extra hosts/domains this account is also offered on. Match-only —
+    /// NEVER part of the derivation salt. A registrable entry is broad
+    /// (every subdomain); a full host is narrow (exact host only). The
+    /// canonical `domain` stays the sole identity + salt.
+    #[serde(rename = "linkedDomains", default, skip_serializing_if = "Vec::is_empty")]
+    pub linked_domains: Vec<String>,
     #[serde(rename = "createdAt")]
     pub created_at: i64,
     #[serde(rename = "lastUsedAt")]

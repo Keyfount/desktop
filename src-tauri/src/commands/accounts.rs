@@ -49,6 +49,7 @@ pub async fn record_account(
     domain: String,
     username: String,
     profile: Profile,
+    linked_domains: Option<Vec<String>>,
     state: State<'_, AppState>,
 ) -> AppResult<RecordAccountResponse> {
     let store = state.store.lock().await;
@@ -59,6 +60,7 @@ pub async fn record_account(
         domain,
         username,
         profile,
+        linked_domains: linked_domains.unwrap_or_default(),
         created_at: now,
         last_used_at: now,
     };
@@ -76,13 +78,14 @@ pub async fn update_account_profile(
     let store = state.store.lock().await;
     let open = store.require()?;
     accounts_store::update_profile(&open.conn, &domain, &username, &profile)?;
-    let entry = AccountEntry {
+    let entry = accounts_store::get(&open.conn, &domain, &username)?.unwrap_or(AccountEntry {
         domain,
         username,
         profile,
+        linked_domains: Vec::new(),
         created_at: now_ms(),
         last_used_at: now_ms(),
-    };
+    });
     Ok(RecordAccountResponse { entry })
 }
 
@@ -96,15 +99,15 @@ pub async fn rename_account(
     let store = state.store.lock().await;
     let open = store.require()?;
     accounts_store::rename(&open.conn, &domain, &old_username, &new_username)?;
-    Ok(RecordAccountResponse {
-        entry: AccountEntry {
-            domain,
-            username: new_username,
-            profile: Profile::default_random(),
-            created_at: now_ms(),
-            last_used_at: now_ms(),
-        },
-    })
+    let entry = accounts_store::get(&open.conn, &domain, &new_username)?.unwrap_or(AccountEntry {
+        domain,
+        username: new_username,
+        profile: Profile::default_random(),
+        linked_domains: Vec::new(),
+        created_at: now_ms(),
+        last_used_at: now_ms(),
+    });
+    Ok(RecordAccountResponse { entry })
 }
 
 #[tauri::command]
