@@ -110,6 +110,7 @@ export function installMock(seed: Seed): void {
       domain: string;
       username: string;
       profile: any;
+      linkedDomains?: string[];
       createdAt: number;
       lastUsedAt: number;
     }>;
@@ -386,6 +387,46 @@ export function installMock(seed: Seed): void {
           );
         }
         return Promise.resolve(null);
+      }
+      case "link_account_domain": {
+        const v = active();
+        if (!v) return fail("locked", "locked");
+        const entry = v.accounts.find(
+          (e) => e.domain === (a.domain ?? "").toLowerCase() && e.username === a.username,
+        );
+        if (entry) {
+          const norm = (a.linked ?? "").trim().toLowerCase();
+          const set = new Set([...(entry.linkedDomains ?? [])]);
+          if (norm && norm !== entry.domain) set.add(norm);
+          entry.linkedDomains = [...set];
+        }
+        return Promise.resolve({ entry: entry ?? null });
+      }
+      case "unlink_account_domain": {
+        const v = active();
+        if (!v) return fail("locked", "locked");
+        const entry = v.accounts.find(
+          (e) => e.domain === (a.domain ?? "").toLowerCase() && e.username === a.username,
+        );
+        if (entry) {
+          const norm = (a.linked ?? "").trim().toLowerCase();
+          entry.linkedDomains = (entry.linkedDomains ?? []).filter((d) => d !== norm);
+          if (entry.linkedDomains.length === 0) delete entry.linkedDomains;
+        }
+        return Promise.resolve({ entry: entry ?? null });
+      }
+      case "set_account_linked_domains": {
+        const v = active();
+        if (!v) return fail("locked", "locked");
+        const entry = v.accounts.find(
+          (e) => e.domain === (a.domain ?? "").toLowerCase() && e.username === a.username,
+        );
+        if (entry) {
+          const linked = (a.linked ?? []) as string[];
+          if (linked.length > 0) entry.linkedDomains = linked;
+          else delete entry.linkedDomains;
+        }
+        return Promise.resolve({ entry: entry ?? null });
       }
       case "get_account_sync_info":
         return Promise.resolve({ lastSyncedAt: null });

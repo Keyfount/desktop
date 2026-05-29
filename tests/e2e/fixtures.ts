@@ -40,7 +40,7 @@ export async function mockSnapshot(page: Page): Promise<{
   activeId: string | null;
   unlocked: boolean;
   vaultCount: number;
-  accounts: Array<{ domain: string; username: string }>;
+  accounts: Array<{ domain: string; username: string; linkedDomains?: string[] }>;
   hasPin: boolean;
   autoLockMinutes: number | null;
   historyEnabled: boolean;
