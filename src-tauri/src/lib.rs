@@ -10,6 +10,7 @@
 pub mod autolock;
 pub mod commands;
 pub mod crypto;
+pub mod domain;
 pub mod error;
 pub mod native;
 pub mod session;
