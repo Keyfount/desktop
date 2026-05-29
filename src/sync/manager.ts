@@ -529,12 +529,7 @@ export async function applyStateLocally(state: SyncableState): Promise<void> {
       );
     } else if (entry.linkedDomains !== undefined && entry.linkedDomains.length > 0) {
       // Already present locally — converge its link set to the snapshot's.
-      await api.setAccountLinkedDomains(
-        entry.domain,
-        entry.username,
-        entry.linkedDomains,
-        silent,
-      );
+      await api.setAccountLinkedDomains(entry.domain, entry.username, entry.linkedDomains, silent);
     }
     // Stamp every entry the snapshot covered, whether we just
     // inserted it or it already existed — the latest snapshot proves

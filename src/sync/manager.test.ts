@@ -62,9 +62,7 @@ vi.mock("../api.js", () => ({
     setFaviconFallbackEnabled: vi.fn(async () => {}),
     recordAccount: vi.fn(
       async (domain: string, username: string, profile: Profile, linkedDomains?: string[]) => {
-        const existing = state.accounts.find(
-          (e) => e.domain === domain && e.username === username,
-        );
+        const existing = state.accounts.find((e) => e.domain === domain && e.username === username);
         if (existing !== undefined) {
           existing.profile = profile;
           existing.lastUsedAt = Date.now();
@@ -76,9 +74,7 @@ vi.mock("../api.js", () => ({
             domain,
             username,
             profile,
-            ...(linkedDomains !== undefined && linkedDomains.length > 0
-              ? { linkedDomains }
-              : {}),
+            ...(linkedDomains !== undefined && linkedDomains.length > 0 ? { linkedDomains } : {}),
             createdAt: Date.now(),
             lastUsedAt: Date.now(),
           });
@@ -89,15 +85,13 @@ vi.mock("../api.js", () => ({
         return { entry: state.accounts[state.accounts.length - 1]! };
       },
     ),
-    setAccountLinkedDomains: vi.fn(
-      async (domain: string, username: string, linked: string[]) => {
-        const entry = state.accounts.find((e) => e.domain === domain && e.username === username);
-        if (entry === undefined) throw new Error("account not found");
-        if (linked.length > 0) entry.linkedDomains = linked;
-        else delete entry.linkedDomains;
-        return { entry };
-      },
-    ),
+    setAccountLinkedDomains: vi.fn(async (domain: string, username: string, linked: string[]) => {
+      const entry = state.accounts.find((e) => e.domain === domain && e.username === username);
+      if (entry === undefined) throw new Error("account not found");
+      if (linked.length > 0) entry.linkedDomains = linked;
+      else delete entry.linkedDomains;
+      return { entry };
+    }),
     deleteAccount: vi.fn(async (domain: string, username: string) => {
       state.accounts = state.accounts.filter(
         (e) => !(e.domain === domain && e.username === username),

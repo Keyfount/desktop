@@ -118,9 +118,18 @@ mod tests {
 
     #[test]
     fn full_host_and_registrable() {
-        assert_eq!(full_host("https://Accounts.Google.com/x").as_deref(), Some("accounts.google.com"));
-        assert_eq!(registrable_domain("https://accounts.google.com").as_deref(), Some("google.com"));
-        assert_eq!(registrable_domain("https://www.example.co.uk").as_deref(), Some("example.co.uk"));
+        assert_eq!(
+            full_host("https://Accounts.Google.com/x").as_deref(),
+            Some("accounts.google.com")
+        );
+        assert_eq!(
+            registrable_domain("https://accounts.google.com").as_deref(),
+            Some("google.com")
+        );
+        assert_eq!(
+            registrable_domain("https://www.example.co.uk").as_deref(),
+            Some("example.co.uk")
+        );
         assert_eq!(full_host("chrome://extensions"), None);
         assert_eq!(full_host("http://127.0.0.1:3000"), None);
         assert_eq!(registrable_domain("http://localhost:3000"), None);
@@ -145,14 +154,26 @@ mod tests {
     #[test]
     fn broad_offered_on_subdomains() {
         let out = match_accounts("https://gist.github.com", &[acc("github.com", 0, &[])]);
-        assert_eq!(out.iter().map(|e| e.domain.as_str()).collect::<Vec<_>>(), ["github.com"]);
+        assert_eq!(
+            out.iter().map(|e| e.domain.as_str()).collect::<Vec<_>>(),
+            ["github.com"]
+        );
     }
 
     #[test]
     fn narrow_only_on_exact_host() {
-        assert_eq!(match_accounts("https://w.y.com", &[acc("w.y.com", 0, &[])]).len(), 1);
-        assert_eq!(match_accounts("https://y.com", &[acc("w.y.com", 0, &[])]).len(), 0);
-        assert_eq!(match_accounts("https://z.y.com", &[acc("w.y.com", 0, &[])]).len(), 0);
+        assert_eq!(
+            match_accounts("https://w.y.com", &[acc("w.y.com", 0, &[])]).len(),
+            1
+        );
+        assert_eq!(
+            match_accounts("https://y.com", &[acc("w.y.com", 0, &[])]).len(),
+            0
+        );
+        assert_eq!(
+            match_accounts("https://z.y.com", &[acc("w.y.com", 0, &[])]).len(),
+            0
+        );
     }
 
     #[test]
@@ -161,7 +182,10 @@ mod tests {
             "https://app.other-site.com",
             &[acc("w.example.org", 5, &["other-site.com"])],
         );
-        assert_eq!(out.iter().map(|e| e.domain.as_str()).collect::<Vec<_>>(), ["w.example.org"]);
+        assert_eq!(
+            out.iter().map(|e| e.domain.as_str()).collect::<Vec<_>>(),
+            ["w.example.org"]
+        );
     }
 
     #[test]

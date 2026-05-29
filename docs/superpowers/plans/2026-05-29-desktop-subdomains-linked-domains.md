@@ -14,30 +14,32 @@
 
 ## File map
 
-| File | Change |
-|---|---|
-| `src-tauri/Cargo.toml` | add `psl = "2"` |
-| `src-tauri/src/types.rs:118` | `AccountEntry.linked_domains: Vec<String>` (serde `linkedDomains`, default, skip if empty) |
-| `src-tauri/src/store/schema.rs` | migration v4: `ALTER TABLE accounts ADD COLUMN linked_domains_json TEXT` |
-| `src-tauri/src/store/accounts.rs` | `list`/`record` carry the column; add `set_linked_domains`/`get`; update tests |
-| `src-tauri/src/domain.rs` (new) | `registrable_domain`, `full_host`, `domain_matches`, `match_accounts` + table tests |
-| `src-tauri/src/lib.rs` | `vault_load_accounts_ffi` emits `linkedDomains`; add `vault_match_accounts_ffi(master,url)` |
-| `src-tauri/src/commands/accounts.rs` | `record_account` carries `linked_domains`; add `link_account_domain`/`unlink_account_domain` |
-| `src-tauri/src/lib.rs` (invoke_handler) | register the two new commands |
-| `src/types.ts:48` | mirror `linkedDomains?: string[]` |
-| `src/popup|screens AccountDetail*` | linked-domains editor (mirror extension) |
-| Swift `CredentialProviderViewController.swift` | call `vault_match_accounts_ffi` for suggestions; parse `linkedDomains` |
-| `tests/e2e/desktop|mobile/accounts.spec.ts` | offered on subdomain + linked; narrow not on root |
+| File                                           | Change                                                                                       |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| `src-tauri/Cargo.toml`                         | add `psl = "2"`                                                                              |
+| `src-tauri/src/types.rs:118`                   | `AccountEntry.linked_domains: Vec<String>` (serde `linkedDomains`, default, skip if empty)   |
+| `src-tauri/src/store/schema.rs`                | migration v4: `ALTER TABLE accounts ADD COLUMN linked_domains_json TEXT`                     |
+| `src-tauri/src/store/accounts.rs`              | `list`/`record` carry the column; add `set_linked_domains`/`get`; update tests               |
+| `src-tauri/src/domain.rs` (new)                | `registrable_domain`, `full_host`, `domain_matches`, `match_accounts` + table tests          |
+| `src-tauri/src/lib.rs`                         | `vault_load_accounts_ffi` emits `linkedDomains`; add `vault_match_accounts_ffi(master,url)`  |
+| `src-tauri/src/commands/accounts.rs`           | `record_account` carries `linked_domains`; add `link_account_domain`/`unlink_account_domain` |
+| `src-tauri/src/lib.rs` (invoke_handler)        | register the two new commands                                                                |
+| `src/types.ts:48`                              | mirror `linkedDomains?: string[]`                                                            |
+| `src/popup                                     | screens AccountDetail\*`                                                                     | linked-domains editor (mirror extension)          |
+| Swift `CredentialProviderViewController.swift` | call `vault_match_accounts_ffi` for suggestions; parse `linkedDomains`                       |
+| `tests/e2e/desktop                             | mobile/accounts.spec.ts`                                                                     | offered on subdomain + linked; narrow not on root |
 
 ---
 
 ## Task 1: Rust `AccountEntry.linked_domains` + schema v4 + store
 
 - [ ] **types.rs** — add field:
+
 ```rust
     #[serde(rename = "linkedDomains", default, skip_serializing_if = "Vec::is_empty")]
     pub linked_domains: Vec<String>,
 ```
+
 - [ ] **schema.rs** — append migration `(4, "ALTER TABLE accounts ADD COLUMN linked_domains_json TEXT;")`; update `migrations_apply_on_fresh_db` to assert `"4"`; add `migration_v4_adds_linked_domains_column` test.
 - [ ] **store/accounts.rs** — `list_with_clause` SELECT adds `linked_domains_json`, parse `Option<String>` → `serde_json::from_str::<Vec<String>>().unwrap_or_default()`. `record` INSERT writes `linked_domains_json` (`serde_json::to_string(&entry.linked_domains)`) and ON CONFLICT updates it. Add `set_linked_domains(conn, domain, username, &[String]) -> AppResult<()>`. Update `fixture()` + every `AccountEntry { … }` literal in this file and `commands/accounts.rs`/`lib.rs` to include `linked_domains: vec![]`.
 - [ ] **cargo test** `store::accounts` + `store::schema`.
@@ -105,6 +107,7 @@ fn bare_host(input: &str) -> Option<String> {
     if h.is_empty() { None } else { Some(h) }
 }
 ```
+
 - [ ] `mod domain;` in `lib.rs`.
 - [ ] Table tests mirroring `tests/match-accounts.test.ts` (broad/narrow/linked/precedence; localhost/IP/chrome → empty).
 - [ ] cargo test `domain`. Commit `feat(domain): rust subdomain + linked-domain match rule`.

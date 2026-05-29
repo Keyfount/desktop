@@ -34,9 +34,9 @@ A stored account is:
 
 ```ts
 interface AccountEntry {
-  domain: string;     // registrable domain today
+  domain: string; // registrable domain today
   username: string;
-  profile: Profile;   // generation parameters frozen at creation
+  profile: Profile; // generation parameters frozen at creation
   createdAt: number;
   lastUsedAt: number;
 }
@@ -68,13 +68,13 @@ byte-identically**:
 
 ## 3. Decisions (from brainstorming)
 
-| # | Question | Decision |
-|---|----------|----------|
-| D1 | Default granularity for a **new** account saved on a subdomain page | **Registrable domain by default**, with a per-account opt-in to the full host. |
-| D2 | Must existing accounts keep their exact current password? | **Not critical** — no production users yet. We may freely change the data model / sync wire format. We still keep the registrable default (D1), so existing entries are unaffected anyway. |
-| D3 | Server work | **No server code.** Only add sync non-regression tests. |
-| D4 | Native autofill | **Included** — see §6.4 for the iOS/Android reality. |
-| D5 | Linking granularity | A linked domain may itself be a full host (e.g. link `z.y.com`, not all of `y.com`). |
+| #   | Question                                                            | Decision                                                                                                                                                                                   |
+| --- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| D1  | Default granularity for a **new** account saved on a subdomain page | **Registrable domain by default**, with a per-account opt-in to the full host.                                                                                                             |
+| D2  | Must existing accounts keep their exact current password?           | **Not critical** — no production users yet. We may freely change the data model / sync wire format. We still keep the registrable default (D1), so existing entries are unaffected anyway. |
+| D3  | Server work                                                         | **No server code.** Only add sync non-regression tests.                                                                                                                                    |
+| D4  | Native autofill                                                     | **Included** — see §6.4 for the iOS/Android reality.                                                                                                                                       |
+| D5  | Linking granularity                                                 | A linked domain may itself be a full host (e.g. link `z.y.com`, not all of `y.com`).                                                                                                       |
 
 ## 4. Data model — Approach A (additive)
 
@@ -84,10 +84,10 @@ host (`mail.google.com`). A new optional field carries the extra match domains:
 
 ```ts
 interface AccountEntry {
-  domain: string;            // canonical: salt + primary match (registrable OR full host)
+  domain: string; // canonical: salt + primary match (registrable OR full host)
   username: string;
   profile: Profile;
-  linkedDomains?: string[];  // NEW — additional match-only domains; never affects derivation
+  linkedDomains?: string[]; // NEW — additional match-only domains; never affects derivation
   createdAt: number;
   lastUsedAt: number;
 }
@@ -103,9 +103,9 @@ pub linked_domains: Vec<String>,
 **Identity stays `(domain, username)`.** `linkedDomains` is pure match metadata,
 so sync, tombstones, rename and delete keep their current keying untouched.
 
-**Rejected alternatives.** *B — explicit split* (`saltDomain` + `domains[]`):
+**Rejected alternatives.** _B — explicit split_ (`saltDomain` + `domains[]`):
 cleaner semantics but changes the identity key and forces a large Rust+TS+sync
-churn for no functional gain. *C — separate alias table*: over-engineered, needs
+churn for no functional gain. _C — separate alias table_: over-engineered, needs
 a join at match time (YAGNI).
 
 **Invariants.**
@@ -121,10 +121,10 @@ Each match domain `m` (the canonical `domain` or any `linkedDomains[i]`) is eith
 a registrable domain or a full host. Given a site host `h` with
 `r = registrable(h)`:
 
-| `m` is… | matches the site when | scope |
-|---------|----------------------|-------|
-| registrable (`google.com`) | `r === m` | **broad** — every subdomain (current behaviour) |
-| full host (`mail.google.com`) | `h === m` | **narrow** — exact host only |
+| `m` is…                       | matches the site when | scope                                           |
+| ----------------------------- | --------------------- | ----------------------------------------------- |
+| registrable (`google.com`)    | `r === m`             | **broad** — every subdomain (current behaviour) |
+| full host (`mail.google.com`) | `h === m`             | **narrow** — exact host only                    |
 
 - **Match set of an account** = `{domain} ∪ linkedDomains`. The account matches
   the site if **any** member matches.
@@ -138,13 +138,13 @@ a registrable domain or a full host. Given a site host `h` with
 Accounts: `A = {domain:"x.y.com"}`, `B = {domain:"w.y.com", linkedDomains:["z.y.com"]}`,
 `C = {domain:"y.com"}` (registrable).
 
-| On site | Offered (ranked) | Password derived from |
-|---------|------------------|-----------------------|
-| `x.y.com` | A (exact), C (broad) | A→`x.y.com`, C→`y.com` |
-| `w.y.com` | B (exact), C (broad) | B→`w.y.com`, C→`y.com` |
-| `z.y.com` | B (exact via link), C (broad) | B→`w.y.com` ✅, C→`y.com` |
-| `y.com` | C (exact) | C→`y.com` |
-| `other.y.com` | C (broad) only | C→`y.com` |
+| On site       | Offered (ranked)              | Password derived from     |
+| ------------- | ----------------------------- | ------------------------- |
+| `x.y.com`     | A (exact), C (broad)          | A→`x.y.com`, C→`y.com`    |
+| `w.y.com`     | B (exact), C (broad)          | B→`w.y.com`, C→`y.com`    |
+| `z.y.com`     | B (exact via link), C (broad) | B→`w.y.com` ✅, C→`y.com` |
+| `y.com`       | C (exact)                     | C→`y.com`                 |
+| `other.y.com` | C (broad) only                | C→`y.com`                 |
 
 This is precisely the user's scenario: distinct passwords for `x.y.com` and
 `w.y.com`, and `z.y.com` replaying `w.y.com`'s password via a link.
@@ -213,8 +213,8 @@ default).
 - **Android autofill (out of scope — does not exist).** `gen/android/` contains
   only the Tauri scaffold; there is **no** `AutofillService`. Building one is a
   large, separate feature. This spec makes the Rust `match_accounts` ready for it
-  but does **not** create the Android autofill service. *(Flagged for the user; if
-  Android native autofill is wanted now, it becomes its own spec.)*
+  but does **not** create the Android autofill service. _(Flagged for the user; if
+  Android native autofill is wanted now, it becomes its own spec.)_
 
 ### 6.5 Server (`server/`) — no code
 
