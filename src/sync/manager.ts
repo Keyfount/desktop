@@ -438,8 +438,22 @@ async function applyOpLocally(op: SyncOp): Promise<void> {
           op.entry.profile,
           silent,
         );
+        // `updateAccountProfile` doesn't touch links, so adopt the peer's
+        // authoritative set explicitly (carries adds AND removes).
+        await api.setAccountLinkedDomains(
+          op.entry.domain,
+          op.entry.username,
+          op.entry.linkedDomains ?? [],
+          silent,
+        );
       } else {
-        await api.recordAccount(op.entry.domain, op.entry.username, op.entry.profile, silent);
+        await api.recordAccount(
+          op.entry.domain,
+          op.entry.username,
+          op.entry.profile,
+          op.entry.linkedDomains,
+          silent,
+        );
       }
       await stampOrSwallow(op.entry.domain, op.entry.username, "pull");
       break;
@@ -506,7 +520,21 @@ export async function applyStateLocally(state: SyncableState): Promise<void> {
     const k = entryKey(entry.domain, entry.username);
     if (tombstoneKeys.has(k)) continue;
     if (!existingKeys.has(k)) {
-      await api.recordAccount(entry.domain, entry.username, entry.profile, silent);
+      await api.recordAccount(
+        entry.domain,
+        entry.username,
+        entry.profile,
+        entry.linkedDomains,
+        silent,
+      );
+    } else if (entry.linkedDomains !== undefined && entry.linkedDomains.length > 0) {
+      // Already present locally — converge its link set to the snapshot's.
+      await api.setAccountLinkedDomains(
+        entry.domain,
+        entry.username,
+        entry.linkedDomains,
+        silent,
+      );
     }
     // Stamp every entry the snapshot covered, whether we just
     // inserted it or it already existed — the latest snapshot proves

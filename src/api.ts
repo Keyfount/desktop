@@ -135,9 +135,15 @@ export const api = {
     domain: string,
     username: string,
     profile: Profile,
+    linkedDomains?: string[],
     opts?: MutationOpts,
   ) => {
-    const r = await call<RecordAccountResponse>("record_account", { domain, username, profile });
+    const r = await call<RecordAccountResponse>("record_account", {
+      domain,
+      username,
+      profile,
+      linkedDomains,
+    });
     if (opts?.skipBus !== true) syncBus.notify({ t: "upsert_account", entry: r.entry });
     return r;
   },
@@ -201,6 +207,25 @@ export const api = {
     opts?: MutationOpts,
   ) => {
     const r = await call<RecordAccountResponse>("unlink_account_domain", {
+      domain,
+      username,
+      linked,
+    });
+    if (opts?.skipBus !== true) syncBus.notify({ t: "upsert_account", entry: r.entry });
+    return r;
+  },
+  /**
+   * Replace an account's entire linked-domain set. Used by the sync apply
+   * path to adopt a peer's authoritative set on an account that already
+   * exists locally (where `updateAccountProfile` alone wouldn't touch links).
+   */
+  setAccountLinkedDomains: async (
+    domain: string,
+    username: string,
+    linked: string[],
+    opts?: MutationOpts,
+  ) => {
+    const r = await call<RecordAccountResponse>("set_account_linked_domains", {
       domain,
       username,
       linked,

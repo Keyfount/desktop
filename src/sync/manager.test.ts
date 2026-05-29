@@ -60,25 +60,44 @@ vi.mock("../api.js", () => ({
       state.historyEnabled = enabled;
     }),
     setFaviconFallbackEnabled: vi.fn(async () => {}),
-    recordAccount: vi.fn(async (domain: string, username: string, profile: Profile) => {
-      const existing = state.accounts.find((e) => e.domain === domain && e.username === username);
-      if (existing !== undefined) {
-        existing.profile = profile;
-        existing.lastUsedAt = Date.now();
-      } else {
-        state.accounts.push({
-          domain,
-          username,
-          profile,
-          createdAt: Date.now(),
-          lastUsedAt: Date.now(),
-        });
-      }
-      state.tombstones = state.tombstones.filter(
-        (t) => !(t.domain === domain && t.username === username),
-      );
-      return { entry: state.accounts[state.accounts.length - 1]! };
-    }),
+    recordAccount: vi.fn(
+      async (domain: string, username: string, profile: Profile, linkedDomains?: string[]) => {
+        const existing = state.accounts.find(
+          (e) => e.domain === domain && e.username === username,
+        );
+        if (existing !== undefined) {
+          existing.profile = profile;
+          existing.lastUsedAt = Date.now();
+          if (linkedDomains !== undefined && linkedDomains.length > 0) {
+            existing.linkedDomains = linkedDomains;
+          }
+        } else {
+          state.accounts.push({
+            domain,
+            username,
+            profile,
+            ...(linkedDomains !== undefined && linkedDomains.length > 0
+              ? { linkedDomains }
+              : {}),
+            createdAt: Date.now(),
+            lastUsedAt: Date.now(),
+          });
+        }
+        state.tombstones = state.tombstones.filter(
+          (t) => !(t.domain === domain && t.username === username),
+        );
+        return { entry: state.accounts[state.accounts.length - 1]! };
+      },
+    ),
+    setAccountLinkedDomains: vi.fn(
+      async (domain: string, username: string, linked: string[]) => {
+        const entry = state.accounts.find((e) => e.domain === domain && e.username === username);
+        if (entry === undefined) throw new Error("account not found");
+        if (linked.length > 0) entry.linkedDomains = linked;
+        else delete entry.linkedDomains;
+        return { entry };
+      },
+    ),
     deleteAccount: vi.fn(async (domain: string, username: string) => {
       state.accounts = state.accounts.filter(
         (e) => !(e.domain === domain && e.username === username),
@@ -269,6 +288,24 @@ describe("applyStateLocally — authoritative for deletes (#54 Trigger 2)", () =
     // tombstones safer than blanket replace.
     expect(state.accounts.find((e) => e.domain === ENTRY_Y.domain)).toBeDefined();
     expect(state.accounts.find((e) => e.domain === ENTRY_X.domain)).toBeDefined();
+  });
+
+  it("carries linkedDomains from a snapshot account into the local store", async () => {
+    state.accounts = [];
+    const snapshot: SyncableState = {
+      v: 2,
+      defaultProfile: PROFILE,
+      sites: {},
+      historyEnabled: false,
+      faviconFallbackEnabled: true,
+      accounts: [{ ...ENTRY_X, linkedDomains: ["z.example.com", "other-site.com"] }],
+      tombstones: [],
+    };
+
+    await applyStateLocally(snapshot);
+
+    const got = state.accounts.find((e) => e.domain === ENTRY_X.domain);
+    expect(got?.linkedDomains).toEqual(["z.example.com", "other-site.com"]);
   });
 
   it("a snapshot containing both X in accounts and X in tombstones favours the tombstone", async () => {

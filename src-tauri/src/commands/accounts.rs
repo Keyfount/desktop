@@ -131,6 +131,32 @@ pub async fn link_account_domain(
     Ok(RecordAccountResponse { entry })
 }
 
+/// Replace the entire match-only linked-domain set for an account. Used by
+/// the sync apply path so a peer's authoritative link set (adds *and*
+/// removes) is adopted wholesale. Returns the updated entry.
+#[tauri::command]
+pub async fn set_account_linked_domains(
+    domain: String,
+    username: String,
+    linked: Vec<String>,
+    state: State<'_, AppState>,
+) -> AppResult<RecordAccountResponse> {
+    let store = state.store.lock().await;
+    let open = store.require()?;
+    let normalised: Vec<String> = {
+        let mut seen = std::collections::HashSet::new();
+        linked
+            .into_iter()
+            .map(|d| d.trim().to_lowercase())
+            .filter(|d| !d.is_empty() && d != &domain && seen.insert(d.clone()))
+            .collect()
+    };
+    accounts_store::set_linked_domains(&open.conn, &domain, &username, &normalised)?;
+    let entry = accounts_store::get(&open.conn, &domain, &username)?
+        .ok_or_else(|| crate::error::AppError::invalid("account not found"))?;
+    Ok(RecordAccountResponse { entry })
+}
+
 /// Remove a linked domain from an account. Returns the updated entry.
 #[tauri::command]
 pub async fn unlink_account_domain(
