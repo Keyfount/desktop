@@ -239,6 +239,8 @@ pub fn run() {
             commands::record_account,
             commands::update_account_profile,
             commands::rename_account,
+            commands::link_account_domain,
+            commands::unlink_account_domain,
             commands::delete_account,
             commands::get_account_sync_info,
             commands::account_stamp_synced,
@@ -580,7 +582,7 @@ pub unsafe extern "C" fn vault_load_accounts_ffi(master: *const c_char) -> *mut 
         Err(_) => return std::ptr::null_mut(),
     };
     let mut stmt = match conn.prepare(
-        "SELECT domain, username, profile_json
+        "SELECT domain, username, profile_json, linked_domains_json
          FROM accounts
          ORDER BY last_used_at DESC",
     ) {
@@ -592,6 +594,7 @@ pub unsafe extern "C" fn vault_load_accounts_ffi(master: *const c_char) -> *mut 
             r.get::<_, String>(0)?,
             r.get::<_, String>(1)?,
             r.get::<_, String>(2)?,
+            r.get::<_, Option<String>>(3)?,
         ))
     }) {
         Ok(it) => it,
@@ -599,15 +602,63 @@ pub unsafe extern "C" fn vault_load_accounts_ffi(master: *const c_char) -> *mut 
     };
     let mut out: Vec<serde_json::Value> = Vec::new();
     for row in rows {
-        let Ok((domain, username, profile_json)) = row else {
+        let Ok((domain, username, profile_json, linked_json)) = row else {
             continue;
         };
+        let linked: Vec<String> = linked_json
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default();
         out.push(serde_json::json!({
             "domain": domain,
             "username": username,
             "profile_json": profile_json,
+            "linkedDomains": linked,
         }));
     }
+    match serde_json::to_string(&out) {
+        Ok(json) => rust_string_to_c(json),
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
+/// Match saved accounts against a service identifier (a bare domain or a
+/// full URL) using the shared subdomain + linked-domain rule, returning a
+/// JSON array of `{domain, username, profile_json, linkedDomains}` ordered
+/// most-specific first. The iOS AutoFill extension calls this to build its
+/// "Suggestions" section instead of doing its own host heuristics. Returns
+/// `[]` for non-web identifiers, or null on error.
+#[unsafe(no_mangle)]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn vault_match_accounts_ffi(
+    master: *const c_char,
+    url: *const c_char,
+) -> *mut c_char {
+    let Some(master) = (unsafe { c_str_to_string(master) }) else {
+        return std::ptr::null_mut();
+    };
+    let Some(url) = (unsafe { c_str_to_string(url) }) else {
+        return std::ptr::null_mut();
+    };
+    let conn = match open_active_vault_db(&master) {
+        Ok(c) => c,
+        Err(_) => return std::ptr::null_mut(),
+    };
+    let accounts = match store::accounts::list(&conn) {
+        Ok(a) => a,
+        Err(_) => return std::ptr::null_mut(),
+    };
+    let matched = domain::match_accounts(&url, &accounts);
+    let out: Vec<serde_json::Value> = matched
+        .into_iter()
+        .map(|a| {
+            serde_json::json!({
+                "domain": a.domain,
+                "username": a.username,
+                "profile_json": serde_json::to_string(&a.profile).unwrap_or_default(),
+                "linkedDomains": a.linked_domains,
+            })
+        })
+        .collect();
     match serde_json::to_string(&out) {
         Ok(json) => rust_string_to_c(json),
         Err(_) => std::ptr::null_mut(),

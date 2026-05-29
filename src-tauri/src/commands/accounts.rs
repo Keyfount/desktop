@@ -110,6 +110,45 @@ pub async fn rename_account(
     Ok(RecordAccountResponse { entry })
 }
 
+/// Add a match-only linked domain to an account (normalised, de-duped).
+/// No-op for the canonical domain. Returns the updated entry.
+#[tauri::command]
+pub async fn link_account_domain(
+    domain: String,
+    username: String,
+    linked: String,
+    state: State<'_, AppState>,
+) -> AppResult<RecordAccountResponse> {
+    let store = state.store.lock().await;
+    let open = store.require()?;
+    let mut entry = accounts_store::get(&open.conn, &domain, &username)?
+        .ok_or_else(|| crate::error::AppError::invalid("account not found"))?;
+    let norm = linked.trim().to_lowercase();
+    if !norm.is_empty() && norm != domain && !entry.linked_domains.contains(&norm) {
+        entry.linked_domains.push(norm);
+        accounts_store::set_linked_domains(&open.conn, &domain, &username, &entry.linked_domains)?;
+    }
+    Ok(RecordAccountResponse { entry })
+}
+
+/// Remove a linked domain from an account. Returns the updated entry.
+#[tauri::command]
+pub async fn unlink_account_domain(
+    domain: String,
+    username: String,
+    linked: String,
+    state: State<'_, AppState>,
+) -> AppResult<RecordAccountResponse> {
+    let store = state.store.lock().await;
+    let open = store.require()?;
+    let mut entry = accounts_store::get(&open.conn, &domain, &username)?
+        .ok_or_else(|| crate::error::AppError::invalid("account not found"))?;
+    let norm = linked.trim().to_lowercase();
+    entry.linked_domains.retain(|d| d != &norm);
+    accounts_store::set_linked_domains(&open.conn, &domain, &username, &entry.linked_domains)?;
+    Ok(RecordAccountResponse { entry })
+}
+
 #[tauri::command]
 pub async fn delete_account(
     domain: String,
