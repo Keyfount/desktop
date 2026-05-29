@@ -66,6 +66,11 @@ anyhow = "1.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 publicsuffix = "2.3"
+# Compile-time embedded Public Suffix List for the subdomain/linked-domain
+# match rule (`crate::domain`). `publicsuffix` above needs an external list
+# file and is currently unused; `psl` embeds the list so the iOS AutoFill
+# extension can match without bundling data.
+psl = "2"
 url = "2.5"
 
 # Sync (port from extension)

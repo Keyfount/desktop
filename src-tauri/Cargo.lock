@@ -2126,6 +2126,7 @@ dependencies = [
  "objc2-local-authentication",
  "once_cell",
  "pbkdf2",
+ "psl",
  "publicsuffix",
  "rand",
  "rand_chacha",
@@ -3245,6 +3246,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fd00f0bb2e90d81d1044c2b32617f68fcb9fa3bb7640c23e9c748e53fb30934"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "psl"
+version = "2.1.212"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9f6415ab1b08394487005d41ae7ee69e69903efa1ace538f3b274db605bf8ec"
+dependencies = [
+ "psl-types",
 ]
 
 [[package]]

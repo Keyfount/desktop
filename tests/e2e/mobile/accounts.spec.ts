@@ -104,6 +104,22 @@ test.describe("mobile accounts list + pull-to-search", () => {
       .toBe(true);
   });
 
+  test("linking a domain from the detail sheet persists it", async ({ app }) => {
+    await app.getByRole("button", { name: "Accounts" }).click();
+    await app.getByText("github.com").click();
+
+    await app.getByPlaceholder("app.other-site.com").fill("other-site.com");
+    await app.getByRole("button", { name: "Link", exact: true }).click();
+
+    await expect
+      .poll(
+        async () =>
+          (await mockSnapshot(app)).accounts.find((acc) => acc.domain === "github.com")
+            ?.linkedDomains,
+      )
+      .toContain("other-site.com");
+  });
+
   test("deleting an account from the detail sheet removes it", async ({ app }) => {
     await app.getByRole("button", { name: "Accounts" }).click();
     await app.getByText("github.com").click();

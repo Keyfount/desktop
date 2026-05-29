@@ -110,6 +110,7 @@ export function installMock(seed: Seed): void {
       domain: string;
       username: string;
       profile: any;
+      linkedDomains?: string[];
       createdAt: number;
       lastUsedAt: number;
     }>;
@@ -386,6 +387,65 @@ export function installMock(seed: Seed): void {
           );
         }
         return Promise.resolve(null);
+      }
+      case "link_account_domain": {
+        const v = active();
+        if (!v) return fail("locked", "locked");
+        const entry = v.accounts.find(
+          (e) => e.domain === (a.domain ?? "").toLowerCase() && e.username === a.username,
+        );
+        if (entry) {
+          const norm = (a.linked ?? "").trim().toLowerCase();
+          const set = new Set([...(entry.linkedDomains ?? [])]);
+          if (norm && norm !== entry.domain) set.add(norm);
+          entry.linkedDomains = [...set];
+        }
+        return Promise.resolve({ entry: entry ?? null });
+      }
+      case "unlink_account_domain": {
+        const v = active();
+        if (!v) return fail("locked", "locked");
+        const entry = v.accounts.find(
+          (e) => e.domain === (a.domain ?? "").toLowerCase() && e.username === a.username,
+        );
+        if (entry) {
+          const norm = (a.linked ?? "").trim().toLowerCase();
+          entry.linkedDomains = (entry.linkedDomains ?? []).filter((d) => d !== norm);
+          if (entry.linkedDomains.length === 0) delete entry.linkedDomains;
+        }
+        return Promise.resolve({ entry: entry ?? null });
+      }
+      case "set_account_linked_domains": {
+        const v = active();
+        if (!v) return fail("locked", "locked");
+        const entry = v.accounts.find(
+          (e) => e.domain === (a.domain ?? "").toLowerCase() && e.username === a.username,
+        );
+        if (entry) {
+          const linked = (a.linked ?? []) as string[];
+          if (linked.length > 0) entry.linkedDomains = linked;
+          else delete entry.linkedDomains;
+        }
+        return Promise.resolve({ entry: entry ?? null });
+      }
+      case "parse_link_target": {
+        // Mock parse: the real command uses the PSL (Rust). For tests a
+        // naive "last two labels" registrable is enough (no multi-label
+        // TLDs in the fixtures).
+        const raw = String(a.input ?? "").trim();
+        let host = "";
+        try {
+          const u = new URL(raw);
+          if (u.protocol === "http:" || u.protocol === "https:") host = u.hostname.toLowerCase();
+        } catch {
+          host = raw.toLowerCase().replace(/\/.*$/, "");
+        }
+        if (host === "" || /^\d{1,3}(\.\d{1,3}){3}$/.test(host)) {
+          return Promise.resolve({ host: null, registrable: null });
+        }
+        const labels = host.split(".");
+        const registrable = labels.length > 2 ? labels.slice(-2).join(".") : host;
+        return Promise.resolve({ host, registrable });
       }
       case "get_account_sync_info":
         return Promise.resolve({ lastSyncedAt: null });

@@ -119,8 +119,20 @@ async function applyOp(op: SyncOp): Promise<void> {
           op.entry.profile,
           silent,
         );
+        await api.setAccountLinkedDomains(
+          op.entry.domain,
+          op.entry.username,
+          op.entry.linkedDomains ?? [],
+          silent,
+        );
       } else {
-        await api.recordAccount(op.entry.domain, op.entry.username, op.entry.profile, silent);
+        await api.recordAccount(
+          op.entry.domain,
+          op.entry.username,
+          op.entry.profile,
+          op.entry.linkedDomains,
+          silent,
+        );
       }
       break;
     }

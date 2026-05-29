@@ -30,6 +30,9 @@ func rust_vault_load_default_profile(_ master: UnsafePointer<Int8>?) -> UnsafeMu
 @_silgen_name("vault_load_accounts_ffi")
 func rust_vault_load_accounts(_ master: UnsafePointer<Int8>?) -> UnsafeMutablePointer<Int8>?
 
+@_silgen_name("vault_match_accounts_ffi")
+func rust_vault_match_accounts(_ master: UnsafePointer<Int8>?, _ url: UnsafePointer<Int8>?) -> UnsafeMutablePointer<Int8>?
+
 class CredentialProviderViewController: ASCredentialProviderViewController, UITableViewDataSource, UITableViewDelegate {
 
     // MARK: - Configuration
@@ -97,6 +100,14 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
     private var searchQuery: String = ""
     private var activeVaultId: String = ""
     private var requestedDomain: String = ""
+    /// Raw service identifier from iOS (a full `.URL` or a bare `.domain`),
+    /// passed verbatim to the Rust match rule so subdomain + linked-domain
+    /// matching uses the real host, not a heuristic base domain.
+    private var requestedIdentifier: String = ""
+    /// Accounts the Rust match rule offered for `requestedIdentifier`,
+    /// most-specific first. Cached on load so per-keystroke search filtering
+    /// doesn't re-run the (Argon2id-gated) FFI.
+    private var matched: [AccountEntry] = []
     /// Cached vault context so we don't re-resolve the path between
     /// unlock and list render.
     private var vaultContext: VaultContext?
@@ -404,6 +415,7 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
         }
         
         requestedDomain = Self.extractDomain(from: serviceIdentifiers)
+        requestedIdentifier = Self.extractIdentifier(from: serviceIdentifiers)
 
         switch loadVault() {
         case .unavailable(let message):
@@ -434,6 +446,20 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
         if let urlString = serviceIdentifiers.first(where: { $0.type == .URL })?.identifier,
            let host = URL(string: urlString)?.host {
             return getBaseDomain(normalizeHost(host))
+        }
+        return ""
+    }
+
+    /// The raw service identifier to hand to the Rust match rule. Prefer a
+    /// full `.URL` (carries the exact host, needed for narrow matching) and
+    /// fall back to a bare `.domain`. Empty when iOS gave us neither
+    /// (manual browse from Settings → Passwords).
+    static func extractIdentifier(from serviceIdentifiers: [ASCredentialServiceIdentifier]) -> String {
+        if let url = serviceIdentifiers.first(where: { $0.type == .URL })?.identifier {
+            return url
+        }
+        if let domain = serviceIdentifiers.first(where: { $0.type == .domain })?.identifier {
+            return domain
         }
         return ""
     }
@@ -690,6 +716,12 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
         guard vaultContext != nil, let master = sessionMaster else { return }
         faviconFallbackEnabled = readFaviconFallbackEnabled(master: master)
         allAccounts = queryAllAccounts(master: master)
+        // Compute the offered set once via the shared Rust match rule
+        // (subdomain + linked-domain aware). Empty identifier → no
+        // suggestions; rebuildSections falls back to "all accounts".
+        matched = requestedIdentifier.isEmpty
+            ? []
+            : queryMatchedAccounts(master: master, identifier: requestedIdentifier)
         rebuildSections()
 
         if allAccounts.isEmpty {
@@ -721,7 +753,6 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
     /// data load OR a search-bar change. Suggestions only exist when
     /// we have a `requestedDomain` from iOS.
     private func rebuildSections() {
-        let domain = requestedDomain
         let filter = searchQuery
 
         let matchesFilter: (AccountEntry) -> Bool = { entry in
@@ -730,14 +761,17 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
                 || entry.domain.lowercased().contains(filter)
         }
 
-        if domain.isEmpty {
+        if matched.isEmpty {
             suggestions = []
             others = allAccounts.filter(matchesFilter)
         } else {
-            suggestions = allAccounts.filter { $0.domain.lowercased().contains(domain) && matchesFilter($0) }
-            let suggestionKeys = Set(suggestions.map { "\($0.domain)\u{1F}\($0.username)" })
+            // `matched` is already ranked most-specific-first by the Rust
+            // rule. Keep that order for suggestions; everything else goes to
+            // "Tous les comptes".
+            let matchedKeys = Set(matched.map { "\($0.domain)\u{1F}\($0.username)" })
+            suggestions = matched.filter(matchesFilter)
             others = allAccounts.filter { entry in
-                matchesFilter(entry) && !suggestionKeys.contains("\(entry.domain)\u{1F}\(entry.username)")
+                matchesFilter(entry) && !matchedKeys.contains("\(entry.domain)\u{1F}\(entry.username)")
             }
         }
     }
@@ -840,6 +874,7 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
         allAccounts = []
         suggestions = []
         others = []
+        matched = []
         tableView.isHidden = true
         emptyLabel.text = message
         emptyLabel.isHidden = false
@@ -883,6 +918,32 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
         let domain: String
         let username: String
         let profileJson: String
+        /// Match-only linked domains (never part of the salt). Carried so a
+        /// future UI could show them; matching itself happens in Rust.
+        let linkedDomains: [String]
+    }
+
+    /// Decode the JSON array of `{domain, username, profile_json, linkedDomains}`
+    /// objects returned by both the load and match FFI entry points.
+    private func decodeAccounts(_ json: String) -> [AccountEntry] {
+        guard let data = json.data(using: .utf8),
+              let array = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] else {
+            return []
+        }
+        return array.compactMap { dict in
+            guard let domain = dict["domain"] as? String,
+                  let username = dict["username"] as? String,
+                  let profileJson = dict["profile_json"] as? String else {
+                return nil
+            }
+            let linked = dict["linkedDomains"] as? [String] ?? []
+            return AccountEntry(
+                domain: domain,
+                username: username,
+                profileJson: profileJson,
+                linkedDomains: linked
+            )
+        }
     }
 
     /// Load every account in the vault. Filtering into suggestions vs
@@ -899,18 +960,23 @@ class CredentialProviderViewController: ASCredentialProviderViewController, UITa
         }
         let json = String(cString: raw)
         rust_free_password(raw)
-        guard let data = json.data(using: .utf8),
-              let array = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] else {
+        return decodeAccounts(json)
+    }
+
+    /// Ask the shared Rust match rule which accounts to offer for a service
+    /// identifier (subdomain + linked-domain aware), already ranked
+    /// most-specific first. Returns `[]` for non-web identifiers.
+    private func queryMatchedAccounts(master: String, identifier: String) -> [AccountEntry] {
+        guard
+            let raw = master.withCString({ m in
+                identifier.withCString { u in rust_vault_match_accounts(m, u) }
+            })
+        else {
             return []
         }
-        return array.compactMap { dict in
-            guard let domain = dict["domain"] as? String,
-                  let username = dict["username"] as? String,
-                  let profileJson = dict["profile_json"] as? String else {
-                return nil
-            }
-            return AccountEntry(domain: domain, username: username, profileJson: profileJson)
-        }
+        let json = String(cString: raw)
+        rust_free_password(raw)
+        return decodeAccounts(json)
     }
 
     // MARK: - Keychain

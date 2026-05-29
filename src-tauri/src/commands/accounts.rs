@@ -49,6 +49,7 @@ pub async fn record_account(
     domain: String,
     username: String,
     profile: Profile,
+    linked_domains: Option<Vec<String>>,
     state: State<'_, AppState>,
 ) -> AppResult<RecordAccountResponse> {
     let store = state.store.lock().await;
@@ -59,6 +60,7 @@ pub async fn record_account(
         domain,
         username,
         profile,
+        linked_domains: linked_domains.unwrap_or_default(),
         created_at: now,
         last_used_at: now,
     };
@@ -76,13 +78,14 @@ pub async fn update_account_profile(
     let store = state.store.lock().await;
     let open = store.require()?;
     accounts_store::update_profile(&open.conn, &domain, &username, &profile)?;
-    let entry = AccountEntry {
+    let entry = accounts_store::get(&open.conn, &domain, &username)?.unwrap_or(AccountEntry {
         domain,
         username,
         profile,
+        linked_domains: Vec::new(),
         created_at: now_ms(),
         last_used_at: now_ms(),
-    };
+    });
     Ok(RecordAccountResponse { entry })
 }
 
@@ -96,15 +99,99 @@ pub async fn rename_account(
     let store = state.store.lock().await;
     let open = store.require()?;
     accounts_store::rename(&open.conn, &domain, &old_username, &new_username)?;
-    Ok(RecordAccountResponse {
-        entry: AccountEntry {
-            domain,
-            username: new_username,
-            profile: Profile::default_random(),
-            created_at: now_ms(),
-            last_used_at: now_ms(),
-        },
-    })
+    let entry = accounts_store::get(&open.conn, &domain, &new_username)?.unwrap_or(AccountEntry {
+        domain,
+        username: new_username,
+        profile: Profile::default_random(),
+        linked_domains: Vec::new(),
+        created_at: now_ms(),
+        last_used_at: now_ms(),
+    });
+    Ok(RecordAccountResponse { entry })
+}
+
+#[derive(Debug, Serialize)]
+pub struct LinkTargetResponse {
+    /// Full host of a pasted URL/host (e.g. `app.example.com`), or null.
+    pub host: Option<String>,
+    /// Registrable domain (eTLD+1, e.g. `example.com`), or null.
+    pub registrable: Option<String>,
+}
+
+/// Parse a pasted value into its full host and registrable domain so the
+/// linked-domains UI can offer "this subdomain" vs "the whole site" when
+/// they differ. Pure (no vault access) — uses the shared PSL match rule.
+#[tauri::command]
+pub fn parse_link_target(input: String) -> LinkTargetResponse {
+    LinkTargetResponse {
+        host: crate::domain::full_host(&input),
+        registrable: crate::domain::registrable_domain(&input),
+    }
+}
+
+/// Add a match-only linked domain to an account (normalised, de-duped).
+/// No-op for the canonical domain. Returns the updated entry.
+#[tauri::command]
+pub async fn link_account_domain(
+    domain: String,
+    username: String,
+    linked: String,
+    state: State<'_, AppState>,
+) -> AppResult<RecordAccountResponse> {
+    let store = state.store.lock().await;
+    let open = store.require()?;
+    let mut entry = accounts_store::get(&open.conn, &domain, &username)?
+        .ok_or_else(|| crate::error::AppError::invalid("account not found"))?;
+    let norm = linked.trim().to_lowercase();
+    if !norm.is_empty() && norm != domain && !entry.linked_domains.contains(&norm) {
+        entry.linked_domains.push(norm);
+        accounts_store::set_linked_domains(&open.conn, &domain, &username, &entry.linked_domains)?;
+    }
+    Ok(RecordAccountResponse { entry })
+}
+
+/// Replace the entire match-only linked-domain set for an account. Used by
+/// the sync apply path so a peer's authoritative link set (adds *and*
+/// removes) is adopted wholesale. Returns the updated entry.
+#[tauri::command]
+pub async fn set_account_linked_domains(
+    domain: String,
+    username: String,
+    linked: Vec<String>,
+    state: State<'_, AppState>,
+) -> AppResult<RecordAccountResponse> {
+    let store = state.store.lock().await;
+    let open = store.require()?;
+    let normalised: Vec<String> = {
+        let mut seen = std::collections::HashSet::new();
+        linked
+            .into_iter()
+            .map(|d| d.trim().to_lowercase())
+            .filter(|d| !d.is_empty() && d != &domain && seen.insert(d.clone()))
+            .collect()
+    };
+    accounts_store::set_linked_domains(&open.conn, &domain, &username, &normalised)?;
+    let entry = accounts_store::get(&open.conn, &domain, &username)?
+        .ok_or_else(|| crate::error::AppError::invalid("account not found"))?;
+    Ok(RecordAccountResponse { entry })
+}
+
+/// Remove a linked domain from an account. Returns the updated entry.
+#[tauri::command]
+pub async fn unlink_account_domain(
+    domain: String,
+    username: String,
+    linked: String,
+    state: State<'_, AppState>,
+) -> AppResult<RecordAccountResponse> {
+    let store = state.store.lock().await;
+    let open = store.require()?;
+    let mut entry = accounts_store::get(&open.conn, &domain, &username)?
+        .ok_or_else(|| crate::error::AppError::invalid("account not found"))?;
+    let norm = linked.trim().to_lowercase();
+    entry.linked_domains.retain(|d| d != &norm);
+    accounts_store::set_linked_domains(&open.conn, &domain, &username, &entry.linked_domains)?;
+    Ok(RecordAccountResponse { entry })
 }
 
 #[tauri::command]

@@ -135,9 +135,15 @@ export const api = {
     domain: string,
     username: string,
     profile: Profile,
+    linkedDomains?: string[],
     opts?: MutationOpts,
   ) => {
-    const r = await call<RecordAccountResponse>("record_account", { domain, username, profile });
+    const r = await call<RecordAccountResponse>("record_account", {
+      domain,
+      username,
+      profile,
+      linkedDomains,
+    });
     if (opts?.skipBus !== true) syncBus.notify({ t: "upsert_account", entry: r.entry });
     return r;
   },
@@ -174,6 +180,65 @@ export const api = {
   deleteAccount: async (domain: string, username: string, opts?: MutationOpts) => {
     await call<void>("delete_account", { domain, username });
     if (opts?.skipBus !== true) syncBus.notify({ t: "delete_account", domain, username });
+  },
+  /**
+   * Parse a pasted value into `{ host, registrable }` (via the Rust PSL
+   * rule) so the linked-domains UI can offer "this subdomain" vs "the whole
+   * site" when they differ.
+   */
+  parseLinkTarget: (input: string) =>
+    call<{ host: string | null; registrable: string | null }>("parse_link_target", { input }),
+  /**
+   * Add a match-only linked domain to an account. The account is then
+   * offered on that host too (registrable → broad, full host → narrow),
+   * while still deriving from its own canonical `domain`.
+   */
+  linkAccountDomain: async (
+    domain: string,
+    username: string,
+    linked: string,
+    opts?: MutationOpts,
+  ) => {
+    const r = await call<RecordAccountResponse>("link_account_domain", {
+      domain,
+      username,
+      linked,
+    });
+    if (opts?.skipBus !== true) syncBus.notify({ t: "upsert_account", entry: r.entry });
+    return r;
+  },
+  unlinkAccountDomain: async (
+    domain: string,
+    username: string,
+    linked: string,
+    opts?: MutationOpts,
+  ) => {
+    const r = await call<RecordAccountResponse>("unlink_account_domain", {
+      domain,
+      username,
+      linked,
+    });
+    if (opts?.skipBus !== true) syncBus.notify({ t: "upsert_account", entry: r.entry });
+    return r;
+  },
+  /**
+   * Replace an account's entire linked-domain set. Used by the sync apply
+   * path to adopt a peer's authoritative set on an account that already
+   * exists locally (where `updateAccountProfile` alone wouldn't touch links).
+   */
+  setAccountLinkedDomains: async (
+    domain: string,
+    username: string,
+    linked: string[],
+    opts?: MutationOpts,
+  ) => {
+    const r = await call<RecordAccountResponse>("set_account_linked_domains", {
+      domain,
+      username,
+      linked,
+    });
+    if (opts?.skipBus !== true) syncBus.notify({ t: "upsert_account", entry: r.entry });
+    return r;
   },
   /**
    * Read the per-account sync stamp (`{ ts, dir }`) so the account
